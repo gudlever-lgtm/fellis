@@ -359,26 +359,27 @@ router.get('/conversations', authenticate, async (req, res) => {
 
 
 router.post('/conversations', authenticate, writeLimit, async (req, res) => {
-  const { participantIds, name, isGroup } = req.body
+  const { participantIds, name } = req.body
   if (!participantIds || !Array.isArray(participantIds) || !participantIds.length)
     return res.status(400).json({ error: 'participantIds required' })
   const validIds = participantIds.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0)
   if (!validIds.length) return res.status(400).json({ error: 'No valid participant IDs' })
   const allIds = [req.userId, ...validIds.filter(id => id !== req.userId)]
   try {
-    // For 1:1: return existing conversation if found
-    if (!isGroup && allIds.length === 2) {
+    // For 2-person conversations: return existing conversation if found
+    if (allIds.length === 2) {
       const otherId = allIds.find(id => id !== req.userId)
       const [existing] = await pool.query(
         `SELECT c.id FROM conversations c
          JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
          JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
-         WHERE c.is_group = 0 LIMIT 1`, [req.userId, otherId])
+         WHERE (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) = 2
+         LIMIT 1`, [req.userId, otherId])
       if (existing.length > 0) return res.json({ id: existing[0].id, exists: true })
     }
     const [r] = await pool.query(
-      'INSERT INTO conversations (name, is_group, created_by) VALUES (?, ?, ?)',
-      [name || null, isGroup ? 1 : 0, req.userId])
+      'INSERT INTO conversations (name, created_by) VALUES (?, ?)',
+      [name || null, req.userId])
     const convId = r.insertId
     for (const uid of allIds)
       await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)', [convId, uid])
@@ -410,7 +411,6 @@ router.get('/search', authenticate, async (req, res) => {
     try {
       ;[messages] = await pool.query(
         `SELECT m.id, m.conversation_id, u.name as from_name, m.text_da, m.text_en, m.time,
-                c.is_group,
                 COALESCE(c.name, (
                   SELECT u2.name FROM users u2
                   JOIN conversation_participants cp2 ON cp2.user_id = u2.id
@@ -452,7 +452,6 @@ router.get('/search', authenticate, async (req, res) => {
         id: m.id,
         conversationId: m.conversation_id,
         convName: m.conv_name || m.from_name,
-        isGroup: m.is_group === 1,
         from: m.from_name,
         text: { da: m.text_da, en: m.text_en },
         time: m.time,
@@ -2100,6 +2099,19 @@ router.get('/calendar/events', authenticate, async (req, res) => {
       date: u.birthday, // full YYYY-MM-DD stored, client uses MM-DD for yearly repeat
     }))
 
+    // Add manually tracked personal birthdays (privat mode feature)
+    const [personalRows] = await pool.query(
+      'SELECT id, name, birthday, relation FROM personal_birthdays WHERE user_id = ?',
+      [req.userId]
+    ).catch(() => [[]])
+    personalRows.forEach(pb => {
+      let dateStr = String(pb.birthday).slice(0, 10)
+      if (pb.birthday instanceof Date) {
+        dateStr = `${pb.birthday.getUTCFullYear()}-${String(pb.birthday.getUTCMonth() + 1).padStart(2, '0')}-${String(pb.birthday.getUTCDate()).padStart(2, '0')}`
+      }
+      birthdays.push({ personalId: pb.id, userId: null, name: pb.name, initials: pb.name.slice(0, 2).toUpperCase(), avatarUrl: null, date: dateStr, relation: pb.relation })
+    })
+
     // Get platform events
     const [eventRows] = await pool.query(
       `SELECT e.id, e.title, e.date, e.location, e.event_type,
@@ -2176,6 +2188,85 @@ router.delete('/calendar/reminders/:id', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     console.error('DELETE /api/calendar/reminders/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.get('/calendar/birthdays', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, name, birthday, relation FROM personal_birthdays WHERE user_id = ? ORDER BY DATE_FORMAT(birthday, "%m-%d")',
+      [req.userId]
+    )
+    const birthdays = rows.map(r => {
+      let dateStr = String(r.birthday).slice(0, 10)
+      if (r.birthday instanceof Date) {
+        dateStr = `${r.birthday.getUTCFullYear()}-${String(r.birthday.getUTCMonth() + 1).padStart(2, '0')}-${String(r.birthday.getUTCDate()).padStart(2, '0')}`
+      }
+      return { id: r.id, name: r.name, birthday: dateStr, relation: r.relation }
+    })
+    res.json({ birthdays })
+  } catch (err) {
+    console.error('GET /api/calendar/birthdays error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.post('/calendar/birthdays', authenticate, writeLimit, async (req, res) => {
+  const { name, birthday, relation } = req.body
+  if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' })
+  if (!birthday || !/^\d{4}-\d{2}-\d{2}$/.test(birthday)) return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD)' })
+  const validRelations = ['self', 'family', 'friend', 'other']
+  const rel = validRelations.includes(relation) ? relation : 'family'
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO personal_birthdays (user_id, name, birthday, relation) VALUES (?, ?, ?, ?)',
+      [req.userId, name.trim().slice(0, 255), birthday, rel]
+    )
+    res.json({ id: result.insertId, name: name.trim(), birthday, relation: rel })
+  } catch (err) {
+    console.error('POST /api/calendar/birthdays error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.put('/calendar/birthdays/:id', authenticate, writeLimit, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
+  const { name, birthday, relation } = req.body
+  if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' })
+  if (!birthday || !/^\d{4}-\d{2}-\d{2}$/.test(birthday)) return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD)' })
+  const validRelations = ['self', 'family', 'friend', 'other']
+  const rel = validRelations.includes(relation) ? relation : 'family'
+  try {
+    const [result] = await pool.query(
+      'UPDATE personal_birthdays SET name = ?, birthday = ?, relation = ? WHERE id = ? AND user_id = ?',
+      [name.trim().slice(0, 255), birthday, rel, id, req.userId]
+    )
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ ok: true, id, name: name.trim(), birthday, relation: rel })
+  } catch (err) {
+    console.error('PUT /api/calendar/birthdays/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.delete('/calendar/birthdays/:id', authenticate, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
+  try {
+    const [result] = await pool.query(
+      'DELETE FROM personal_birthdays WHERE id = ? AND user_id = ?',
+      [id, req.userId]
+    )
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/calendar/birthdays/:id error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -2347,7 +2438,6 @@ router.get('/config', async (req, res) => {
 
 
 const CHANGELOG_ENTRIES = [
-  { date: '2026-04', icon: '📘', da: 'Facebook-dataimport — importér profiloplysninger, profilbillede og biografi fra Facebook direkte til din Fellis-profil via OAuth', en: 'Facebook data import — import profile info, profile photo and bio from Facebook directly to your Fellis profile via OAuth' },
   { date: '2026-04', icon: '📰', da: 'Offentlig blog med AI-oversættelse — redaktører kan publicere nyheder og blogindlæg med automatisk dansk/engelsk-oversættelse via Mistral', en: 'Public blog with AI translation — editors can publish news and blog posts with automatic Danish/English translation via Mistral' },
   { date: '2026-04', icon: '🔀', da: 'Feed-opdeling — skift mellem Fællesskab- og Erhvervsfeed med ét klik; hvert opslag husker hvilken tilstand det blev skrevet i', en: 'Feed separation — switch between Community and Business feeds with one click; each post remembers which mode it was written in' },
   { date: '2026-04', icon: '👥', da: 'Følgere og du følger — se hvem der følger dig og hvem du følger under Forbindelser', en: 'Followers and following — see who follows you and who you follow under Connections' },

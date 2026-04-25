@@ -554,10 +554,10 @@ export async function apiFetchOlderConversationMessages(conversationId, offset =
   return await request(`/api/conversations/${conversationId}/messages/older?offset=${offset}&limit=${limit}`)
 }
 
-export async function apiCreateConversation(participantIds, name = null, isGroup = false, isFamilyGroup = false) {
+export async function apiCreateConversation(participantIds, name = null) {
   return await request('/api/conversations', {
     method: 'POST',
-    body: JSON.stringify({ participantIds, name, isGroup, isFamilyGroup }),
+    body: JSON.stringify({ participantIds, name }),
   })
 }
 
@@ -1107,6 +1107,47 @@ export async function apiRejectGroup(id) {
   return request(`/api/groups/admin/${id}/reject`, { method: 'POST' })
 }
 
+export const apiAdminGetGroupStats = () => request('/api/groups/admin/stats')
+
+export async function apiAdminGetAllGroups(params = {}) {
+  const q = new URLSearchParams()
+  if (params.q)        q.set('q', params.q)
+  if (params.status)   q.set('status', params.status)
+  if (params.category) q.set('category', params.category)
+  const qs = q.toString()
+  return request(`/api/groups/admin/all${qs ? '?' + qs : ''}`)
+}
+
+export async function apiAdminUpdateGroup(id, updates) {
+  return request(`/api/groups/admin/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+}
+
+export async function apiAdminDeleteGroup(id) {
+  return request(`/api/groups/admin/${id}`, { method: 'DELETE' })
+}
+
+export const apiAdminGetGroupReports = () => request('/api/groups/admin/reports')
+
+export const apiAdminGetGroupSettings = () => request('/api/groups/admin/settings')
+
+export async function apiAdminSaveGroupSettings(data) {
+  return request('/api/groups/admin/settings', { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export const apiAdminGetGroupCategories = () => request('/api/groups/admin/categories')
+
+export async function apiAdminCreateGroupCategory(data) {
+  return request('/api/groups/admin/categories', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function apiAdminUpdateGroupCategory(id, data) {
+  return request(`/api/groups/admin/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export async function apiAdminDeleteGroupCategory(id) {
+  return request(`/api/groups/admin/categories/${id}`, { method: 'DELETE' })
+}
+
 // ── Group Suggestions ──
 
 export async function apiGetGroupSuggestions() {
@@ -1306,6 +1347,22 @@ export async function apiCreateCalendarReminder(date, title, note) {
 
 export async function apiDeleteCalendarReminder(id) {
   return await request(`/api/calendar/reminders/${id}`, { method: 'DELETE' })
+}
+
+export async function apiFetchPersonalBirthdays() {
+  return await request('/api/calendar/birthdays')
+}
+
+export async function apiAddPersonalBirthday(name, birthday, relation) {
+  return await request('/api/calendar/birthdays', { method: 'POST', body: JSON.stringify({ name, birthday, relation }) })
+}
+
+export async function apiUpdatePersonalBirthday(id, name, birthday, relation) {
+  return await request(`/api/calendar/birthdays/${id}`, { method: 'PUT', body: JSON.stringify({ name, birthday, relation }) })
+}
+
+export async function apiDeletePersonalBirthday(id) {
+  return await request(`/api/calendar/birthdays/${id}`, { method: 'DELETE' })
 }
 
 export async function apiUpdateBirthday(birthday) {
@@ -2302,22 +2359,6 @@ export const apiCreateBlogPost = (data) => request('/api/admin/blog', { method: 
 export const apiUpdateBlogPost = (id, data) => request(`/api/admin/blog/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const apiDeleteBlogPost = (id) => request(`/api/admin/blog/${id}`, { method: 'DELETE' })
 export const apiBlogTranslate = (text, from, to) => request('/api/admin/blog/translate', { method: 'POST', body: JSON.stringify({ text, from, to }) })
-
-// ── Facebook data import ───────────────────────────────────────────────────────
-// GET /api/auth/facebook/data — fetch fresh profile data from Graph API
-export const apiFacebookGetData = () => request('/api/auth/facebook/data')
-
-// POST /api/auth/facebook/import — apply selected fields to the user's profile
-export const apiFacebookImport = (fields) =>
-  request('/api/auth/facebook/import', { method: 'POST', body: JSON.stringify({ fields }) })
-
-// POST /api/auth/facebook/disconnect — revoke FB token and clear fb_connected
-export const apiFacebookDisconnect = () =>
-  request('/api/auth/facebook/disconnect', { method: 'POST' })
-
-// POST /api/auth/facebook/import-photos — download selected FB photos into feed
-export const apiFacebookImportPhotos = (photoIds) =>
-  request('/api/auth/facebook/import-photos', { method: 'POST', body: JSON.stringify({ photoIds }) })
 
 // ── Business Features V2 ──────────────────────────────────────────────────────
 

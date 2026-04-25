@@ -96,5 +96,14 @@
   "createdLabel": "Aangemaakt",
   "inviteLink": "Uitnodigingslink",
   "copyLink": "Link kopiëren",
-  "linkCopied": "Gekopieerd!"
+  "linkCopied": "Gekopieerd!",
+  "muteGroup": "Meldingen dempen",
+  "unmuteGroup": "Meldingen inschakelen",
+  "muteTitle": "Meldingen dempen voor...",
+  "mute1h": "1 uur",
+  "mute8h": "8 uur",
+  "mute24h": "24 uur",
+  "mute1w": "1 week",
+  "muteOff": "Uitschakelen",
+  "mutedLabel": "Gedempt"
 }

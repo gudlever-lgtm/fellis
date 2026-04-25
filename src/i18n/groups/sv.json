@@ -96,5 +96,14 @@
   "createdLabel": "Skapad",
   "inviteLink": "Inbjudningslänk",
   "copyLink": "Kopiera länk",
-  "linkCopied": "Kopierad!"
+  "linkCopied": "Kopierad!",
+  "muteGroup": "Tysta notifikationer",
+  "unmuteGroup": "Slå på notifikationer",
+  "muteTitle": "Tysta notifikationer i...",
+  "mute1h": "1 timme",
+  "mute8h": "8 timmar",
+  "mute24h": "24 timmar",
+  "mute1w": "1 vecka",
+  "muteOff": "Stäng av",
+  "mutedLabel": "Tystad"
 }

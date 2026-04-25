@@ -379,19 +379,10 @@ function clearSessionCookie(res) {
 }
 
 // ── CSRF Token Helpers ─────────────────────────────────────────────────────
-// CSRF_SECRET must be stable across restarts — a new random key would
-// invalidate all in-flight tokens every time PM2 restarts the process.
-// Auto-generate once and persist to .env so subsequent restarts reuse it.
-let CSRF_SECRET = process.env.CSRF_SECRET
+const CSRF_SECRET = process.env.CSRF_SECRET
 if (!CSRF_SECRET) {
-  CSRF_SECRET = crypto.randomBytes(32).toString('hex')
-  try {
-    const envPath = path.join(__dirname, '.env')
-    fs.appendFileSync(envPath, `\nCSRF_SECRET=${CSRF_SECRET}\n`)
-    console.log('✓ Generated CSRF_SECRET and saved to .env')
-  } catch (e) {
-    console.warn('⚠ Could not persist CSRF_SECRET to .env:', e.message)
-  }
+  console.error('CSRF_SECRET is required — set it in .env before starting the server.')
+  process.exit(1)
 }
 
 function generateCsrfToken(sessionId) {
@@ -605,23 +596,31 @@ function parseBrowser(ua) {
   return { browser, os }
 }
 
-// ── Geo IP lookup (ip-api.com, free tier, cached) ───────────────────────
+// ── Geo IP lookup (MaxMind GeoLite2-Country, local DB, cached 10 min) ───────
 const geoCache = new Map()
+let _geoReader = null
+;(async () => {
+  try {
+    const { open } = await import('maxmind')
+    _geoReader = await open(path.join(__dirname, 'GeoLite2-Country.mmdb'))
+  } catch {
+    console.warn('⚠ GeoLite2-Country.mmdb not found — geo lookups disabled. See server/.env.example for setup.')
+  }
+})()
+
 async function getGeoForIp(ip) {
   if (!ip) return { country: null, country_code: null, city: null }
   const clean = ip.replace(/^::ffff:/, '')
   if (clean === '127.0.0.1' || clean === '::1' || clean.startsWith('192.168.') || clean.startsWith('10.') || clean.startsWith('172.'))
     return { country: 'Lokal', country_code: 'XX', city: 'Lokal' }
-  if (geoCache.has(clean)) return geoCache.get(clean)
+  const cached = geoCache.get(clean)
+  if (cached && Date.now() < cached.expiresAt) return cached.data
+  if (!_geoReader) return { country: null, country_code: null, city: null }
   try {
-    const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), 3000)
-    const r = await fetch(`http://ip-api.com/json/${clean}?fields=status,country,countryCode,city`, { signal: ctrl.signal })
-    clearTimeout(timer)
-    const d = await r.json()
-    if (d.status === 'success') {
-      const result = { country: d.country, country_code: d.countryCode, city: d.city }
-      geoCache.set(clean, result)
+    const d = _geoReader.get(clean)
+    if (d?.country) {
+      const result = { country: d.country.names?.en ?? null, country_code: d.country.iso_code ?? null, city: null }
+      geoCache.set(clean, { data: result, expiresAt: Date.now() + 10 * 60 * 1000 })
       return result
     }
   } catch {}

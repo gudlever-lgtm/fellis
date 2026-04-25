@@ -3,7 +3,7 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 're
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
 import { detectLanguage } from './utils/detectLanguage.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiFetchPersonalBirthdays, apiAddPersonalBirthday, apiUpdatePersonalBirthday, apiDeletePersonalBirthday, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
   apiGetEurDkkRate, apiFetchFriendSuggestions,
   apiFetchNetworkFeed, apiFetchBusinessFeed } from './api.js'
@@ -36,7 +36,6 @@ import ReelsPage from './Reels.jsx'
 import InterestGraphPage from './InterestGraphPage.jsx'
 import ExplorePage from './pages/ExplorePage.jsx'
 import AdBanner, { invalidateAdCache } from './AdBanner.jsx'
-import FacebookImport from './components/FacebookImport.jsx'
 import useKonamiCode from './hooks/useKonamiCode.js'
 import useKeySequence from './hooks/useKeySequence.js'
 import useScrollHold from './hooks/useScrollHold.js'
@@ -51,6 +50,8 @@ import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+  apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
+  apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
   apiGetMyServices,
   apiGetCompanyProfile,
@@ -220,7 +221,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
   }, [initialProfileUserId])
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
-    if (stored === 'common') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
+    if (stored === 'common' || stored === 'private') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
     return stored
   })
   // Sync Common mode body class for CSS scoping
@@ -567,7 +568,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                   label: t.navGroupSocial,
                   items: [
                     { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
-                    { id: 'groups', icon: '🫂', label: t.groups },
+                    { id: 'groups', icon: '🫂', label: t.navGroups },
                     { id: 'explore', icon: '🔭', label: t.explore },
                     { id: 'calendar', icon: '🗓️', label: t.calendar },
                     { id: 'saved-posts', icon: '🔖', label: t.savedPosts },
@@ -793,11 +794,11 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'groups' && <GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
         {page === 'group-detail' && navParam?.slug && <GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
-        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
+        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id]).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} initialTab={navParam?.tab} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
-            const data = await apiCreateConversation([friend.id], null, false, false).catch(() => null)
+            const data = await apiCreateConversation([friend.id]).catch(() => null)
             if (data?.id) setOpenConvId(data.id)
           }
           navigateTo('messages')
@@ -810,7 +811,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} maxPhotos={marketplaceMaxPhotos} onContactSeller={async (sellerId) => {
           const numId = parseInt(sellerId)
           if (numId > 0 && !isNaN(numId) && numId !== currentUser.id) {
-            const data = await apiCreateConversation([numId], null, false, false).catch(() => null)
+            const data = await apiCreateConversation([numId]).catch(() => null)
             if (data?.id) setOpenConvId(data.id)
           }
           navigateTo('messages')
@@ -2469,6 +2470,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const [upsellDismissed, setUpsellDismissed] = useState(() => !!sessionStorage.getItem(UPSELL_KEY))
   const feedContextRef = useRef(mode === 'business' ? 'network' : 'social')
   const [postContext, setPostContext] = useState(() => mode === 'business' ? 'professional' : 'social')
+
+  // If mode syncs from server to a value incompatible with the network feed (e.g. localStorage
+  // had stale 'business' but DB has 'privat'), reset feedContext to avoid repeated 401s.
+  useEffect(() => {
+    if (mode !== 'network' && mode !== 'business' && feedContextRef.current === 'network') {
+      setFeedContext('social')
+    }
+  }, [mode])
+
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
@@ -3111,7 +3121,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const handleShareToFriend = useCallback(async (post, friendId) => {
     const text = post.text[lang] || post.text.da || ''
     const msg = `${post.author}: "${text.slice(0, 120)}${text.length > 120 ? '…' : ''}" — fellis.eu`
-    const conv = await apiCreateConversation([friendId], null, false, false).catch(() => null)
+    const conv = await apiCreateConversation([friendId]).catch(() => null)
     if (conv?.id) await apiSendConversationMessage(conv.id, msg).catch(() => {})
     setShareSentTo(friendId)
     setTimeout(() => { setSharePopup(null); setShareSentTo(null) }, 1200)
@@ -4211,7 +4221,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{title}</div>
                 <div style={{ fontSize: 13, color: '#777' }}>📍 {loc}</div>
                 <div style={{ fontSize: 12, color: '#aaa', marginTop: 2, marginBottom: 10 }}>
-                  ✅ {ev.going.length} {t.eventAttendees}
+                  ✅ {ev.going?.length ?? 0} {t.eventAttendees}
                 </div>
                 <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                   {[
@@ -4682,6 +4692,19 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
       }) /* close items.map */
       })()}
 
+      {/* Empty feed state — shown when feed has loaded but has no posts */}
+      {!loadingPage && !hasMore && posts.length === 0 && !feedCategoryFilter && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
+          <div style={{ fontSize: 15, marginBottom: 16 }}>{t.feedEmptyText}</div>
+          <button
+            onClick={() => onNavigate('explore')}
+            style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, padding: '10px 24px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            {t.feedEmptyExplore}
+          </button>
+        </div>
+      )}
+
       {/* Dynamic group suggestion card — shown when suggestions exist */}
       {(() => {
         const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds.has(g.id))
@@ -4834,8 +4857,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
 // ── Profile (clean — read-only view) ──
 function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES, initialTab }) {
   const [profile, setProfile] = useState({ ...currentUser })
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState(currentUser.cover_photo_url || currentUser.coverPhotoUrl || null)
+  const [coverUploading, setCoverUploading] = useState(false)
+  const coverInputRef = useRef(null)
   const [userPosts, setUserPosts] = useState([])
-  const [familyGroups, setFamilyGroups] = useState([])
   const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState(initialTab || 'about')
   const [myCompanies, setMyCompanies] = useState([])
@@ -4902,6 +4927,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         if (data.avatar_url || data.avatarUrl) {
           onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl || data.avatar_url }))
         }
+        if (data.coverPhotoUrl !== undefined) setCoverPhotoUrl(data.coverPhotoUrl)
       }
     })
     apiFetchFeed(null, 100).then(data => {
@@ -4917,9 +4943,6 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       if (data?.eggs !== undefined) syncEggsFromServer(data.eggs)
     })
     if (mode === 'privat') {
-      apiFetchConversations().then(convs => {
-        if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
-      })
       apiFetchFriends().then(data => {
         if (data) setFamilyFriends((data.friends || data || []).filter(f => rels[String(f.id)] === 'family'))
       })
@@ -4943,10 +4966,60 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
+  const coverSrc = coverPhotoUrl
+    ? (coverPhotoUrl.startsWith('http') || coverPhotoUrl.startsWith('blob:') ? coverPhotoUrl : `${API_BASE}${coverPhotoUrl}`)
+    : null
+
+  const handleCoverUpload = useCallback(async (file) => {
+    if (!file || !file.type.startsWith('image/')) return
+    const preview = URL.createObjectURL(file)
+    setCoverPhotoUrl(preview)
+    setCoverUploading(true)
+    try {
+      const data = await apiUploadCoverPhoto(file)
+      if (data?.cover_photo_url) setCoverPhotoUrl(data.cover_photo_url)
+    } finally {
+      setCoverUploading(false)
+    }
+  }, [])
+
+  const handleCoverFileChange = useCallback((e) => {
+    const file = e.target.files?.[0]
+    if (file) handleCoverUpload(file)
+  }, [handleCoverUpload])
+
+  const handleCoverDelete = useCallback(async () => {
+    setCoverPhotoUrl(null)
+    await apiDeleteCoverPhoto()
+  }, [])
+
+  const handleCoverPaste = useCallback((e) => {
+    const item = Array.from(e.clipboardData?.items || []).find(i => i.type.startsWith('image/'))
+    if (item) {
+      e.preventDefault()
+      handleCoverUpload(item.getAsFile())
+    }
+  }, [handleCoverUpload])
+
   return (
     <div className="p-profile">
       <div className="p-card p-profile-card">
-        <div className="p-profile-banner" />
+        <div
+          className="p-profile-banner"
+          style={coverSrc ? { backgroundImage: `url(${coverSrc})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+          onPaste={handleCoverPaste}
+          tabIndex={0}
+        >
+          <div className="p-profile-banner-overlay">
+            <button className="p-profile-banner-btn" onClick={() => coverInputRef.current?.click()} title={t.coverPhotoChange} disabled={coverUploading}>
+              {coverUploading ? '…' : '🖼'}
+            </button>
+            {coverSrc && (
+              <button className="p-profile-banner-btn" onClick={handleCoverDelete} title={t.coverPhotoRemove}>✕</button>
+            )}
+          </div>
+          <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" style={{ display: 'none' }} onChange={handleCoverFileChange} />
+        </div>
         <div className="p-profile-info">
           <div className="p-profile-avatar-wrapper">
             {avatarSrc ? (
@@ -5185,56 +5258,33 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
             <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>🏡 {t.familySection}</h3>
             <p className="p-family-section-desc">{t.familySectionDesc}</p>
-            {familyFriends.length === 0 && familyGroups.length === 0 ? (
+            {familyFriends.length === 0 ? (
               <div className="p-family-empty">{t.noFamilyMembersYetTagFriendsAsFamilyInYourFriendsL}</div>
             ) : (
-              <>
-                {familyFriends.length > 0 && (
-                  <div style={{ marginBottom: familyGroups.length > 0 ? 12 : 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-                      {t.familyMembers}
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                      {familyFriends.map(f => {
-                        const friendAvatarSrc = f.avatarUrl || f.avatar_url
-                          ? (f.avatarUrl || f.avatar_url).startsWith('http') ? (f.avatarUrl || f.avatar_url) : `${API_BASE}${f.avatarUrl || f.avatar_url}`
-                          : null
-                        return (
-                          <div key={f.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 56 }}>
-                            {friendAvatarSrc ? (
-                              <img src={friendAvatarSrc} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e8f5e9' }} />
-                            ) : (
-                              <div style={{ width: 44, height: 44, borderRadius: '50%', background: nameToColor(f.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff', border: '2px solid #e8f5e9' }}>
-                                {getInitials(f.name)}
-                              </div>
-                            )}
-                            <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(f.name || '').split(' ')[0]}</span>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                  {t.familyMembers}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {familyFriends.map(f => {
+                    const friendAvatarSrc = f.avatarUrl || f.avatar_url
+                      ? (f.avatarUrl || f.avatar_url).startsWith('http') ? (f.avatarUrl || f.avatar_url) : `${API_BASE}${f.avatarUrl || f.avatar_url}`
+                      : null
+                    return (
+                      <div key={f.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 56 }}>
+                        {friendAvatarSrc ? (
+                          <img src={friendAvatarSrc} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e8f5e9' }} />
+                        ) : (
+                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: nameToColor(f.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff', border: '2px solid #e8f5e9' }}>
+                            {getInitials(f.name)}
                           </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-                {familyGroups.length > 0 && (
-                  <div>
-                    {familyFriends.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, margin: '12px 0 8px' }}>{t.familyGroups}</div>}
-                    {familyGroups.map(g => (
-                      <div key={g.id} className="p-family-group-row">
-                        <div className="p-family-group-icon">🏡</div>
-                        <div className="p-family-group-info">
-                          <span className="p-family-group-name">{g.name || t.familyGroup}</span>
-                          <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
-                        </div>
-                        <div className="p-family-group-avatars">
-                          {g.participants.slice(0, 4).map(p => (
-                            <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
-                          ))}
-                        </div>
+                        )}
+                        <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(f.name || '').split(' ')[0]}</span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </>
+                    )
+                  })}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -5629,16 +5679,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
             </button>
           </div>
-
-          {/* Facebook data import */}
-          <FacebookImport
-            lang={lang}
-            user={profile}
-            onUpdate={updated => {
-              setProfile(prev => ({ ...prev, ...updated }))
-              onUserUpdate(prev => ({ ...prev, ...updated }))
-            }}
-          />
 
           {/* Birthday */}
           <label style={labelStyle}>{t.birthdayLabel}</label>
@@ -8942,6 +8982,10 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
     ? (profile.avatarUrl.startsWith('http') ? profile.avatarUrl : `${API_BASE}${profile.avatarUrl}`)
     : null
 
+  const friendCoverSrc = profile?.coverPhotoUrl
+    ? (profile.coverPhotoUrl.startsWith('http') ? profile.coverPhotoUrl : `${API_BASE}${profile.coverPhotoUrl}`)
+    : null
+
   return (
     <div className="p-profile">
       <button onClick={onBack} style={{ marginBottom: 16, background: 'none', border: 'none', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600, fontSize: 14, padding: 0 }}>
@@ -8952,6 +8996,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
       ) : (
         <div className="p-card p-profile-card">
           <div className="p-profile-banner" style={
+            friendCoverSrc ? { backgroundImage: `url(${friendCoverSrc})`, backgroundSize: 'cover', backgroundPosition: 'center' } :
             profile.mode === 'network' ? { background: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)' } :
             profile.mode === 'business' ? { background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' } :
             undefined
@@ -10594,11 +10639,10 @@ function useContactRelationships() {
 }
 
 // ── New Conversation / New Group Modal ──
-function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isGroupMode, onClose, onCreate }) {
+function NewConvModal({ t, lang, friends, existingParticipantIds = [], onClose, onCreate }) {
   const [selected, setSelected] = useState([])
-  const [groupName, setGroupName] = useState('')
+  const [convName, setConvName] = useState('')
   const [search, setSearch] = useState('')
-  const [isFamilyGroup, setIsFamilyGroup] = useState(false)
   const [relFilter, setRelFilter] = useState('all')
   const { rels, setRel } = useContactRelationships()
 
@@ -10615,41 +10659,23 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
     (relFilter === 'all' || rels[String(f.id)] === relFilter)
   )
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-
-  // Allow multi-select in both modes — if >1 selected in 1:1 mode, auto-create a group
-  const effectiveGroupMode = isGroupMode || selected.length > 1
+  const isMulti = selected.length > 1
   const canCreate = selected.length >= 1
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-msg-modal" onClick={e => e.stopPropagation()}>
         <div className="p-msg-modal-header">
-          <span>{isGroupMode ? t.newGroupTitle : t.newConvTitle}</span>
+          <span>{t.newConvTitle}</span>
           <button className="p-msg-modal-close" onClick={onClose}>✕</button>
         </div>
-        {effectiveGroupMode && (
+        {isMulti && (
           <input
             className="p-msg-modal-input"
             placeholder={t.groupNamePlaceholder}
-            value={groupName}
-            onChange={e => setGroupName(e.target.value)}
+            value={convName}
+            onChange={e => setConvName(e.target.value)}
           />
-        )}
-        {effectiveGroupMode && mode === 'privat' && (
-          <label className={`p-family-group-toggle${isFamilyGroup ? ' active' : ''}`}>
-            <input
-              type="checkbox"
-              checked={isFamilyGroup}
-              onChange={e => setIsFamilyGroup(e.target.checked)}
-              style={{ display: 'none' }}
-            />
-            <span className="p-family-toggle-icon">🏡</span>
-            <div className="p-family-toggle-text">
-              <span className="p-family-toggle-label">{t.familyGroupToggle}</span>
-              <span className="p-family-toggle-info">{t.familyGroupInfo}</span>
-            </div>
-            <span className={`p-family-toggle-check${isFamilyGroup ? ' on' : ''}`}>{isFamilyGroup ? '✓' : ''}</span>
-          </label>
         )}
         <input
           className="p-msg-modal-input"
@@ -10702,9 +10728,9 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
           <button
             className="p-msg-modal-btn primary"
             disabled={!canCreate}
-            onClick={() => onCreate(selected, effectiveGroupMode ? (groupName || null) : null, effectiveGroupMode, effectiveGroupMode ? isFamilyGroup : false)}
+            onClick={() => onCreate(selected, isMulti ? (convName || null) : null)}
           >
-            {effectiveGroupMode ? (isFamilyGroup ? `🏡 ${t.createGroup}` : t.createGroup) : t.startConv}
+            {t.startConv}
           </button>
         </div>
       </div>
@@ -10718,27 +10744,21 @@ function ConvMenu({ t, lang, conv, onClose, onInvite, onMute, onRename, onLeave,
 
   return (
     <div className="p-msg-conv-menu" onClick={e => e.stopPropagation()}>
-      {conv.isGroup && (
-        <button className="p-msg-conv-menu-item" onClick={() => { onShowMembers(); onClose() }}>
-          <span>👥</span> {t.showMembers}
-        </button>
-      )}
+      <button className="p-msg-conv-menu-item" onClick={() => { onShowMembers(); onClose() }}>
+        <span>👥</span> {t.showMembers}
+      </button>
       <button className="p-msg-conv-menu-item" onClick={() => { onInvite(); onClose() }}>
         <span>👤+</span> {t.invitePeople}
       </button>
-      {conv.isGroup && (
-        <button className="p-msg-conv-menu-item" onClick={() => { onRename(); onClose() }}>
-          <span>✏️</span> {t.renameGroup}
-        </button>
-      )}
+      <button className="p-msg-conv-menu-item" onClick={() => { onRename(); onClose() }}>
+        <span>✏️</span> {t.renameConv}
+      </button>
       <button className="p-msg-conv-menu-item" onClick={() => { onMute(); onClose() }}>
         <span>{isMuted ? '🔔' : '🔕'}</span> {isMuted ? t.unmuteConv : t.muteConv}
       </button>
-      {conv.isGroup && (
-        <button className="p-msg-conv-menu-item danger" onClick={() => { onLeave(); onClose() }}>
-          <span>🚪</span> {t.leaveGroup}
-        </button>
-      )}
+      <button className="p-msg-conv-menu-item danger" onClick={() => { onLeave(); onClose() }}>
+        <span>🚪</span> {t.leaveConv}
+      </button>
     </div>
   )
 }
@@ -11060,7 +11080,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
   const [msgMedia, setMsgMedia] = useState([]) // [{url, type, mime, preview}]
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
-  const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
+  const [modal, setModal] = useState(null) // null | 'new' | 'invite' | 'mute' | 'rename'
   const [showConvMenu, setShowConvMenu] = useState(false)
   const [deleteConvId, setDeleteConvId] = useState(null) // id to confirm delete
   const messagesEndRef = useRef(null)
@@ -11214,10 +11234,9 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
     })
   }, [])
 
-  // Create new 1:1 or group
-  const handleCreate = async (selectedIds, groupName, isGroup, isFamilyGroup = false) => {
+  const handleCreate = async (selectedIds, convName) => {
     setModal(null)
-    const data = await apiCreateConversation(selectedIds, groupName, isGroup, isFamilyGroup)
+    const data = await apiCreateConversation(selectedIds, convName)
     if (data?.id) {
       // Refresh conversations
       const updated = await apiFetchConversations()
@@ -11261,7 +11280,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
     if (!conv) return
     await apiRenameConversation(conv.id, name)
     setConversations(prev => prev.map((c, i) =>
-      i === activeConv ? { ...c, name, groupName: name } : c))
+      i === activeConv ? { ...c, name, convName: name } : c))
   }
 
   // Leave group
@@ -11311,7 +11330,6 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
           <span className="p-msg-sidebar-title-icon" title={t.messagesTitle}>💬</span>
           <div className="p-msg-sidebar-actions">
             <button className="p-msg-icon-btn" title={t.newMessage} onClick={() => setModal('new')}>✏️</button>
-            <button className="p-msg-icon-btn" title={t.newGroup} onClick={() => setModal('newGroup')}>👥</button>
           </div>
         </div>
 
@@ -11344,8 +11362,8 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
               className={`p-msg-thread${i === activeConv ? ' active' : ''}`}
               onClick={() => selectConv(i)}
             >
-              {/* Avatar: stacked initials for group, single for 1:1 */}
-              {c.isGroup ? (
+              {/* Avatar: stacked for multi-participant, single for 1:1 */}
+              {c.participants.length > 2 ? (
                 <div className="p-msg-group-avatar">
                   {c.participants.slice(0, 2).map((p, pi) => (
                     <div key={p.id} className="p-msg-group-avatar-chip" style={{ background: nameToColor(p.name), zIndex: 2 - pi, marginLeft: pi > 0 ? -10 : 0 }}>
@@ -11365,13 +11383,12 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                 <div className="p-msg-thread-name">
                   <span>{c.name}</span>
                   <span className="p-msg-thread-badges">
-                    {c.isFamilyGroup && <span className="p-msg-family-badge" title={t.familyGroup}>🏡</span>}
                     {cIsMuted && <span className="p-msg-muted-icon" title={t.mutedLabel}>🔕</span>}
                     {c.unread > 0 && <span className="p-msg-badge" title={`${c.unread}${t.unreadMessages}`}>{c.unread}</span>}
                   </span>
                 </div>
                 <div className="p-msg-thread-preview">
-                  {lastMsg ? `${c.isGroup ? (lastMsg.from || '').split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
+                  {lastMsg ? `${c.participants.length > 2 ? (lastMsg.from || '').split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
                 </div>
               </div>
               <button
@@ -11394,7 +11411,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
         <div className="p-msg-main">
           {/* Header */}
           <div className="p-msg-header">
-            {conv.isGroup ? (
+            {conv.participants.length > 2 ? (
               <div className="p-msg-group-avatar" style={{ flexShrink: 0 }}>
                 {conv.participants.slice(0, 2).map((p, pi) => (
                   <div key={p.id} className="p-msg-group-avatar-chip" style={{ background: nameToColor(p.name), zIndex: 2 - pi, marginLeft: pi > 0 ? -10 : 0, width: 32, height: 32, fontSize: 11 }}>
@@ -11410,12 +11427,11 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
             <div className="p-msg-header-info">
               <span className="p-msg-header-name">
                 {conv.name}
-                {conv.isFamilyGroup && <span className="p-msg-family-badge p-msg-family-badge-header" title={t.familyGroup}>🏡</span>}
                 {isMuted && <span className="p-msg-muted-icon" title={t.mutedLabel} style={{ marginLeft: 6 }}>🔕</span>}
               </span>
-              {conv.isGroup && (
+              {conv.participants.length > 2 && (
                 <span className="p-msg-header-sub">
-                  {conv.isFamilyGroup ? `${t.familyGroup} · ` : ''}{conv.participants.length} {t.participants}
+                  {conv.participants.length} {t.participants}
                 </span>
               )}
             </div>
@@ -11467,7 +11483,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', flex: 1 }}>
                     <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
-                      {conv.isGroup && !isMe && (
+                      {conv.participants.length > 2 && !isMe && (
                         <div className="p-msg-sender-name">{(msg.from || '').split(' ')[0]}</div>
                       )}
                       {msg.text[lang] && (
@@ -11608,32 +11624,29 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
       )}
 
       {/* ── Modals ── */}
-      {(modal === 'new' || modal === 'newGroup') && (
+      {modal === 'new' && (
         <NewConvModal
           t={t}
           lang={lang}
-          mode={mode}
           friends={friends}
           existingParticipantIds={[]}
-          isGroupMode={modal === 'newGroup'}
           onClose={() => setModal(null)}
           onCreate={handleCreate}
         />
       )}
       {modal === 'invite' && conv && (
         <NewConvModal
-          t={{ ...t, newConvTitle: t.inviteTitle, startConv: t.inviteBtn, newGroupTitle: t.inviteTitle, createGroup: t.inviteBtn }}
+          t={{ ...t, newConvTitle: t.inviteTitle, startConv: t.inviteBtn }}
           lang={lang}
           friends={nonParticipants}
           existingParticipantIds={conv.participants.map(p => p.id)}
-          isGroupMode={true}
           onClose={() => setModal(null)}
           onCreate={(ids) => handleInvite(ids)}
         />
       )}
       {modal === 'mute' && <MuteModal t={t} onClose={() => setModal(null)} onMute={handleMute} />}
       {modal === 'rename' && conv && (
-        <RenameModal t={t} current={conv.groupName} onClose={() => setModal(null)} onRename={handleRename} />
+        <RenameModal t={t} current={conv.convName} onClose={() => setModal(null)} onRename={handleRename} />
       )}
       {modal === 'members' && conv && (
         <MembersModal
@@ -11840,8 +11853,8 @@ function EventsPage({ lang, t, currentUser, mode }) {
                       <span>🕐 {formatDate(ev.date)}</span>
                     </div>
                     <div className="p-event-meta" style={{ color: '#888' }}>
-                      <span>✅ {ev.going.length} {t.eventAttendees}</span>
-                      {ev.maybe.length > 0 && <span>❓ {ev.maybe.length} {t.eventMaybes}</span>}
+                      <span>✅ {ev.going?.length ?? 0} {t.eventAttendees}</span>
+                      {(ev.maybe?.length ?? 0) > 0 && <span>❓ {ev.maybe.length} {t.eventMaybes}</span>}
                       {ev.cap && <span>🔢 max {ev.cap}</span>}
                     </div>
                   </div>
@@ -12152,9 +12165,9 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
 
         {/* Attendees */}
         <div style={{ marginTop: 20 }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700 }}>✅ {t.eventGoing} ({event.going.length})</h4>
+          <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700 }}>✅ {t.eventGoing} ({event.going?.length ?? 0})</h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {event.going.map(name => (
+            {(event.going ?? []).map(name => (
               <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#F0FAF4', borderRadius: 20, fontSize: 13 }}>
                 <div style={{ width: 22, height: 22, borderRadius: '50%', background: nameToColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 700 }}>
                   {getInitials(name)}
@@ -12163,7 +12176,7 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
               </div>
             ))}
           </div>
-          {event.maybe.length > 0 && (
+          {(event.maybe?.length ?? 0) > 0 && (
             <>
               <h4 style={{ margin: '14px 0 10px', fontSize: 14, fontWeight: 700 }}>❓ {t.eventMaybe} ({event.maybe.length})</h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -17625,12 +17638,23 @@ function CalendarPage({ lang, t, currentUser }) {
   const [adfreeAssigning, setAdfreeAssigning] = useState(false)
   const [adfreeError, setAdfreeError] = useState('')
   const [adfreeSuccess, setAdfreeSuccess] = useState('')
+  const isPrivat = currentUser.mode === 'privat'
+  const [personalBirthdays, setPersonalBirthdays] = useState([])
+  const [showBirthdayForm, setShowBirthdayForm] = useState(false)
+  const [editingBirthday, setEditingBirthday] = useState(null)
+  const [bdName, setBdName] = useState('')
+  const [bdDate, setBdDate] = useState('')
+  const [bdRelation, setBdRelation] = useState('family')
+  const [bdSaving, setBdSaving] = useState(false)
 
   useEffect(() => {
     apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
     apiFetchCalendarReminders().then(data => { if (data?.reminders) setReminders(data.reminders) })
     apiGetAdfreeAssignments().then(data => { if (data?.assignments) setAdfreeAssignments(data.assignments) })
     apiGetAdfreeBank().then(data => { if (data?.bankDays != null) setBankDays(data.bankDays) })
+    if (currentUser.mode === 'privat') {
+      apiFetchPersonalBirthdays().then(data => { if (data?.birthdays) setPersonalBirthdays(data.birthdays) })
+    }
   }, [])
 
   const handleAddReminder = async (e) => {
@@ -17650,6 +17674,44 @@ function CalendarPage({ lang, t, currentUser }) {
   const handleDeleteReminder = async (id) => {
     await apiDeleteCalendarReminder(id)
     setReminders(prev => prev.filter(r => r.id !== id))
+  }
+
+  const openBirthdayForm = (bd = null) => {
+    setEditingBirthday(bd)
+    setBdName(bd ? bd.name : '')
+    setBdDate(bd ? bd.birthday : '')
+    setBdRelation(bd ? bd.relation : 'family')
+    setShowBirthdayForm(true)
+  }
+
+  const closeBirthdayForm = () => { setShowBirthdayForm(false); setEditingBirthday(null); setBdName(''); setBdDate(''); setBdRelation('family') }
+
+  const handleSaveBirthday = async (e) => {
+    e.preventDefault()
+    if (!bdName.trim() || !bdDate) return
+    setBdSaving(true)
+    if (editingBirthday) {
+      const res = await apiUpdatePersonalBirthday(editingBirthday.id, bdName.trim(), bdDate, bdRelation)
+      if (res?.ok) {
+        setPersonalBirthdays(prev => prev.map(b => b.id === editingBirthday.id ? { ...b, name: bdName.trim(), birthday: bdDate, relation: bdRelation } : b))
+        apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
+        closeBirthdayForm()
+      }
+    } else {
+      const res = await apiAddPersonalBirthday(bdName.trim(), bdDate, bdRelation)
+      if (res?.id) {
+        setPersonalBirthdays(prev => [...prev, res])
+        apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
+        closeBirthdayForm()
+      }
+    }
+    setBdSaving(false)
+  }
+
+  const handleDeleteBirthday = async (id) => {
+    await apiDeletePersonalBirthday(id)
+    setPersonalBirthdays(prev => prev.filter(b => b.id !== id))
+    apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
   }
 
   const isAdfreeDate = (dateKey) => adfreeAssignments.some(a => a.startDate <= dateKey && dateKey <= a.endDate)
@@ -18056,6 +18118,98 @@ function CalendarPage({ lang, t, currentUser }) {
               </div>
             )
           })()}
+        </div>
+      )}
+
+      {/* Personal birthday management — privat mode only */}
+      {isPrivat && (
+        <div style={{ marginTop: 28, background: 'var(--card-bg, #fff)', border: '1px solid var(--border, #eee)', borderRadius: 12, padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text, #111)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              🎂 {t.calendarPersonalBirthdaysTitle}
+            </div>
+            {!showBirthdayForm && (
+              <button
+                onClick={() => openBirthdayForm()}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid #E07A5F', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 13, color: '#E07A5F', fontWeight: 600 }}
+              >
+                + {t.calendarPersonalBirthdayAdd}
+              </button>
+            )}
+          </div>
+
+          {showBirthdayForm && (
+            <form onSubmit={handleSaveBirthday} style={{ marginBottom: 16, background: 'var(--bg, #f8f8f8)', borderRadius: 10, padding: '12px 14px', border: '1px solid #f5c4b6' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                <input
+                  autoFocus
+                  required
+                  value={bdName}
+                  onChange={e => setBdName(e.target.value)}
+                  placeholder={t.calendarPersonalBirthdayName}
+                  style={{ flex: 2, minWidth: 120, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
+                />
+                <input
+                  required
+                  type="date"
+                  value={bdDate}
+                  onChange={e => setBdDate(e.target.value)}
+                  style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
+                />
+                <select
+                  value={bdRelation}
+                  onChange={e => setBdRelation(e.target.value)}
+                  style={{ flex: 1, minWidth: 100, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', background: 'var(--card-bg,#fff)' }}
+                >
+                  <option value="self">{t.calendarPersonalBirthdayRelationSelf}</option>
+                  <option value="family">{t.calendarPersonalBirthdayRelationFamily}</option>
+                  <option value="friend">{t.calendarPersonalBirthdayRelationFriend}</option>
+                  <option value="other">{t.calendarPersonalBirthdayRelationOther}</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button type="submit" disabled={bdSaving} style={{ padding: '7px 18px', borderRadius: 7, border: 'none', background: '#E07A5F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                  {bdSaving ? '…' : t.calendarPersonalBirthdaySave}
+                </button>
+                <button type="button" onClick={closeBirthdayForm} style={{ padding: '7px 14px', borderRadius: 7, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer' }}>
+                  {t.calendarPersonalBirthdayCancel}
+                </button>
+                <span style={{ fontSize: 12, color: 'var(--text-muted,#888)', marginLeft: 4 }}>🔔 {t.calendarPersonalBirthdayReminderNote}</span>
+              </div>
+            </form>
+          )}
+
+          {personalBirthdays.length === 0 && !showBirthdayForm ? (
+            <p style={{ color: 'var(--text-muted, #888)', fontSize: 14, margin: 0 }}>{t.calendarPersonalBirthdaysEmpty}</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {personalBirthdays.map(b => {
+                const color = nameToColor(b.name)
+                const bdObj = new Date(b.birthday + 'T12:00:00')
+                const age = !isNaN(bdObj) ? today.getFullYear() - bdObj.getFullYear() : null
+                const dateLabel = !isNaN(bdObj) ? bdObj.toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' }) : b.birthday
+                const relLabel = { self: t.calendarPersonalBirthdayRelationSelf, family: t.calendarPersonalBirthdayRelationFamily, friend: t.calendarPersonalBirthdayRelationFriend, other: t.calendarPersonalBirthdayRelationOther }[b.relation] || b.relation
+                return (
+                  <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--bg,#f9f9f9)', borderRadius: 8, border: '1px solid var(--border,#eee)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                      {b.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text,#111)' }}>{b.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted,#888)' }}>{dateLabel}{age !== null && age > 0 ? ` · ${age} ${t.yearsOld}` : ''} · {relLabel}</div>
+                    </div>
+                    <button onClick={() => openBirthdayForm(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#888', padding: '2px 6px' }} title={t.calendarPersonalBirthdayEdit}>✎</button>
+                    <button onClick={() => handleDeleteBirthday(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#e74c3c', padding: '2px 6px' }} title={t.calendarPersonalBirthdayDelete}>✕</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {!showBirthdayForm && personalBirthdays.length > 0 && (
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted,#888)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              🔔 {t.calendarPersonalBirthdayReminderNote}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -20324,7 +20478,7 @@ function AdminPage({ lang, t }) {
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', marketplace_max_photos: '4', registration_open: '1',
-    uploads_max_gb: '100', db_max_gb: '10', fb_photo_import_limit: '50',
+    uploads_max_gb: '100', db_max_gb: '10',
   })
   const [storageStats, setStorageStats] = useState(null)
   const [storageLoading, setStorageLoading] = useState(false)
@@ -20392,6 +20546,22 @@ function AdminPage({ lang, t }) {
   const [feedbackFilter, setFeedbackFilter] = useState('')
   const [feedbackNotes, setFeedbackNotes] = useState({}) // id → note string
   const [feedbackSaving, setFeedbackSaving] = useState({}) // id → bool
+  // Groups admin
+  const [grpStats, setGrpStats] = useState(null)
+  const [grpApproval, setGrpApproval] = useState(null)
+  const [grpManageList, setGrpManageList] = useState(null)
+  const [grpManageQ, setGrpManageQ] = useState('')
+  const [grpManageStatus, setGrpManageStatus] = useState('')
+  const [grpManageLoading, setGrpManageLoading] = useState(false)
+  const [grpReports, setGrpReports] = useState(null)
+  const [grpSettings, setGrpSettings] = useState({ group_require_approval: '0', group_max_per_user: '10', group_max_members: '1000' })
+  const [grpSettingsStatus, setGrpSettingsStatus] = useState('idle')
+  const [grpCategories, setGrpCategories] = useState(null)
+  const [grpCatForm, setGrpCatForm] = useState({ slug: '', name_da: '', name_en: '', sort_order: '' })
+  const [grpCatEditing, setGrpCatEditing] = useState(null) // id being edited
+  const [grpCatEditForm, setGrpCatEditForm] = useState({})
+  const [grpCatError, setGrpCatError] = useState(null)
+  const [grpActionLoading, setGrpActionLoading] = useState({}) // id → bool
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -20447,6 +20617,18 @@ function AdminPage({ lang, t }) {
   }, [growthDays])
 
   useEffect(() => {
+    if (adminTab !== 'groups-manage') return
+    const timer = setTimeout(() => {
+      setGrpManageLoading(true)
+      apiAdminGetAllGroups({ q: grpManageQ, status: grpManageStatus }).then(data => {
+        setGrpManageList(data?.groups || [])
+        setGrpManageLoading(false)
+      })
+    }, grpManageQ ? 350 : 0)
+    return () => clearTimeout(timer)
+  }, [grpManageQ, grpManageStatus, adminTab])
+
+  useEffect(() => {
     if (adminTab === 'viral' || adminTab === 'security') {
       apiGetAdminViralStats(viralDays).then(data => { if (data) setViralStats(data) })
     }
@@ -20480,6 +20662,25 @@ function AdminPage({ lang, t }) {
     if (adminTab === 'feedback') {
       setFeedbackList(null)
       apiGetAdminFeedback(feedbackFilter || null).then(data => { if (data) setFeedbackList(data.feedback) })
+    }
+    if (adminTab === 'groups-overview') {
+      apiAdminGetGroupStats().then(data => { if (data) setGrpStats(data) })
+    }
+    if (adminTab === 'groups-approval') {
+      apiGetPendingGroups().then(data => { if (data) setGrpApproval(data.groups || []) })
+    }
+    if (adminTab === 'groups-manage') {
+      setGrpManageLoading(true)
+      apiAdminGetAllGroups({}).then(data => { setGrpManageList(data?.groups || []); setGrpManageLoading(false) })
+    }
+    if (adminTab === 'groups-reports') {
+      apiAdminGetGroupReports().then(data => { if (data) setGrpReports(data.reports || []) })
+    }
+    if (adminTab === 'groups-settings') {
+      apiAdminGetGroupSettings().then(data => { if (data?.settings) setGrpSettings(data.settings) })
+    }
+    if (adminTab === 'groups-categories') {
+      apiAdminGetGroupCategories().then(data => { if (data) setGrpCategories(data.categories || []) })
     }
   }, [adminTab, viralDays, auditLogOffset, auditLogFilter, feedbackFilter])
 
@@ -20560,6 +20761,17 @@ function AdminPage({ lang, t }) {
             label: t.adminUserAdmin,
             tabs: [
               { id: 'bruger-admin', icon: '👤', label: t.adminUserAdmin },
+            ],
+          },
+          {
+            label: t.adminGroupsTab,
+            tabs: [
+              { id: 'groups-overview',    icon: '📊', label: t.adminGroupsOverview },
+              { id: 'groups-approval',    icon: '✅', label: t.adminGroupsApproval },
+              { id: 'groups-manage',      icon: '🔧', label: t.adminGroupsManage },
+              { id: 'groups-reports',     icon: '🚨', label: t.adminGroupsReportsTab },
+              { id: 'groups-settings',    icon: '⚙️', label: t.adminGroupsSettings },
+              { id: 'groups-categories',  icon: '🏷️', label: t.adminGroupsCategories },
             ],
           },
           {
@@ -21202,26 +21414,6 @@ function AdminPage({ lang, t }) {
                   />
                   <span style={{ fontSize: 13, color: '#888' }}>{t.n120Photos}</span>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Facebook settings ── */}
-          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>📘 {t.adminFbSection}</h3>
-            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
-              {t.adminFbPhotoImportLimitHint}
-            </p>
-            <div>
-              <label style={lS}>{t.adminFbPhotoImportLimit}</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <input
-                  style={{ ...fS, width: 100 }}
-                  type="number" min="1" max="200"
-                  value={form.fb_photo_import_limit || '50'}
-                  onChange={e => setForm(prev => ({ ...prev, fb_photo_import_limit: e.target.value }))}
-                />
-                <span style={{ fontSize: 13, color: '#888' }}>(1–200)</span>
               </div>
             </div>
           </div>
@@ -21928,6 +22120,346 @@ function AdminPage({ lang, t }) {
       {adminTab === 'broadcast' && <AdminBroadcastPanel lang={lang} />}
       {adminTab === 'livestream-stats' && <AdminLivestreamStatsPanel lang={lang} t={t} />}
       {adminTab === 'livestream' && <AdminLivestreamSettingsPanel lang={lang} t={t} />}
+
+      {/* ── Groups admin panels ─────────────────────────────────────────── */}
+
+      {adminTab === 'groups-overview' && (() => {
+        const sCard = { background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '14px 18px', marginBottom: 12 }
+        const sStat = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 16 }
+        const sStatBox = { background: '#f8f8f6', borderRadius: 8, padding: '12px 16px', textAlign: 'center', border: '1px solid #e8e8e4' }
+        const sNum = { fontSize: 26, fontWeight: 700, color: '#2D6A4F' }
+        const sLbl = { fontSize: 12, color: '#888', marginTop: 2 }
+        return (
+          <div>
+            {!grpStats ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+            ) : (
+              <>
+                <div style={sStat}>
+                  {[
+                    [grpStats.totals?.total,         t.adminGroupsTotal],
+                    [grpStats.totals?.active,         t.adminGroupsActive],
+                    [grpStats.totals?.pending,        t.adminGroupsPending],
+                    [grpStats.totals?.rejected,       t.adminGroupsRejected],
+                    [grpStats.totals?.frozen_count,   t.adminGroupsFrozen],
+                    [grpStats.totals?.public_count,   t.type?.public ?? 'Public'],
+                    [grpStats.totals?.private_count,  t.type?.private ?? 'Private'],
+                    [grpStats.totals?.hidden_count,   t.type?.hidden ?? 'Hidden'],
+                  ].map(([val, label], i) => (
+                    <div key={i} style={sStatBox}>
+                      <div style={sNum}>{Number(val) || 0}</div>
+                      <div style={sLbl}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div style={sCard}>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.adminGroupsTopMembers}</div>
+                    {(grpStats.topByMembers || []).map(g => (
+                      <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0f0ec', fontSize: 13 }}>
+                        <span style={{ fontWeight: 600 }}>{g.name}</span>
+                        <span style={{ color: '#888' }}>{Number(g.member_count) || 0} {t.adminGroupsMemberCount}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={sCard}>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.adminGroupsTopPosts}</div>
+                    {(grpStats.topByPosts || []).map(g => (
+                      <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0f0ec', fontSize: 13 }}>
+                        <span style={{ fontWeight: 600 }}>{g.name}</span>
+                        <span style={{ color: '#888' }}>{Number(g.post_count) || 0} posts</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={sCard}>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.adminGroupsByCategory}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {(grpStats.byCategory || []).map(c => (
+                      <span key={c.category} style={{ background: '#e8f4ee', color: '#2D6A4F', borderRadius: 12, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
+                        {c.category} ({c.cnt})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
+
+      {adminTab === 'groups-approval' && (() => {
+        const sRow = { background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '14px 18px', marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }
+        return (
+          <div>
+            {!grpApproval ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+            ) : grpApproval.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.adminGroupsApprovalEmpty}</div>
+            ) : grpApproval.map(g => (
+              <div key={g.id} style={sRow}>
+                {g.cover_url && <img src={g.cover_url} alt="" style={{ width: 60, height: 60, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{g.name}</div>
+                  <div style={{ fontSize: 12, color: '#888' }}>{t.adminGroupsCreatedBy}: {g.creator_name} · {g.category} · {g.type}</div>
+                  <div style={{ fontSize: 13, color: '#555', margin: '4px 0' }}>{(g.description_da || g.description_en || '').slice(0, 120)}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button
+                    onClick={async () => {
+                      await apiApproveGroup(g.id)
+                      setGrpApproval(prev => prev.filter(x => x.id !== g.id))
+                    }}
+                    style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                  >{t.adminGroupsApproveAction}</button>
+                  <button
+                    onClick={async () => {
+                      await apiRejectGroup(g.id)
+                      setGrpApproval(prev => prev.filter(x => x.id !== g.id))
+                    }}
+                    style={{ background: '#fff', color: '#e03131', border: '1px solid #e03131', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                  >{t.adminGroupsRejectAction}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {adminTab === 'groups-manage' && (() => {
+        const typePill = (type) => {
+          const colors = { public: '#2D6A4F', private: '#3D6A9F', hidden: '#888' }
+          return <span style={{ background: colors[type] || '#888', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{type}</span>
+        }
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+              <input
+                value={grpManageQ}
+                onChange={e => setGrpManageQ(e.target.value)}
+                placeholder={t.adminGroupsManageSearch}
+                style={{ flex: 1, minWidth: 200, padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14 }}
+              />
+              <select
+                value={grpManageStatus}
+                onChange={e => setGrpManageStatus(e.target.value)}
+                style={{ padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, background: '#fff' }}
+              >
+                <option value="">{t.adminGroupsManageAll}</option>
+                <option value="active">{t.adminGroupsActive}</option>
+                <option value="pending">{t.adminGroupsPending}</option>
+                <option value="rejected">{t.adminGroupsRejected}</option>
+              </select>
+            </div>
+
+            {grpManageLoading ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+            ) : !grpManageList || grpManageList.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.adminGroupsManageNoResults}</div>
+            ) : grpManageList.map(g => (
+              <div key={g.id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '12px 16px', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{g.name}</span>
+                    {' '}{typePill(g.type)}
+                    {g.is_frozen ? <span style={{ marginLeft: 6, background: '#f0e0d0', color: '#c0521c', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{t.adminGroupsGroupFrozenBadge}</span> : null}
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                      /{g.slug} · {t.adminGroupsCreatedBy}: {g.creator_name} · {g.member_count} {t.adminGroupsMemberCount}
+                      {g.group_status && g.group_status !== 'active' && <span style={{ marginLeft: 6, color: '#e03131', fontWeight: 600 }}>[{g.group_status}]</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
+                    <select
+                      value={g.type}
+                      onChange={async e => {
+                        const newType = e.target.value
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: true }))
+                        await apiAdminUpdateGroup(g.id, { type: newType })
+                        setGrpManageList(prev => prev.map(x => x.id === g.id ? { ...x, type: newType } : x))
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: false }))
+                      }}
+                      style={{ padding: '4px 8px', border: '1px solid #E8E4DF', borderRadius: 6, fontSize: 12, background: '#fff', cursor: 'pointer' }}
+                    >
+                      <option value="public">{t.type?.public ?? 'Public'}</option>
+                      <option value="private">{t.type?.private ?? 'Private'}</option>
+                      <option value="hidden">{t.type?.hidden ?? 'Hidden'}</option>
+                    </select>
+                    <button
+                      onClick={async () => {
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: true }))
+                        await apiAdminUpdateGroup(g.id, { is_frozen: !g.is_frozen })
+                        setGrpManageList(prev => prev.map(x => x.id === g.id ? { ...x, is_frozen: !g.is_frozen } : x))
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: false }))
+                      }}
+                      style={{ padding: '4px 12px', border: `1px solid ${g.is_frozen ? '#2D6A4F' : '#c0521c'}`, borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#fff', color: g.is_frozen ? '#2D6A4F' : '#c0521c', fontWeight: 600 }}
+                    >{g.is_frozen ? t.adminGroupsUnfreezeGroup : t.adminGroupsFreezeGroup}</button>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(t.adminGroupsDeleteConfirm)) return
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: true }))
+                        await apiAdminDeleteGroup(g.id)
+                        setGrpManageList(prev => prev.filter(x => x.id !== g.id))
+                      }}
+                      style={{ padding: '4px 12px', border: '1px solid #e03131', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#fff', color: '#e03131', fontWeight: 600 }}
+                    >{t.adminGroupsDeleteGroup}</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {adminTab === 'groups-reports' && (() => (
+        <div>
+          {!grpReports ? (
+            <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+          ) : grpReports.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.adminGroupsReportsEmpty}</div>
+          ) : grpReports.map(r => (
+            <div key={r.report_id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '14px 18px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: 13 }}>🫂 {t.adminGroupsReportGroup}: <span style={{ color: '#2D6A4F' }}>{r.group_name}</span></span>
+                <span style={{ fontSize: 13, color: '#555' }}>{t.adminGroupsReportBy}: {r.reporter_name}</span>
+                <span style={{ fontSize: 12, color: '#888' }}>{new Date(r.reported_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+              </div>
+              <div style={{ fontSize: 13, color: '#333', background: '#f8f8f6', borderRadius: 6, padding: '8px 12px', marginBottom: 6 }}>
+                {r.text_da || r.text_en || '—'}
+              </div>
+              {r.reason && <div style={{ fontSize: 12, color: '#888' }}>{t.adminGroupsReportReason}: {r.reason}</div>}
+            </div>
+          ))}
+        </div>
+      ))()}
+
+      {adminTab === 'groups-settings' && (() => (
+        <div style={{ maxWidth: 480 }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={grpSettings.group_require_approval === '1'}
+                onChange={e => setGrpSettings(prev => ({ ...prev, group_require_approval: e.target.checked ? '1' : '0' }))}
+              />
+              {t.adminGroupsRequireApproval}
+            </label>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4 }}>{t.adminGroupsMaxPerUser}</label>
+            <input
+              type="number" min="1" max="999"
+              value={grpSettings.group_max_per_user}
+              onChange={e => setGrpSettings(prev => ({ ...prev, group_max_per_user: e.target.value }))}
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4 }}>{t.adminGroupsMaxMembers}</label>
+            <input
+              type="number" min="1" max="999999"
+              value={grpSettings.group_max_members}
+              onChange={e => setGrpSettings(prev => ({ ...prev, group_max_members: e.target.value }))}
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </div>
+          <button
+            onClick={async () => {
+              setGrpSettingsStatus('saving')
+              await apiAdminSaveGroupSettings(grpSettings)
+              setGrpSettingsStatus('saved')
+              setTimeout(() => setGrpSettingsStatus('idle'), 3000)
+            }}
+            style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+          >
+            {grpSettingsStatus === 'saving' ? t.adminGroupsSettingsSaving : grpSettingsStatus === 'saved' ? t.adminGroupsSettingsSaved : t.adminGroupsSettingsSave}
+          </button>
+        </div>
+      ))()}
+
+      {adminTab === 'groups-categories' && (() => {
+        const fStyle = { padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, width: '100%', boxSizing: 'border-box' }
+        return (
+          <div>
+            {/* Add form */}
+            <div style={{ background: '#f8f8f6', borderRadius: 10, border: '1px solid #e8e8e4', padding: '16px 18px', marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>+ {t.adminGroupsCategoryAdd}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 3 }}>{t.adminGroupsCategorySlug}</label>
+                  <input value={grpCatForm.slug} onChange={e => setGrpCatForm(p => ({ ...p, slug: e.target.value }))} style={fStyle} placeholder="my-category" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 3 }}>{t.adminGroupsCategoryNameDa}</label>
+                  <input value={grpCatForm.name_da} onChange={e => setGrpCatForm(p => ({ ...p, name_da: e.target.value }))} style={fStyle} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 3 }}>{t.adminGroupsCategoryNameEn}</label>
+                  <input value={grpCatForm.name_en} onChange={e => setGrpCatForm(p => ({ ...p, name_en: e.target.value }))} style={fStyle} />
+                </div>
+                <button
+                  onClick={async () => {
+                    setGrpCatError(null)
+                    const res = await apiAdminCreateGroupCategory(grpCatForm)
+                    if (res?.error === 'slug_exists') { setGrpCatError(t.adminGroupsCategorySlugExists); return }
+                    if (res?.id) {
+                      setGrpCategories(prev => [...(prev || []), { id: res.id, slug: res.slug, name_da: grpCatForm.name_da, name_en: grpCatForm.name_en, sort_order: parseInt(grpCatForm.sort_order) || 99 }])
+                      setGrpCatForm({ slug: '', name_da: '', name_en: '', sort_order: '' })
+                    }
+                  }}
+                  style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
+                >{t.adminGroupsCategoryAdd}</button>
+              </div>
+              {grpCatError && <div style={{ color: '#e03131', fontSize: 12, marginTop: 6 }}>{grpCatError}</div>}
+            </div>
+
+            {/* List */}
+            {!grpCategories ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 24 }}>{t.loading2}</div>
+            ) : grpCategories.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 24 }}>{t.adminGroupsCategoryNoItems}</div>
+            ) : grpCategories.map(cat => (
+              <div key={cat.id} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e8e8e4', padding: '10px 14px', marginBottom: 8 }}>
+                {grpCatEditing === cat.id ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, alignItems: 'center' }}>
+                    <input value={grpCatEditForm.name_da ?? cat.name_da} onChange={e => setGrpCatEditForm(p => ({ ...p, name_da: e.target.value }))} style={fStyle} placeholder={t.adminGroupsCategoryNameDa} />
+                    <input value={grpCatEditForm.name_en ?? cat.name_en} onChange={e => setGrpCatEditForm(p => ({ ...p, name_en: e.target.value }))} style={fStyle} placeholder={t.adminGroupsCategoryNameEn} />
+                    <button
+                      onClick={async () => {
+                        await apiAdminUpdateGroupCategory(cat.id, grpCatEditForm)
+                        setGrpCategories(prev => prev.map(c => c.id === cat.id ? { ...c, ...grpCatEditForm } : c))
+                        setGrpCatEditing(null)
+                        setGrpCatEditForm({})
+                      }}
+                      style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                    >{t.adminGroupsCategorySave}</button>
+                    <button onClick={() => { setGrpCatEditing(null); setGrpCatEditForm({}) }}
+                      style={{ background: '#f0f0ec', color: '#555', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12 }}
+                    >{t.cancel ?? 'Cancel'}</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontWeight: 600, fontSize: 13, flex: 1 }}>{cat.name_da} / {cat.name_en}</span>
+                    <span style={{ color: '#aaa', fontSize: 11, fontFamily: 'monospace' }}>{cat.slug}</span>
+                    <button onClick={() => { setGrpCatEditing(cat.id); setGrpCatEditForm({ name_da: cat.name_da, name_en: cat.name_en }) }}
+                      style={{ background: '#f0f0ec', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}
+                    >{t.adminGroupsCategoryEdit}</button>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(t.adminGroupsCategoryDeleteConfirm)) return
+                        await apiAdminDeleteGroupCategory(cat.id)
+                        setGrpCategories(prev => prev.filter(c => c.id !== cat.id))
+                      }}
+                      style={{ background: '#fff', color: '#e03131', border: '1px solid #e03131', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}
+                    >{t.adminGroupsCategoryDelete}</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {adminTab === 'feedback' && (
         <div>

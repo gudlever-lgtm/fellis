@@ -514,10 +514,27 @@ router.post('/auth/verify-mfa', strictLimit, validate(schemas.verifyMfa), async 
 
   try {
     const [rows] = await pool.query(
-      'SELECT id FROM users WHERE id = ? AND mfa_code_expires > NOW()',
+      'SELECT id, mfa_code_expires FROM users WHERE id = ? AND mfa_code_expires > NOW()',
       [userId]
     )
-    if (rows.length === 0) return res.status(400).json({ error: 'Code expired or user not found' })
+    if (rows.length === 0) {
+      mfaAttempts.delete(userId) // OTP expired naturally — clear stale counter
+      return res.status(400).json({ error: 'Code expired or user not found' })
+    }
+
+    // Per-userId rate limit keyed to the current OTP lifecycle
+    const otpExpiresAt = String(rows[0].mfa_code_expires)
+    let attempt = mfaAttempts.get(userId)
+    if (!attempt || attempt.otpExpiresAt !== otpExpiresAt) {
+      attempt = { count: 0, otpExpiresAt }
+      mfaAttempts.set(userId, attempt)
+    }
+    if (attempt.count >= 10) {
+      await pool.query('UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId])
+      mfaAttempts.delete(userId)
+      return res.status(429).json({ error: 'Too many failed attempts — request a new code' })
+    }
+
     const hashedCode = crypto.createHash('sha256').update(String(code)).digest('hex')
     const [valid] = await pool.query(
       'SELECT id FROM users WHERE id = ? AND mfa_code = ?',

@@ -34,6 +34,9 @@ export default {
     // Edit profile
     editAvatarLabel: 'Profilbillede',
     editAvatarBtn: 'Skift billede',
+    coverPhotoChange: 'Skift baggrundsbillede',
+    coverPhotoRemove: 'Fjern baggrundsbillede',
+    coverPhotoPaste: 'Indsæt eller vælg billede',
     editNameLabel: 'Navn',
     editBioLabel: 'Bio',
     editLocationLabel: 'Lokation',
@@ -95,6 +98,9 @@ export default {
     // Edit profile
     editAvatarLabel: 'Profile picture',
     editAvatarBtn: 'Change picture',
+    coverPhotoChange: 'Change cover photo',
+    coverPhotoRemove: 'Remove cover photo',
+    coverPhotoPaste: 'Paste or choose photo',
     editNameLabel: 'Name',
     editBioLabel: 'Bio',
     editLocationLabel: 'Location',

@@ -13,7 +13,7 @@ const router = express.Router()
 
 async function getGroupById(id) {
   const [[g]] = await pool.query(
-    'SELECT id, type, is_group FROM conversations WHERE id = ? AND is_group = 1',
+    'SELECT id, type, is_group, is_frozen FROM conversations WHERE id = ? AND is_group = 1',
     [id]
   )
   return g || null
@@ -155,6 +155,288 @@ router.post('/groups/admin/:id/reject', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/groups/admin/:id/reject error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// ── Admin: extended group management ─────────────────────────────────────────
+
+// GET /groups/admin/stats
+router.get('/groups/admin/stats', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  try {
+    const [[totals]] = await pool.query(`
+      SELECT
+        COUNT(*)                                                            AS total,
+        SUM(group_status = 'active' OR group_status IS NULL)               AS active,
+        SUM(group_status = 'pending')                                      AS pending,
+        SUM(group_status = 'rejected')                                     AS rejected,
+        SUM(type = 'public')                                               AS public_count,
+        SUM(type = 'private')                                              AS private_count,
+        SUM(type = 'hidden')                                               AS hidden_count,
+        SUM(is_frozen = 1)                                                 AS frozen_count
+      FROM conversations WHERE is_group = 1
+    `)
+    const [byCategory] = await pool.query(`
+      SELECT COALESCE(category, 'other') AS category, COUNT(*) AS cnt
+      FROM conversations
+      WHERE is_group = 1 AND (group_status = 'active' OR group_status IS NULL)
+      GROUP BY category ORDER BY cnt DESC
+    `)
+    const [topByMembers] = await pool.query(`
+      SELECT id, name, slug, member_count, type, category
+      FROM conversations
+      WHERE is_group = 1 AND (group_status = 'active' OR group_status IS NULL)
+      ORDER BY member_count DESC LIMIT 5
+    `)
+    const [topByPosts] = await pool.query(`
+      SELECT c.id, c.name, c.slug, c.member_count, c.type,
+             COUNT(p.id) AS post_count
+      FROM conversations c
+      LEFT JOIN posts p ON p.group_id = c.id
+      WHERE c.is_group = 1 AND (c.group_status = 'active' OR c.group_status IS NULL)
+      GROUP BY c.id ORDER BY post_count DESC LIMIT 5
+    `)
+    res.json({ totals, byCategory, topByMembers, topByPosts })
+  } catch (err) {
+    console.error('GET /api/groups/admin/stats error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// GET /groups/admin/all — search/manage all groups
+router.get('/groups/admin/all', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const { q, status, category } = req.query
+  try {
+    const conditions = ['c.is_group = 1']
+    const params = []
+    if (q) {
+      conditions.push('(c.name LIKE ? OR c.slug LIKE ?)')
+      params.push(`%${q}%`, `%${q}%`)
+    }
+    if (status === 'active') {
+      conditions.push("(c.group_status = 'active' OR c.group_status IS NULL)")
+    } else if (status) {
+      conditions.push('c.group_status = ?')
+      params.push(status)
+    }
+    if (category) { conditions.push('c.category = ?'); params.push(category) }
+    const [rows] = await pool.query(
+      `SELECT c.id, c.name, c.slug, c.type, c.category, c.member_count,
+              c.cover_url, c.group_status, c.is_frozen, c.created_at,
+              u.name AS creator_name, u.id AS creator_id
+       FROM conversations c
+       LEFT JOIN users u ON u.id = c.created_by
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY c.created_at DESC LIMIT 100`,
+      params
+    )
+    res.json({ groups: rows })
+  } catch (err) {
+    console.error('GET /api/groups/admin/all error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// PATCH /groups/admin/:id — update type, freeze/unfreeze, transfer owner
+router.patch('/groups/admin/:id', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'invalid_id' })
+  const { type, is_frozen, new_owner_id } = req.body || {}
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE id = ? AND is_group = 1', [id]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const setClauses = []
+    const params = []
+
+    if (type !== undefined) {
+      const validTypes = ['public', 'private', 'hidden']
+      if (!validTypes.includes(type)) return res.status(400).json({ error: 'invalid_type' })
+      setClauses.push('type = ?', 'is_public = ?')
+      params.push(type, type === 'public' ? 1 : 0)
+    }
+    if (is_frozen !== undefined) {
+      setClauses.push('is_frozen = ?')
+      params.push(is_frozen ? 1 : 0)
+    }
+    if (new_owner_id !== undefined) {
+      const ownerId = parseInt(new_owner_id)
+      if (isNaN(ownerId)) return res.status(400).json({ error: 'invalid_owner' })
+      const [[member]] = await pool.query(
+        "SELECT user_id FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+        [id, ownerId]
+      )
+      if (!member) return res.status(400).json({ error: 'not_member' })
+      setClauses.push('created_by = ?')
+      params.push(ownerId)
+      await pool.query(
+        "UPDATE conversation_participants SET role = 'admin' WHERE conversation_id = ? AND user_id = ?",
+        [id, ownerId]
+      )
+    }
+
+    if (setClauses.length === 0) return res.status(400).json({ error: 'nothing_to_update' })
+    params.push(id)
+    await pool.query(`UPDATE conversations SET ${setClauses.join(', ')} WHERE id = ?`, params)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/groups/admin/:id error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// DELETE /groups/admin/:id — force delete group
+router.delete('/groups/admin/:id', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE id = ? AND is_group = 1', [id]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+    await pool.query('DELETE FROM posts WHERE group_id = ?', [id])
+    await pool.query('DELETE FROM conversation_participants WHERE conversation_id = ?', [id])
+    await pool.query('DELETE FROM conversations WHERE id = ?', [id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/groups/admin/:id error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// GET /groups/admin/reports — reported posts inside groups
+router.get('/groups/admin/reports', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  try {
+    const [rows] = await pool.query(`
+      SELECT mr.id AS report_id, mr.reason, mr.created_at AS reported_at,
+             mr.status AS report_status,
+             p.id AS post_id, p.text_da, p.text_en,
+             c.id AS group_id, c.name AS group_name, c.slug AS group_slug,
+             reporter.name AS reporter_name,
+             author.name AS post_author
+      FROM moderation_reports mr
+      JOIN posts p ON p.id = mr.target_id AND mr.target_type = 'post'
+      JOIN conversations c ON c.id = p.group_id
+      JOIN users reporter ON reporter.id = mr.reporter_id
+      LEFT JOIN users author ON author.id = p.author_id
+      WHERE p.group_id IS NOT NULL AND mr.status = 'pending'
+      ORDER BY mr.created_at DESC LIMIT 50
+    `)
+    res.json({ reports: rows })
+  } catch (err) {
+    console.error('GET /api/groups/admin/reports error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// GET /groups/admin/settings
+router.get('/groups/admin/settings', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('group_require_approval','group_max_per_user','group_max_members')"
+    )
+    const settings = { group_require_approval: '0', group_max_per_user: '10', group_max_members: '1000' }
+    for (const row of rows) settings[row.key_name] = row.key_value
+    res.json({ settings })
+  } catch (err) {
+    console.error('GET /api/groups/admin/settings error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// PUT /groups/admin/settings
+router.put('/groups/admin/settings', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const { group_require_approval, group_max_per_user, group_max_members } = req.body || {}
+  try {
+    const entries = [
+      ['group_require_approval', group_require_approval !== undefined ? String(group_require_approval === true || group_require_approval === '1' ? 1 : 0) : undefined],
+      ['group_max_per_user',     group_max_per_user    !== undefined ? String(Math.max(1, parseInt(group_max_per_user)    || 10))   : undefined],
+      ['group_max_members',      group_max_members     !== undefined ? String(Math.max(1, parseInt(group_max_members)     || 1000)) : undefined],
+    ].filter(([, v]) => v !== undefined)
+    for (const [key, value] of entries) {
+      await pool.query(
+        'INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = ?',
+        [key, value, value]
+      )
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PUT /api/groups/admin/settings error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// GET /groups/admin/categories
+router.get('/groups/admin/categories', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, slug, name_da, name_en, sort_order FROM group_categories ORDER BY sort_order ASC, id ASC'
+    )
+    res.json({ categories: rows })
+  } catch (err) {
+    console.error('GET /api/groups/admin/categories error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// POST /groups/admin/categories
+router.post('/groups/admin/categories', authenticate, writeLimit, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const { slug, name_da, name_en, sort_order } = req.body || {}
+  if (!slug || !name_da || !name_en) return res.status(400).json({ error: 'slug, name_da and name_en required' })
+  const cleanSlug = String(slug).trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '')
+  try {
+    const [[existing]] = await pool.query('SELECT id FROM group_categories WHERE slug = ?', [cleanSlug])
+    if (existing) return res.status(409).json({ error: 'slug_exists' })
+    const [result] = await pool.query(
+      'INSERT INTO group_categories (slug, name_da, name_en, sort_order) VALUES (?, ?, ?, ?)',
+      [cleanSlug, String(name_da).trim(), String(name_en).trim(), parseInt(sort_order) || 99]
+    )
+    res.status(201).json({ id: result.insertId, slug: cleanSlug })
+  } catch (err) {
+    console.error('POST /api/groups/admin/categories error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// PUT /groups/admin/categories/:id
+router.put('/groups/admin/categories/:id', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'invalid_id' })
+  const { name_da, name_en, sort_order } = req.body || {}
+  try {
+    await pool.query(
+      'UPDATE group_categories SET name_da = COALESCE(?, name_da), name_en = COALESCE(?, name_en), sort_order = COALESCE(?, sort_order) WHERE id = ?',
+      [name_da || null, name_en || null, sort_order !== undefined ? parseInt(sort_order) : null, id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PUT /api/groups/admin/categories/:id error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// DELETE /groups/admin/categories/:id
+router.delete('/groups/admin/categories/:id', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    await pool.query('DELETE FROM group_categories WHERE id = ?', [id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/groups/admin/categories/:id error:', err)
     res.status(500).json({ error: 'server_error' })
   }
 })
@@ -381,7 +663,8 @@ router.get('/groups/:slug', authenticate, async (req, res) => {
               (SELECT COUNT(*) FROM conversation_participants
                WHERE conversation_id = c.id AND status = 'active') AS member_count,
               cp.role AS my_role,
-              cp.status AS my_status
+              cp.status AS my_status,
+              cp.muted_until AS my_muted_until
        FROM conversations c
        LEFT JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
        WHERE c.slug = ? AND c.is_group = 1`,
@@ -411,6 +694,7 @@ router.get('/groups/:slug', authenticate, async (req, res) => {
       created_at: group.created_at,
       created_by: group.created_by,
       pinned_post_id: group.pinned_post_id || null,
+      mutedUntil: group.my_muted_until || null,
       membership: {
         isMember,
         role: group.my_role || null,
@@ -490,6 +774,10 @@ router.post('/groups/:id/posts', authenticate, writeLimit, upload.single('media'
     if (!role) {
       if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
       return res.status(403).json({ error: 'members_only' })
+    }
+    if (group.is_frozen) {
+      if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
+      return res.status(403).json({ error: 'group_frozen' })
     }
 
     const clean = text.trim()
