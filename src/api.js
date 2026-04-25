@@ -1247,6 +1247,13 @@ export const apiRejectGroupMember = (groupId, userId) =>
 
 export const apiGetGroupEvents = (slug) => request(`/api/groups/${slug}/events`)
 
+export async function apiCreateGroupEvent(slug, title, date, location) {
+  return await request(`/api/groups/${slug}/events`, {
+    method: 'POST',
+    body: JSON.stringify({ title, date, location }),
+  })
+}
+
 export async function apiRsvpGroupEvent(slug, eventId, status) {
   return await request(`/api/groups/${slug}/events/${eventId}/rsvp`, {
     method: 'POST',
@@ -1255,6 +1262,13 @@ export async function apiRsvpGroupEvent(slug, eventId, status) {
 }
 
 export const apiGetGroupPolls = (slug) => request(`/api/groups/${slug}/polls`)
+
+export async function apiCreateGroupPoll(slug, question, options, endsAt) {
+  return await request(`/api/groups/${slug}/polls`, {
+    method: 'POST',
+    body: JSON.stringify({ question, options, endsAt }),
+  })
+}
 
 export async function apiVoteGroupPoll(slug, pollId, optionIdx) {
   return await request(`/api/groups/${slug}/polls/${pollId}/vote`, {

@@ -1078,6 +1078,8 @@ const REQUIRED_GROUP_API_FNS = [
   'apiReactToGroupPost',
   'apiUpdateGroupSettings',
   'apiDeleteOwnGroup',
+  'apiCreateGroupEvent',
+  'apiCreateGroupPoll',
 ]
 
 const missingGroupApiFns = REQUIRED_GROUP_API_FNS.filter(fn => !apiSrc.includes(fn))
