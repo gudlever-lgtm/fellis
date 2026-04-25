@@ -5631,7 +5631,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               style={{ ...fieldStyle, flex: 1 }}
-              type="date"
+              type="date" lang="da"
+              lang="da"
               value={birthday}
               onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
               max={new Date().toISOString().slice(0, 10)}
@@ -9195,7 +9196,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             ) : (
               <>
                 <input value={inquiryForm.subject} onChange={e => setInquiryForm(p => ({ ...p, subject: e.target.value }))} placeholder={t.inquirySubject} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
-                <input type="date" value={inquiryForm.preferred_date} onChange={e => setInquiryForm(p => ({ ...p, preferred_date: e.target.value }))} placeholder={t.inquiryPreferredDate} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
+                <input type="date" lang="da" value={inquiryForm.preferred_date} onChange={e => setInquiryForm(p => ({ ...p, preferred_date: e.target.value }))} placeholder={t.inquiryPreferredDate} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
                 <textarea value={inquiryForm.message} onChange={e => setInquiryForm(p => ({ ...p, message: e.target.value }))} placeholder={t.inquiryMessage} rows={4} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 14, resize: 'vertical', boxSizing: 'border-box' }} />
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button disabled={inquirySending || !inquiryForm.subject.trim() || !inquiryForm.message.trim()} onClick={async () => {
@@ -15259,7 +15260,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
             </div>
             <div>
               <label style={lS}>{t.jobDeadline}</label>
-              <input style={fS} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+              <input style={fS} type="date" lang="da" value={deadline} onChange={e => setDeadline(e.target.value)} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
@@ -16808,7 +16809,7 @@ function AdsManagementPage({ lang, t }) {
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+                  <input type="date" lang="da" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
                   <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0,10) }))} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>{t.calendarToday}</button>
                 </div>
               )}
@@ -16819,7 +16820,7 @@ function AdsManagementPage({ lang, t }) {
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+                  <input type="date" lang="da" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
                   <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(f => ({ ...f, end_date: d.toISOString().slice(0,10) })) }} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>+30 {t.days}</button>
                 </div>
               )}
@@ -18027,7 +18028,7 @@ function CalendarPage({ lang, t, currentUser }) {
                       <div style={{ flex: 1, minWidth: 120 }}>
                         <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{t.endDate}</label>
                         <input
-                          type="date"
+                          type="date" lang="da"
                           value={adfreeEndDate}
                           min={selectedDateKey}
                           onChange={e => { setAdfreeEndDate(e.target.value); setAdfreeError('') }}
@@ -18092,7 +18093,8 @@ function CalendarPage({ lang, t, currentUser }) {
                 />
                 <input
                   required
-                  type="date"
+                  type="date" lang="da"
+                  lang="da"
                   value={bdDate}
                   onChange={e => setBdDate(e.target.value)}
                   style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
@@ -19295,11 +19297,11 @@ function AdminPlatformAdsPanel({ lang }) {
             </div>
             <div>
               <label style={lS}>{da ? 'Startdato' : 'Start date'}</label>
-              <input style={iS} type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+              <input style={iS} type="date" lang="da" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
             </div>
             <div>
               <label style={lS}>{da ? 'Slutdato' : 'End date'}</label>
-              <input style={iS} type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <input style={iS} type="date" lang="da" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>

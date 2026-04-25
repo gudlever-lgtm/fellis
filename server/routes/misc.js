@@ -2091,13 +2091,12 @@ router.get('/calendar/events', authenticate, async (req, res) => {
          )`,
       [req.userId, req.userId, req.userId, req.userId]
     )
-    const birthdays = birthdayRows.map(u => ({
-      userId: u.id,
-      name: u.name,
-      initials: u.initials,
-      avatarUrl: u.avatar_url,
-      date: u.birthday, // full YYYY-MM-DD stored, client uses MM-DD for yearly repeat
-    }))
+    const birthdays = birthdayRows.map(u => {
+      let dateStr = u.birthday instanceof Date
+        ? `${u.birthday.getUTCFullYear()}-${String(u.birthday.getUTCMonth() + 1).padStart(2,'0')}-${String(u.birthday.getUTCDate()).padStart(2,'0')}`
+        : String(u.birthday).slice(0, 10)
+      return { userId: u.id, name: u.name, initials: u.initials, avatarUrl: u.avatar_url, date: dateStr }
+    })
 
     // Add manually tracked personal birthdays (privat mode feature)
     const [personalRows] = await pool.query(
