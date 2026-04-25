@@ -1,32 +1,53 @@
 import crypto from 'node:crypto'
 import pool from './db.js'
 
+const DEEPL_URL = 'https://api-free.deepl.com/v2/translate'
+
 export async function translate(text, sourceLang, targetLang) {
-  const hash = crypto.createHash('sha256').update(text).digest('hex')
+  if (!text || sourceLang === targetLang) return text
 
-  const [[cached]] = await pool.query(
-    'SELECT translated_text FROM translation_cache WHERE original_text_hash = ? AND source_lang = ? AND target_lang = ?',
-    [hash, sourceLang, targetLang]
-  )
-  if (cached) return cached.translated_text
+  const cacheKey = crypto
+    .createHash('sha256')
+    .update(`${text}:${sourceLang}:${targetLang}`)
+    .digest('hex')
 
-  const baseUrl = process.env.LIBRETRANSLATE_URL
-  if (!baseUrl) throw new Error('LIBRETRANSLATE_URL not configured')
+  try {
+    const [[cached]] = await pool.query(
+      'SELECT translated_text FROM translation_cache WHERE cache_key = ?',
+      [cacheKey]
+    )
+    if (cached) return cached.translated_text
+  } catch (err) {
+    console.error('[translate] cache lookup failed:', err.message)
+  }
 
-  const resp = await fetch(`${baseUrl}/translate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ q: text, source: sourceLang, target: targetLang, format: 'text' }),
-  })
-  if (!resp.ok) throw new Error(`LibreTranslate error: ${resp.status}`)
-  const data = await resp.json()
-  const translated = data.translatedText
+  try {
+    const resp = await fetch(DEEPL_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `DeepL-Auth-Key ${process.env.DEEPL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: [text],
+        source_lang: sourceLang.toUpperCase(),
+        target_lang: targetLang.toUpperCase(),
+      }),
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!resp.ok) throw new Error(`DeepL error: ${resp.status}`)
+    const { translations } = await resp.json()
+    const translated = translations[0].text
 
-  await pool.query(
-    `INSERT INTO translation_cache (original_text_hash, source_lang, target_lang, translated_text)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE translated_text = VALUES(translated_text)`,
-    [hash, sourceLang, targetLang, translated]
-  )
-  return translated
+    await pool.query(
+      `INSERT INTO translation_cache (cache_key, source_lang, target_lang, original_text, translated_text)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE translated_text = VALUES(translated_text)`,
+      [cacheKey, sourceLang, targetLang, text, translated]
+    )
+    return translated
+  } catch (err) {
+    console.error('[translate] DeepL call failed:', err.message)
+    return text
+  }
 }

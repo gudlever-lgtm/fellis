@@ -1087,21 +1087,28 @@ if (missingGroupApiFns.length > 0) {
 
 // ── 20. Translation system routes ────────────────────────────────────────────
 //
-// Three endpoints power the dynamic translation system:
+// Four endpoints power the dynamic translation system:
 //
 //   POST /api/set-language          → 200 (valid lang) | 400 (invalid lang)
 //   GET  /api/content/:id?lang=en   → 200 (found)      | 404 (not found)   | 500 (DB/translate error)
+//   POST /api/translate             → 200 { translatedText } | 400 (empty text / invalid lang) | 500
 //
 // Static invariants:
 //   (a) POST /api/set-language is registered — never 404
 //   (b) GET /api/content/:id is registered   — never 404 at the routing level
 //   (c) translations.js returns 404 for missing content and 500 on errors
-//   (d) server/translate.js exists and references LIBRETRANSLATE_URL
+//   (d) server/translate.js exists and references DEEPL_API_KEY
 //   (e) 'fi' is included in VALID_LANGS (required by the set-language allowed list)
+//   (f) POST /api/translate validates text (400 on empty) and lang (400 on unknown)
+//       POST /api/translate { text: "Hej", sourceLang: "da", targetLang: "en" } → 200
+//       POST /api/translate { text: "", sourceLang: "da", targetLang: "en" }    → 400
+//       POST /api/translate { text: "Hej", sourceLang: "xx", targetLang: "en" } → 400
+//       POST /api/translate (no body)                                            → 400
 
 const REQUIRED_TRANSLATION_SYSTEM_ROUTES = [
   'POST /api/set-language',
   'GET /api/content/:id',
+  'POST /api/translate',
 ]
 
 const missingTranslationSystemRoutes = REQUIRED_TRANSLATION_SYSTEM_ROUTES.filter(r => {
@@ -1126,14 +1133,14 @@ if (!translationsSrc.includes('500')) {
   translationSystemErrors.push('translations route is missing 500 error responses')
 }
 
-// (d) translate.js must exist and reference LIBRETRANSLATE_URL
+// (d) translate.js must exist and reference DEEPL_API_KEY
 const translateModulePath = resolve(root, 'server/translate.js')
 if (!existsSync(translateModulePath)) {
-  translationSystemErrors.push('server/translate.js is missing — translation cache/LibreTranslate logic not implemented')
+  translationSystemErrors.push('server/translate.js is missing — DeepL translation logic not implemented')
 } else {
   const translateSrc = readFileSync(translateModulePath, 'utf8')
-  if (!translateSrc.includes('LIBRETRANSLATE_URL')) {
-    translationSystemErrors.push('server/translate.js does not reference LIBRETRANSLATE_URL')
+  if (!translateSrc.includes('DEEPL_API_KEY')) {
+    translationSystemErrors.push('server/translate.js does not reference DEEPL_API_KEY')
   }
   if (!translateSrc.includes('translation_cache')) {
     translationSystemErrors.push('server/translate.js does not query translation_cache — translations will never be cached')
@@ -1145,13 +1152,25 @@ if (!translationsSrc.includes("'fi'") && !translationsSrc.includes('"fi"')) {
   translationSystemErrors.push("VALID_LANGS is missing 'fi' — POST /api/set-language rejects Finnish")
 }
 
+// (f) POST /api/translate must validate text and lang
+//     POST /api/translate { text: "Hej", sourceLang: "da", targetLang: "en" } → 200
+//     POST /api/translate { text: "", sourceLang: "da", targetLang: "en" }    → 400
+//     POST /api/translate { text: "Hej", sourceLang: "xx", targetLang: "en" } → 400
+//     POST /api/translate (no body)                                            → 400
+if (!translationsSrc.includes('DEEPL_LANGS')) {
+  translationSystemErrors.push('POST /api/translate is missing DEEPL_LANGS allowlist — invalid langs would not be rejected with 400')
+}
+if (!translationsSrc.includes("text.trim() === ''") && !translationsSrc.includes("text === ''")) {
+  translationSystemErrors.push('POST /api/translate does not validate empty text — empty string would not return 400')
+}
+
 if (translationSystemErrors.length > 0) {
   console.log(`${RED}✗ Translation system implementation issues:${RESET}`)
   for (const e of translationSystemErrors) console.log(`  ${RED}${e}${RESET}`)
   console.log()
   process.exit(1)
 } else {
-  console.log(`${GREEN}✓ Translation system routes (set-language, content/:id) are registered; translate.js has cache + LibreTranslate wiring; VALID_LANGS includes 'fi'.${RESET}\n`)
+  console.log(`${GREEN}✓ Translation system routes (set-language, content/:id, translate) are registered; translate.js has cache + DeepL wiring; VALID_LANGS includes 'fi'; POST /api/translate validates text and lang.${RESET}\n`)
 }
 
 process.exit(0)
