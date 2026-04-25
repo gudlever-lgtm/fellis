@@ -60,7 +60,7 @@ router.get('/health', async (_req, res) => {
 
 router.post('/visit', async (req, res) => {
   try {
-    const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+    const ip = (req.ip || '').replace(/^::ffff:/, '')
     const today = new Date().toISOString().slice(0, 10)
     const key = `${ip}:${today}`
     if (ip && !visitedAnonIps.has(key)) {
@@ -475,7 +475,7 @@ router.post('/gdpr/consent', authenticate, async (req, res) => {
     if (!validTypes.includes(ct)) return res.status(400).json({ error: `Invalid consent type: ${ct}` })
   }
 
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+  const clientIp = req.ip || null
   const userAgent = req.headers['user-agent'] || null
 
   try {
@@ -518,7 +518,7 @@ router.post('/gdpr/consent/withdraw', authenticate, async (req, res) => {
   const { consent_type } = req.body
   if (!consent_type) return res.status(400).json({ error: 'consent_type required' })
 
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+  const clientIp = req.ip || null
 
   try {
     await withdrawConsent(req.userId, consent_type, clientIp)
@@ -584,7 +584,7 @@ router.post('/gdpr/account/request-delete', authenticate, writeLimit, async (req
 
 router.delete('/gdpr/account', authenticate, async (req, res) => {
   const { password, sms_code } = req.body || {}
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+  const clientIp = req.ip || null
 
   try {
     // Re-verify credentials before deletion (defence in depth)
@@ -661,7 +661,7 @@ router.delete('/gdpr/account', authenticate, async (req, res) => {
 
 
 router.get('/gdpr/export', authenticate, async (req, res) => {
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+  const clientIp = req.ip || null
 
   try {
     await auditLog(req.userId, 'data_export_request', null, clientIp)

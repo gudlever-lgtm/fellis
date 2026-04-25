@@ -530,6 +530,10 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
 }
 
 const app = express()
+// Trust exactly one proxy hop (lighttpd) so req.ip reflects the real client IP
+// rather than 127.0.0.1, making XFF spoofing ineffective for rate limiting.
+app.set('trust proxy', 1)
+app.use(helmet({ contentSecurityPolicy: false })) // CSP omitted — React SPA requires nonce-based setup
 app.use(express.json({ limit: '1mb' }))
 
 // ── Strip null bytes from request bodies ─────────────────────────────────
@@ -591,21 +595,10 @@ app.use((_req, res, next) => {
 // In non-production, skip rate limiting for loopback IPs so E2E tests can
 // exercise auth endpoints without exhausting the window.
 
-// Extract the real client IP from either the legacy X-Forwarded-For header
-// or the RFC 7239 Forwarded header that lighttpd sets via proxy.forwarded.
-// Without this, all requests appear to come from 127.0.0.1 (the lighttpd
-// loopback address) and every user shares a single rate limit bucket.
+// req.ip is set correctly by Express because trust proxy = 1 (see app.set above).
+// lighttpd sits one hop away and appends the real client IP to X-Forwarded-For.
 function getClientIp(req) {
-  const xff = req.headers['x-forwarded-for']
-  if (xff) return xff.split(',')[0].trim()
-  // RFC 7239 Forwarded header (lighttpd proxy.forwarded = ( "for" => 1 ))
-  // Format: "for=1.2.3.4" or "for=\"[2001:db8::1]\""
-  const fwd = req.headers['forwarded']
-  if (fwd) {
-    const m = fwd.match(/(?:^|[,\s])for=(?:"?\[?)([0-9a-fA-F.:]+)/i)
-    if (m?.[1]) return m[1]
-  }
-  return req.ip || req.socket?.remoteAddress || '127.0.0.1'
+  return req.ip || '127.0.0.1'
 }
 
 function isLoopback(req) {
@@ -875,7 +868,7 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   // explicitUserId lets callers (e.g. login) pass the userId before req.userId is set,
   // avoiding { ...req } spread which drops Express prototype getters like req.ip
   const userId = explicitUserId !== undefined ? explicitUserId : (req.userId || null)
-  const ipAddress = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+  const ipAddress = req.ip || null
   const userAgent = req.headers?.['user-agent'] || null
 
   try {
@@ -1141,7 +1134,7 @@ async function authenticate(req, res, next) {
     const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
     if (!visitedSessions.has(todayKey)) {
       visitedSessions.add(todayKey)
-      const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+      const ip = (req.ip || '').replace(/^::ffff:/, '')
       const ua = req.headers['user-agent'] || null
       const { browser, os } = parseBrowser(ua)
       // Async geo lookup — don't await, fire-and-forget
@@ -1237,7 +1230,7 @@ app.post('/api/auth/register', strictLimit, async (req, res) => {
     const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+    const ip = req.ip || null
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
       [sessionId, newUserId, lang || 'da', ua, ip]

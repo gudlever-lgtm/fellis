@@ -253,16 +253,7 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
 }
 
 function getClientIp(req) {
-  const xff = req.headers['x-forwarded-for']
-  if (xff) return xff.split(',')[0].trim()
-  // RFC 7239 Forwarded header (lighttpd proxy.forwarded = ( "for" => 1 ))
-  // Format: "for=1.2.3.4" or "for=\"[2001:db8::1]\""
-  const fwd = req.headers['forwarded']
-  if (fwd) {
-    const m = fwd.match(/(?:^|[,\s])for=(?:"?\[?)([0-9a-fA-F.:]+)/i)
-    if (m?.[1]) return m[1]
-  }
-  return req.ip || req.socket?.remoteAddress || '127.0.0.1'
+  return req.ip || '127.0.0.1'
 }
 
 function isLoopback(req) {
@@ -476,7 +467,7 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   // explicitUserId lets callers (e.g. login) pass the userId before req.userId is set,
   // avoiding { ...req } spread which drops Express prototype getters like req.ip
   const userId = explicitUserId !== undefined ? explicitUserId : (req.userId || null)
-  const ipAddress = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+  const ipAddress = req.ip || null
   const userAgent = req.headers?.['user-agent'] || null
 
   try {
@@ -678,7 +669,7 @@ async function authenticate(req, res, next) {
     const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
     if (!visitedSessions.has(todayKey)) {
       visitedSessions.add(todayKey)
-      const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+      const ip = (req.ip || '').replace(/^::ffff:/, '')
       const ua = req.headers['user-agent'] || null
       const { browser, os } = parseBrowser(ua)
       // Async geo lookup — don't await, fire-and-forget
