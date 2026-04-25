@@ -69,8 +69,8 @@ export default function GroupSettings({ slug, lang, onNavigate }) {
     setCoverMsg(null)
     const res = await apiUploadGroupCover(group.id, file)
     setCoverUploading(false)
-    if (res?.cover_url) {
-      setGroup(prev => ({ ...prev, cover_url: res.cover_url }))
+    if (res?.coverUrl) {
+      setGroup(prev => ({ ...prev, cover_url: res.coverUrl }))
       setCoverMsg('ok')
     } else {
       setCoverMsg('err')
