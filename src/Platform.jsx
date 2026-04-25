@@ -2356,7 +2356,7 @@ function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
   const [locationPopup, setLocationPopup] = useState(null) // { loc: string }
 
   useEffect(() => {
-    apiFetchEvents().then(d => {
+    apiFetchEvents(lang).then(d => {
       if (d?.events) {
         const today = new Date(); today.setHours(0, 0, 0, 0)
         setEvents(d.events.filter(ev => new Date(ev.date) >= today).slice(0, 3))
@@ -2817,7 +2817,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
     apiGetSavedPosts().then(d => {
       if (d?.posts) setSavedPostIds(new Set(d.posts.map(p => p.id)))
     }).catch(() => {})
-    apiFetchEvents().then(data => {
+    apiFetchEvents(lang).then(data => {
       if (data?.events?.length) {
         setFeedEvents(data.events)
         const map = {}
@@ -3815,7 +3815,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                       let data = null
                       if (tab.id === 'job') data = await apiFetchJobs({}).catch(() => null)
                       else if (tab.id === 'listing') data = await apiFetchListings({}).catch(() => null)
-                      else if (tab.id === 'event') data = await apiFetchEvents().catch(() => null)
+                      else if (tab.id === 'event') data = await apiFetchEvents(lang).catch(() => null)
                       else if (tab.id === 'service') data = await apiGetMyServices().catch(() => null)
                       if (tab.id === 'job') setAttachItems(data?.jobs || [])
                       else if (tab.id === 'listing') setAttachItems(data?.listings || [])
@@ -11395,7 +11395,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                   </span>
                 </div>
                 <div className="p-msg-thread-preview">
-                  {lastMsg ? `${c.participants.length > 2 ? (lastMsg.from || '').split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
+                  {lastMsg ? `${c.participants.length > 2 ? (lastMsg.from || '').split(' ')[0] + ': ' : ''}${lastMsg.text[lang] ?? lastMsg.text.en ?? lastMsg.text.da ?? ''}`.slice(0, 42) : ''}
                 </div>
               </div>
               <button
@@ -11745,7 +11745,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
 
   useEffect(() => {
     apiFetchFriends().then(data => { if (data) setFriends(data) })
-    apiFetchEvents().then(data => {
+    apiFetchEvents(lang).then(data => {
       if (data?.events) {
         setEvents(data.events.length ? data.events : MOCK_EVENTS)
         const map = {}
@@ -11967,7 +11967,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
               ticketUrl: ev.ticketUrl || null,
               cap: ev.cap || null,
             }).catch(() => null)
-            apiFetchEvents().then(data => {
+            apiFetchEvents(lang).then(data => {
               if (data?.events) {
                 setEvents(data.events.length ? data.events : MOCK_EVENTS)
                 const map = {}
@@ -12013,7 +12013,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
               ticketUrl: ev.ticketUrl || null,
               cap: ev.cap || null,
             }).catch(() => null)
-            apiFetchEvents().then(data => {
+            apiFetchEvents(lang).then(data => {
               if (data?.events) {
                 setEvents(data.events.length ? data.events : MOCK_EVENTS)
                 const map = {}
