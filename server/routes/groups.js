@@ -663,7 +663,8 @@ router.get('/groups/:slug', authenticate, async (req, res) => {
               (SELECT COUNT(*) FROM conversation_participants
                WHERE conversation_id = c.id AND status = 'active') AS member_count,
               cp.role AS my_role,
-              cp.status AS my_status
+              cp.status AS my_status,
+              cp.muted_until AS my_muted_until
        FROM conversations c
        LEFT JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
        WHERE c.slug = ? AND c.is_group = 1`,
@@ -693,6 +694,7 @@ router.get('/groups/:slug', authenticate, async (req, res) => {
       created_at: group.created_at,
       created_by: group.created_by,
       pinned_post_id: group.pinned_post_id || null,
+      mutedUntil: group.my_muted_until || null,
       membership: {
         isMember,
         role: group.my_role || null,

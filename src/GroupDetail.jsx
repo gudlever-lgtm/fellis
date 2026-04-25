@@ -6,6 +6,7 @@ import {
   apiGetGroupMembers, apiUpdateGroupMemberRole, apiRemoveGroupMember,
   apiGetGroupEvents, apiRsvpGroupEvent,
   apiGetGroupPolls, apiVoteGroupPoll, apiGetGroupInviteLink,
+  apiMuteConversation,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 
@@ -67,6 +68,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [pollsLoading, setPollsLoading] = useState(false)
   const [inviteLink, setInviteLink] = useState(null)
   const [copyState, setCopyState] = useState(false)
+  const [muteOpen, setMuteOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -253,6 +255,15 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     })
   }
 
+  const handleMute = async (minutes) => {
+    if (!group) return
+    const result = await apiMuteConversation(group.id, minutes)
+    if (result) {
+      setGroup(prev => ({ ...prev, mutedUntil: result.mutedUntil }))
+    }
+    setMuteOpen(false)
+  }
+
   const handleRsvp = async (ev, status) => {
     const prev = ev.my_rsvp
     const wasGoing = prev === 'going'
@@ -298,6 +309,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const { membership } = group
   const isAdmin = membership.role === 'admin'
   const isMod = membership.role === 'admin' || membership.role === 'moderator'
+  const isMuted = group.mutedUntil && new Date(group.mutedUntil) > new Date()
 
   const typeKey = group.type || 'public'
   const typeMeta = TYPE_STYLE[typeKey] || TYPE_STYLE.public
@@ -359,6 +371,15 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               {isAdmin && (
                 <button style={s.settingsBtn} onClick={() => onNavigate?.(`/groups/${slug}/settings`)}>
                   {'⚙️ '}{g.settings}
+                </button>
+              )}
+              {membership.isMember && (
+                <button
+                  style={s.muteBtn}
+                  onClick={() => setMuteOpen(true)}
+                  title={isMuted ? g.unmuteGroup : g.muteGroup}
+                >
+                  {isMuted ? '🔔' : '🔕'}
                 </button>
               )}
               {membership.isMember ? (
@@ -740,8 +761,53 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
           </div>
         )}
       </div>
+      {muteOpen && (
+        <GroupMuteModal g={g} isMuted={isMuted} onClose={() => setMuteOpen(false)} onMute={handleMute} />
+      )}
     </div>
   )
+}
+
+function GroupMuteModal({ g, isMuted, onClose, onMute }) {
+  const options = [
+    { label: g.mute1h, minutes: 60 },
+    { label: g.mute8h, minutes: 480 },
+    { label: g.mute24h, minutes: 1440 },
+    { label: g.mute1w, minutes: 10080 },
+    { label: g.muteOff, minutes: null },
+  ]
+  return (
+    <div style={ms.overlay} onClick={onClose}>
+      <div style={ms.modal} onClick={e => e.stopPropagation()}>
+        <div style={ms.title}>{isMuted ? g.unmuteGroup : g.muteTitle}</div>
+        {options.map(o => (
+          <button key={o.label} style={ms.option} onClick={() => onMute(o.minutes)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const ms = {
+  overlay: {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+  },
+  modal: {
+    background: '#fff', borderRadius: 14, padding: '18px 0 8px',
+    minWidth: 240, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+  },
+  title: {
+    fontSize: 13, fontWeight: 700, color: '#888',
+    padding: '0 20px 10px', borderBottom: '1px solid #F0EDE8',
+  },
+  option: {
+    display: 'block', width: '100%', textAlign: 'left',
+    padding: '12px 20px', border: 'none', background: 'none',
+    fontSize: 15, color: '#1a1a1a', cursor: 'pointer',
+  },
 }
 
 const s = {
@@ -771,6 +837,7 @@ const s = {
   joinBtn: { fontSize: 13, fontWeight: 700, padding: '7px 18px', borderRadius: 20, border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff', cursor: 'pointer' },
   leaveBtn: { fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 20, border: '1.5px solid #D1D5DB', background: '#fff', color: '#666', cursor: 'pointer' },
   settingsBtn: { fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 20, border: '1.5px solid #E8E4DF', background: '#F9F7F5', color: '#555', cursor: 'pointer' },
+  muteBtn: { fontSize: 18, padding: '5px 8px', borderRadius: 20, border: '1.5px solid #E8E4DF', background: '#F9F7F5', cursor: 'pointer', lineHeight: 1 },
   tabBar: { display: 'flex', gap: 0, padding: '0 20px', background: '#fff', borderBottom: '1px solid #E8E4DF', overflowX: 'auto' },
   tabBtn: { fontSize: 13, fontWeight: 600, padding: '10px 14px', border: 'none', borderBottom: '2px solid transparent', background: 'none', color: '#888', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'color 0.15s' },
   tabActive: { color: '#4338CA', borderBottom: '2px solid #4338CA' },
