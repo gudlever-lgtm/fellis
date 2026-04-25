@@ -1073,6 +1073,71 @@ router.delete('/groups/:id/members/:userId', authenticate, async (req, res) => {
   }
 })
 
+// ── Membership requests (pending) ────────────────────────────────────────────
+
+router.get('/groups/:id/members/pending', authenticate, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  if (isNaN(groupId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const myRole = await getMemberRole(groupId, req.userId)
+    if (myRole !== 'admin' && myRole !== 'moderator') return res.status(403).json({ error: 'forbidden' })
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.avatar_url, cp.created_at AS requested_at
+       FROM conversation_participants cp
+       JOIN users u ON u.id = cp.user_id
+       WHERE cp.conversation_id = ? AND cp.status = 'pending'
+       ORDER BY cp.created_at ASC`,
+      [groupId]
+    )
+    res.json({ pending: rows })
+  } catch (err) {
+    console.error('GET /api/groups/:id/members/pending error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.post('/groups/:id/members/:userId/approve', authenticate, writeLimit, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  const targetId = parseInt(req.params.userId)
+  if (isNaN(groupId) || isNaN(targetId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const myRole = await getMemberRole(groupId, req.userId)
+    if (myRole !== 'admin' && myRole !== 'moderator') return res.status(403).json({ error: 'forbidden' })
+    const [[cp]] = await pool.query(
+      "SELECT status FROM conversation_participants WHERE conversation_id = ? AND user_id = ?",
+      [groupId, targetId]
+    )
+    if (!cp || cp.status !== 'pending') return res.status(404).json({ error: 'not_found' })
+    await pool.query(
+      "UPDATE conversation_participants SET status = 'active' WHERE conversation_id = ? AND user_id = ?",
+      [groupId, targetId]
+    )
+    await pool.query('UPDATE conversations SET member_count = member_count + 1 WHERE id = ?', [groupId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/:id/members/:userId/approve error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.delete('/groups/:id/members/:userId/reject', authenticate, writeLimit, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  const targetId = parseInt(req.params.userId)
+  if (isNaN(groupId) || isNaN(targetId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const myRole = await getMemberRole(groupId, req.userId)
+    if (myRole !== 'admin' && myRole !== 'moderator') return res.status(403).json({ error: 'forbidden' })
+    await pool.query(
+      "DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'pending'",
+      [groupId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/groups/:id/members/:userId/reject error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
 // ── Events (slug-based) ───────────────────────────────────────────────────────
 
 router.get('/groups/:slug/events', authenticate, async (req, res) => {

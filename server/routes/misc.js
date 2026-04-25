@@ -344,6 +344,7 @@ router.get('/conversations', authenticate, async (req, res) => {
     const [convRows] = await pool.query(
       `SELECT c.id FROM conversations c
        JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
+       WHERE (c.is_group IS NULL OR c.is_group = 0)
        ORDER BY (SELECT MAX(created_at) FROM messages WHERE conversation_id = c.id) DESC,
                 c.created_at DESC`, [req.userId])
     const result = []
