@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiGetMollieStatus } from '../api.js'
+import { getLocale } from '../utils/dateFormat.js'
 
 export default function PaymentSuccess({ lang = 'da', onNavigate }) {
   const [sub, setSub] = useState(null)
@@ -68,7 +69,7 @@ export default function PaymentSuccess({ lang = 'da', onNavigate }) {
           {sub.expires_at && (
             <div style={s.row}>
               <span style={s.label}>{t.expires}</span>
-              <span style={s.value}>{new Date(sub.expires_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+              <span style={s.value}>{new Date(sub.expires_at).toLocaleDateString(getLocale(lang))}</span>
             </div>
           )}
         </div>

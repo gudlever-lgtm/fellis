@@ -3,6 +3,7 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 're
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
 import { detectLanguage } from './utils/detectLanguage.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
+import { getLocale } from './utils/dateFormat.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiFetchPersonalBirthdays, apiAddPersonalBirthday, apiUpdatePersonalBirthday, apiDeletePersonalBirthday, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
   apiGetEurDkkRate, apiFetchFriendSuggestions,
@@ -2327,7 +2328,7 @@ function LinkedContentCard({ type, id, lang, onNavigate }) {
     ? [item.company_name, item.location || (item.remote ? 'Remote' : '')].filter(Boolean).join(' · ')
     : type === 'listing'
     ? [item.category, item.location].filter(Boolean).join(' · ')
-    : item.date ? new Date(item.date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' }) + (item.location ? ` · ${item.location}` : '') : ''
+    : item.date ? new Date(item.date).toLocaleDateString(getLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' }) + (item.location ? ` · ${item.location}` : '') : ''
   const page = type === 'job' ? 'jobs' : type === 'listing' ? 'marketplace' : 'events'
   return (
     <div
@@ -2390,7 +2391,7 @@ function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
                 }
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title}</div>
-                  <div style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 700 }}>{l.priceNegotiable ? (da ? 'Pris forhandles' : 'Negotiable') : (typeof l.price === 'number' ? `${l.price.toLocaleString(da ? 'da-DK' : 'en-US')} kr` : l.price)}</div>
+                  <div style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 700 }}>{l.priceNegotiable ? (da ? 'Pris forhandles' : 'Negotiable') : (typeof l.price === 'number' ? `${l.price.toLocaleString(getLocale(lang))} kr` : l.price)}</div>
                 </div>
               </div>
             )
@@ -2409,7 +2410,7 @@ function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
           : events.map(ev => {
             const title = typeof ev.title === 'string' ? ev.title : (ev.title?.[lang] || ev.title?.da || '')
             const loc = typeof ev.location === 'string' ? ev.location : (ev.location?.[lang] || ev.location?.da || '')
-            const dt = ev.date ? new Date(ev.date).toLocaleDateString(da ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
+            const dt = ev.date ? new Date(ev.date).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short' }) : ''
             return (
               <div key={ev.id} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
                 <div style={{ background: '#F0FAF4', borderRadius: 8, padding: '4px 8px', fontSize: 11, fontWeight: 700, color: '#2D6A4F', whiteSpace: 'nowrap', minWidth: 40, textAlign: 'center' }}>{dt}</div>
@@ -2942,7 +2943,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
           author: currentUser.name,
           authorId: currentUser.id,
           authorMode: currentUser.mode || 'privat',
-          time: { da: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }), en: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
+          time: { da: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }), en: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) },
           text: { da: text, en: text },
           likes: 0, liked: false, userReaction: null, comments: [], media: localMedia,
           reactions: [],
@@ -3841,7 +3842,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                         <div style={{ fontSize: 11, color: '#888' }}>
                           {attachTab === 'job' && `${item.company_name || ''} · ${item.location || (item.remote ? (lang==='da'?'Remote':'Remote') : '')}`}
                           {attachTab === 'listing' && `${item.category || ''} · ${item.location || ''}`}
-                          {attachTab === 'event' && `${item.date ? new Date(item.date).toLocaleDateString(lang==='da'?'da-DK':'en-US',{day:'numeric',month:'short'}) : ''} · ${item.location || ''}`}
+                          {attachTab === 'event' && `${item.date ? new Date(item.date).toLocaleDateString(getLocale(lang),{day:'numeric',month:'short'}) : ''} · ${item.location || ''}`}
                           {attachTab === 'service' && (item.price_from || item.price_to ? `${lang === 'da' ? 'Fra' : 'From'} ${item.price_from || item.price_to} EUR` : '')}
                         </div>
                       </div>
@@ -3860,7 +3861,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                   <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
                     {linkedContent.type === 'job' && `${linkedContent.item?.company_name || ''} · ${linkedContent.item?.location || ''}`}
                     {linkedContent.type === 'listing' && `${linkedContent.item?.category || ''} · ${linkedContent.item?.location || ''}`}
-                    {linkedContent.type === 'event' && linkedContent.item?.date ? new Date(linkedContent.item.date).toLocaleDateString(lang==='da'?'da-DK':'en-US',{day:'numeric',month:'short',year:'numeric'}) : ''}
+                    {linkedContent.type === 'event' && linkedContent.item?.date ? new Date(linkedContent.item.date).toLocaleDateString(getLocale(lang),{day:'numeric',month:'short',year:'numeric'}) : ''}
                   </div>
                 </div>
                 <button type="button" onClick={() => setLinkedContent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888', flexShrink: 0 }}>×</button>
@@ -3989,6 +3990,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 {scheduleEnabled && (
                   <input
                     type="datetime-local"
+                    lang={getLocale(lang)}
                     value={scheduledAt}
                     min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
                     onChange={e => setScheduledAt(e.target.value)}
@@ -4083,7 +4085,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
         const liked = !!post.liked
         const showComments = cpFeedExpanded.has(post.id)
         const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
-        const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
+        const timeAgo = new Date(post.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short' })
         const toggleLike = () => {
           csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
@@ -4213,14 +4215,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
               <div className="p-avatar-sm" style={{ background: nameToColor(actor) }}>{getInitials(actor)}</div>
               <div>
                 <div className="p-post-author">{actor} <span style={{ fontWeight: 400, color: '#888' }}>{t.eventFeedCreated}</span></div>
-                <div className="p-post-time">{new Date(ev.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })}</div>
+                <div className="p-post-time">{new Date(ev.createdAt).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short' })}</div>
               </div>
               <span className="p-event-type-badge" style={{ marginLeft: 'auto' }}>{t.eventFeedLabel}</span>
             </div>
             <div className="p-event-feed-body" style={{ alignItems: 'flex-start' }}>
               <div className="p-event-date-col" style={{ minWidth: 54, flexDirection: 'row', alignItems: 'baseline', gap: 3, padding: '6px 8px' }}>
                 <span className="p-event-day" style={{ fontSize: 17, lineHeight: 1 }}>{new Date(ev.date).getDate()}</span>
-                <span className="p-event-month">{new Date(ev.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</span>
+                <span className="p-event-month">{new Date(ev.date).toLocaleString(getLocale(lang), { month: 'short' }).toUpperCase()}</span>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{title}</div>
@@ -4801,7 +4803,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
         const getT = (e) => typeof e.title === 'string' ? e.title : (e.title?.[lang] || e.title?.da || '')
         const getD = (e) => typeof e.description === 'string' ? e.description : (e.description?.[lang] || e.description?.da || '')
         const getL = (e) => typeof e.location === 'string' ? e.location : (e.location?.[lang] || e.location?.da || '')
-        const fmtD = (iso) => new Date(iso).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        const fmtD = (iso) => new Date(iso).toLocaleString(getLocale(lang), { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
         const evTypeLabel = (type) => ({ conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup, wedding: t.eventTypeWedding, birthday: t.eventTypeBirthday, confirmation: t.eventTypeConfirmation, baptism: t.eventTypeBaptism, engagement: t.eventTypeEngagement, anniversary: t.eventTypeAnniversary, party: t.eventTypeParty, graduation: t.eventTypeGraduation, concert: t.eventTypeConcert, networking: t.eventTypeNetworking })[type] || null
         return (
           <EventDetailModal
@@ -5045,11 +5047,11 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             {mode === 'business' && profile.jobTitle && <span>💼 {profile.jobTitle}{profile.company ? ` · ${profile.company}` : ''}</span>}
             {mode === 'business' && profile.industry && <span>🏭 {profile.industry}</span>}
             {profile.location && <span>📍 {profile.location}</span>}
-            {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
+            {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}</span>}
             {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
-            <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+            <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(getLocale(lang), { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
             {profile.totalMinutes > 0 && <span>⏱ {t.hoursOnline}: {Math.floor(profile.totalMinutes / 60) > 0 ? `${Math.floor(profile.totalMinutes / 60)}t ` : ''}{profile.totalMinutes % 60}min</span>}
-            {profile.lastActive && <span>🟢 {t.lastOnline}: {new Date(profile.lastActive).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+            {profile.lastActive && <span>🟢 {t.lastOnline}: {new Date(profile.lastActive).toLocaleString(getLocale(lang), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
           </div>
           {mode === 'business' && (
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
@@ -5399,7 +5401,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                     {(post.text?.da || '').length > 200 ? '…' : ''}
                   </div>
                   <div style={{ fontSize: 12, color: '#1877F2', fontWeight: 600, marginBottom: 10 }}>
-                    🕐 {new Date(post.scheduledAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    🕐 {new Date(post.scheduledAt).toLocaleString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
@@ -5458,7 +5460,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                   </div>
                   <div style={{ fontSize: 13, color: '#444', lineHeight: 1.5, marginBottom: 6 }}>{n.note}</div>
                   <div style={{ fontSize: 10, color: '#bbb' }}>
-                    {t.lastUpdated}: {new Date(n.updated_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {t.lastUpdated}: {new Date(n.updated_at).toLocaleString(getLocale(lang), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
               ))}
@@ -5690,7 +5692,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               style={{ ...fieldStyle, flex: 1 }}
-              type="date" lang="da"
+              type="date" lang={getLocale(lang)}
               value={birthday}
               onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
               max={new Date().toISOString().slice(0, 10)}
@@ -6335,7 +6337,7 @@ function BillingSettings({ lang, t, mode }) {
                   {sub.has_subscription
                     ? (t.recurringSubscriptionRenewsAutomatically)
                     : (t.oneTimePaymentActive)}
-                  {sub.expires_at && <span> {t.molliePaymentExpires}: <strong>{new Date(sub.expires_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong></span>}
+                  {sub.expires_at && <span> {t.molliePaymentExpires}: <strong>{new Date(sub.expires_at).toLocaleDateString(getLocale(lang))}</strong></span>}
                 </div>
               </div>
             </div>
@@ -7026,7 +7028,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
     <div className="p-card" style={{ padding: 24 }}>
       {profile?.createdAt && (
         <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>
-          {t.accountCreatedLabel}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+          {t.accountCreatedLabel}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(getLocale(lang), { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
         </div>
       )}
 
@@ -7569,7 +7571,7 @@ function EasterEggSettings({ lang }) {
   const discovered = EGG_IDS.filter(id => eggs[id]?.discovered)
   if (!discovered.length) return null
 
-  const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : '—'
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString(getLocale(lang)) : '—'
 
   return (
     <div className="p-card" style={{ marginTop: 16, padding: '20px 22px' }}>
@@ -7872,7 +7874,7 @@ function SettingsSessions({ lang, t, onLogout }) {
         const { browser, os } = parseBrowserFromUA(s.user_agent)
         const createdDate = s.created_at ? new Date(s.created_at) : null
         const expiresDate = s.expires_at ? new Date(s.expires_at) : null
-        const locale = lang === 'da' ? 'da-DK' : 'en-US'
+        const locale = getLocale(lang)
         const fmtDate = (d) => d ? d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
         return (
         <div key={s.id} className="p-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -8681,7 +8683,7 @@ function PrivacySection({ lang, onLogout }) {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
-    return new Date(dateStr).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', {
+    return new Date(dateStr).toLocaleString(getLocale(lang), {
       year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
     })
   }
@@ -9042,9 +9044,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             )}
             <div className="p-profile-meta">
               {profile.location && <span>📍 {profile.location}</span>}
-              {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
+              {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}</span>}
               {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
-              {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>}
+              {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(getLocale(lang), { year: 'numeric', month: 'long' })}</span>}
             </div>
             <div className="p-friend-profile-stats" style={{ justifyContent: 'center', marginTop: 12 }}>
               <div className="p-friend-profile-stat">
@@ -9259,7 +9261,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             ) : (
               <>
                 <input value={inquiryForm.subject} onChange={e => setInquiryForm(p => ({ ...p, subject: e.target.value }))} placeholder={t.inquirySubject} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
-                <input type="date" lang="da" value={inquiryForm.preferred_date} onChange={e => setInquiryForm(p => ({ ...p, preferred_date: e.target.value }))} placeholder={t.inquiryPreferredDate} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
+                <input type="date" lang={getLocale(lang)} value={inquiryForm.preferred_date} onChange={e => setInquiryForm(p => ({ ...p, preferred_date: e.target.value }))} placeholder={t.inquiryPreferredDate} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
                 <textarea value={inquiryForm.message} onChange={e => setInquiryForm(p => ({ ...p, message: e.target.value }))} placeholder={t.inquiryMessage} rows={4} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 14, resize: 'vertical', boxSizing: 'border-box' }} />
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button disabled={inquirySending || !inquiryForm.subject.trim() || !inquiryForm.message.trim()} onClick={async () => {
@@ -9343,7 +9345,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               {ev.cover_url && <img src={ev.cover_url} alt="" style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 8 }} />}
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{ev.title}</div>
-                <div style={{ fontSize: 12, color: '#6B7280' }}>{new Date(ev.date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}{ev.location ? ` · ${ev.location}` : ''}</div>
+                <div style={{ fontSize: 12, color: '#6B7280' }}>{new Date(ev.date).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}{ev.location ? ` · ${ev.location}` : ''}</div>
                 {ev.rsvp_count > 0 && <div style={{ fontSize: 11, color: '#6366F1', marginTop: 2 }}>{ev.rsvp_count} {lang === 'da' ? 'deltager' : 'going'}</div>}
               </div>
             </div>
@@ -9421,7 +9423,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {userPosts.map(p => {
               const text = lang === 'da' ? (p.text_da || p.text_en || '') : (p.text_en || p.text_da || '')
-              const date = new Date(p.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+              const date = new Date(p.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })
               const thumb = p.media?.[0]?.url
               return (
                 <div key={p.id} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid #f0ede8' }}>
@@ -9463,7 +9465,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
           />
           {crmNoteUpdatedAt && (
             <div style={{ fontSize: 11, color: '#bbb', marginTop: 4 }}>
-              {t.lastUpdated}: {new Date(crmNoteUpdatedAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              {t.lastUpdated}: {new Date(crmNoteUpdatedAt).toLocaleString(getLocale(lang), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
             </div>
           )}
         </div>
@@ -9548,7 +9550,7 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
               <div className="p-friend-profile-meta">
                 {profile.location && <span>📍 {profile.location}</span>}
                 {profile.joinDate && (
-                  <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>
+                  <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(getLocale(lang), { year: 'numeric', month: 'long' })}</span>
                 )}
               </div>
               <div className="p-friend-profile-stats">
@@ -9611,7 +9613,7 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
                 />
                 {crmNoteUpdatedAt && (
                   <div style={{ fontSize: 10, color: '#bbb', marginTop: 3 }}>
-                    {t.lastUpdated}: {new Date(crmNoteUpdatedAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {t.lastUpdated}: {new Date(crmNoteUpdatedAt).toLocaleString(getLocale(lang), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 )}
               </div>
@@ -9893,7 +9895,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
                 <div style={{ fontSize: 11, color: '#999' }}>{r.handle}</div>
               </div>
               <div style={{ fontSize: 11, color: '#aaa' }}>
-                {new Date(r.joinedAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })}
+                {new Date(r.joinedAt).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short' })}
               </div>
             </div>
           ))
@@ -10472,7 +10474,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
                     <div className="p-invite-row-info">
                       <div className="p-invite-row-name">{inv.name || inv.email}</div>
                       {inv.sentAt && (
-                        <div className="p-invite-row-meta">{t.invitesSentLabel}: {new Date(inv.sentAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                        <div className="p-invite-row-meta">{t.invitesSentLabel}: {new Date(inv.sentAt).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                       )}
                     </div>
                     <div className="p-invite-row-actions">
@@ -11203,7 +11205,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
     if (!text && !media) return
     const conv = conversations[activeConv]
     const now = new Date()
-    const time = now.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
+    const time = now.toLocaleTimeString(getLocale(lang), { hour: '2-digit', minute: '2-digit' })
     setConversations(prev => prev.map((c, i) => {
       if (i !== activeConv) return c
       const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, media, time, createdAtRaw: now.toISOString() }]
@@ -11797,7 +11799,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
 
   const formatDate = (iso) => {
     const d = new Date(iso)
-    return d.toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    return d.toLocaleString(getLocale(lang), { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
   const eventTypeLabel = (type) => {
@@ -11844,7 +11846,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
               <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)}>
                 <div className="p-event-card-body">
                   <div className="p-event-date-col" style={isExpired ? { opacity: 0.55 } : {}}>
-                    <div className="p-event-month">{new Date(ev.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
+                    <div className="p-event-month">{new Date(ev.date).toLocaleString(getLocale(lang), { month: 'short' }).toUpperCase()}</div>
                     <div className="p-event-day">{new Date(ev.date).getDate()}</div>
                   </div>
                   <div className="p-event-info" style={isExpired ? { opacity: 0.55 } : {}}>
@@ -12263,7 +12265,7 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
             placeholder={t.eventName} />
 
           <label style={labelStyle}>{t.eventDate} <span className="req">*</span></label>
-          <input style={fieldStyle} type="datetime-local" value={date} onChange={e => setDate(e.target.value)} required />
+          <input style={fieldStyle} type="datetime-local" lang={getLocale(lang)} value={date} onChange={e => setDate(e.target.value)} required />
 
           <label style={labelStyle}>{t.eventLocation} <span className="req">*</span></label>
           <LocationAutocomplete
@@ -13084,7 +13086,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             const commentCount = post.comment_count || 0
             const showComments = expandedCompanyComments.has(post.id)
             const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
-            const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
+            const timeAgo = new Date(post.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short' })
             return (
               <div key={post.id} className="p-card p-post" style={{ marginBottom: 12 }}>
                 <div className="p-post-header">
@@ -13349,7 +13351,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
           ) : companyJobs.map(job => {
             const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
             const jobDescription = typeof job.description === 'string' ? job.description : (job.description?.[lang] || job.description?.da || '')
-            const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
+            const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short' }) : ''
             return (
               <div key={job.id} className="p-card" style={{ opacity: job.active ? 1 : 0.55 }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -13405,7 +13407,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     )}
                     {job.deadline && (
                       <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 6 }}>
-                        ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}
+                        ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}
                       </div>
                     )}
                     {job.collective_agreement && (
@@ -13462,7 +13464,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   {lead.topic && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>📌 {lead.topic}</div>}
                   {lead.message && <div style={{ fontSize: 13, color: '#444', marginTop: 8, lineHeight: 1.5 }}>{lead.message}</div>}
                   <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>
-                    {new Date(lead.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(lead.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
                 <div style={{ flexShrink: 0 }}>
@@ -13969,8 +13971,8 @@ function CVProfileSection({ lang, t, isOwn, userId }) {
   const profLabel = (p) => ({ basic: t.cvProfBasic, conversational: t.cvProfConversational, professional: t.cvProfProfessional, fluent: t.cvProfFluent, native: t.cvProfNative }[p] || p)
 
   const formatDateRange = (entry) => {
-    const from = entry.start_date ? new Date(entry.start_date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'short' }) : ''
-    const to = entry.is_current ? t.cvPresent : (entry.end_date ? new Date(entry.end_date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'short' }) : '')
+    const from = entry.start_date ? new Date(entry.start_date).toLocaleDateString(getLocale(lang), { year: 'numeric', month: 'short' }) : ''
+    const to = entry.is_current ? t.cvPresent : (entry.end_date ? new Date(entry.end_date).toLocaleDateString(getLocale(lang), { year: 'numeric', month: 'short' }) : '')
     return [from, to].filter(Boolean).join(' – ')
   }
 
@@ -14490,7 +14492,7 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
           )}
           {job.deadline && (
             <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 8 }}>
-              ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+              ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -14969,7 +14971,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
                           )}
                         </div>
                         <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
-                          {new Date(app.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(app.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
                       </div>
                       <select
@@ -15323,7 +15325,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
             </div>
             <div>
               <label style={lS}>{t.jobDeadline}</label>
-              <input style={fS} type="date" lang="da" value={deadline} onChange={e => setDeadline(e.target.value)} />
+              <input style={fS} type="date" lang={getLocale(lang)} value={deadline} onChange={e => setDeadline(e.target.value)} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
@@ -16834,7 +16836,7 @@ function AdsManagementPage({ lang, t }) {
                     )}
                     {isPaidAndActive(ad) && (
                       <span style={{ color: '#2D6A4F' }}>
-                        ✓ {t.adminAdsColPaid}{ad.paid_amount ? ` ${formatPrice(parseFloat(ad.paid_amount))}` : ''} · {t.until} <strong>{new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong>
+                        ✓ {t.adminAdsColPaid}{ad.paid_amount ? ` ${formatPrice(parseFloat(ad.paid_amount))}` : ''} · {t.until} <strong>{new Date(ad.paid_until).toLocaleDateString(getLocale(lang))}</strong>
                       </span>
                     )}
                   </div>
@@ -16872,7 +16874,7 @@ function AdsManagementPage({ lang, t }) {
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input type="date" lang="da" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+                  <input type="date" lang={getLocale(lang)} style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
                   <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0,10) }))} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>{t.calendarToday}</button>
                 </div>
               )}
@@ -16883,7 +16885,7 @@ function AdsManagementPage({ lang, t }) {
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input type="date" lang="da" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+                  <input type="date" lang={getLocale(lang)} style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
                   <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(f => ({ ...f, end_date: d.toISOString().slice(0,10) })) }} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>+30 {t.days}</button>
                 </div>
               )}
@@ -17522,7 +17524,7 @@ function AnalyticsPage({ lang, t, currentUser, onNavigate }) {
                             <td style={{ padding: '6px 8px' }}>{ad.reach.toLocaleString()}</td>
                             <td style={{ padding: '6px 8px' }}>{formatPrice(ad.spent)}</td>
                             <td style={{ padding: '6px 8px', fontSize: 11, color: '#666' }}>
-                              {ad.paid_until ? new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : '—'}
+                              {ad.paid_until ? new Date(ad.paid_until).toLocaleDateString(getLocale(lang)) : '—'}
                             </td>
                           </tr>
                         ))}
@@ -17937,7 +17939,7 @@ function CalendarPage({ lang, t, currentUser }) {
       {selectedDay && (
         <div style={s.panel}>
           <div style={s.panelTitle}>
-            {selectedDateKey && new Date(selectedDateKey + 'T12:00:00').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {selectedDateKey && new Date(selectedDateKey + 'T12:00:00').toLocaleDateString(getLocale(lang), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
           {selectedDateKey && isAdfreeDate(selectedDateKey) && (
             <div style={{ ...s.item, marginBottom: 10 }}>
@@ -18091,7 +18093,7 @@ function CalendarPage({ lang, t, currentUser }) {
                       <div style={{ flex: 1, minWidth: 120 }}>
                         <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{t.endDate}</label>
                         <input
-                          type="date" lang="da"
+                          type="date" lang={getLocale(lang)}
                           value={adfreeEndDate}
                           min={selectedDateKey}
                           onChange={e => { setAdfreeEndDate(e.target.value); setAdfreeError('') }}
@@ -18156,7 +18158,7 @@ function CalendarPage({ lang, t, currentUser }) {
                 />
                 <input
                   required
-                  type="date" lang="da"
+                  type="date" lang={getLocale(lang)}
                   value={bdDate}
                   onChange={e => setBdDate(e.target.value)}
                   style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
@@ -18192,7 +18194,7 @@ function CalendarPage({ lang, t, currentUser }) {
                 const color = nameToColor(b.name)
                 const bdObj = new Date(b.birthday + 'T12:00:00')
                 const age = !isNaN(bdObj) ? today.getFullYear() - bdObj.getFullYear() : null
-                const dateLabel = !isNaN(bdObj) ? bdObj.toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' }) : b.birthday
+                const dateLabel = !isNaN(bdObj) ? bdObj.toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' }) : b.birthday
                 const relLabel = { self: t.calendarPersonalBirthdayRelationSelf, family: t.calendarPersonalBirthdayRelationFamily, friend: t.calendarPersonalBirthdayRelationFriend, other: t.calendarPersonalBirthdayRelationOther }[b.relation] || b.relation
                 return (
                   <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--bg,#f9f9f9)', borderRadius: 8, border: '1px solid var(--border,#eee)' }}>
@@ -18342,7 +18344,7 @@ function ModeratorPage({ lang, t, currentUser }) {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{a.admin_name}</span>
                 {a.target_name && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>→ {a.target_name}</span>}
                 {a.reason && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>— {a.reason}</span>}
-                <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString(getLocale(lang))}</span>
               </div>
             </div>
           ))}
@@ -18717,7 +18719,7 @@ function AdminBannedUsersPanel({ lang, bannedUsers, onUnban }) {
                   </td>
                   <td style={{ padding: '10px 14px', color: '#555' }}>{u.banned_by || <span style={{ color: '#ccc' }}>—</span>}</td>
                   <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
-                    {u.banned_at ? new Date(u.banned_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : '—'}
+                    {u.banned_at ? new Date(u.banned_at).toLocaleDateString(getLocale(lang)) : '—'}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
                     <button onClick={() => handleUnban(u.id)} disabled={pending[u.id]}
@@ -18818,7 +18820,7 @@ function AdminAuditLogPanel({ lang, rows, total, offset, filter, onFilterChange,
                     </td>
                     <td style={{ padding: '8px 14px', color: '#aaa', fontSize: 12, fontFamily: 'monospace' }}>{r.ip_address || '—'}</td>
                     <td style={{ padding: '8px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap' }}>
-                      {new Date(r.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Copenhagen' })}
+                      {new Date(r.created_at).toLocaleString(getLocale(lang), { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Copenhagen' })}
                     </td>
                   </tr>
                 ))}
@@ -19359,11 +19361,11 @@ function AdminPlatformAdsPanel({ lang }) {
             </div>
             <div>
               <label style={lS}>{da ? 'Startdato' : 'Start date'}</label>
-              <input style={iS} type="date" lang="da" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+              <input style={iS} type="date" lang={getLocale(lang)} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
             </div>
             <div>
               <label style={lS}>{da ? 'Slutdato' : 'End date'}</label>
-              <input style={iS} type="date" lang="da" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <input style={iS} type="date" lang={getLocale(lang)} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
@@ -19684,7 +19686,7 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                       {displayDesc}
                       {isEarned && earnedData?.awardedAt && (
                         <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>
-                          {da ? 'Optjent' : 'Earned'}: {new Date(earnedData.awardedAt).toLocaleDateString(da ? 'da-DK' : 'en-US')}
+                          {da ? 'Optjent' : 'Earned'}: {new Date(earnedData.awardedAt).toLocaleDateString(getLocale(lang))}
                         </span></>
                       )}
                       {isEarned && hasInterview && (
@@ -20166,7 +20168,7 @@ function AdminLivestreamStatsPanel({ lang, t }) {
 
   const fmtDate = (iso) => {
     if (!iso) return '—'
-    return new Date(iso).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', {
+    return new Date(iso).toLocaleString(getLocale(lang), {
       day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     })
   }
@@ -20887,7 +20889,7 @@ function AdminPage({ lang, t }) {
                           <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
                             {Object.entries(row).map(([k, v]) => (
                               <td key={k} style={{ padding: '6px 8px', color: '#333', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {k === 'created_at' || k === 'expires_at' ? new Date(v).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : String(v ?? '—')}
+                                {k === 'created_at' || k === 'expires_at' ? new Date(v).toLocaleDateString(getLocale(lang)) : String(v ?? '—')}
                               </td>
                             ))}
                           </tr>
@@ -21884,7 +21886,7 @@ function AdminPage({ lang, t }) {
                         <div style={{ fontSize: 12, color: '#888' }}>{u.handle} · {u.email}</div>
                       </div>
                       <span style={{ marginLeft: 'auto', fontSize: 11, color: '#aaa' }}>
-                        {u.moderator_candidate_at ? new Date(u.moderator_candidate_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : ''}
+                        {u.moderator_candidate_at ? new Date(u.moderator_candidate_at).toLocaleDateString(getLocale(lang)) : ''}
                       </span>
                     </div>
                     {u.moderator_candidate_note && !isEditing && (
@@ -21997,7 +21999,7 @@ function AdminPage({ lang, t }) {
                     <span style={{ fontWeight: 700, fontSize: 13 }}>{a.action_type.replace('_', ' ').toUpperCase()}</span>
                     {a.target_user_name && <span style={{ fontSize: 13, color: '#555' }}>→ {a.target_user_name} ({a.target_user_handle})</span>}
                     {a.target_type && <span style={{ fontSize: 12, color: '#888' }}>{a.target_type} #{a.target_id}</span>}
-                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#aaa' }}>{new Date(a.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#aaa' }}>{new Date(a.created_at).toLocaleString(getLocale(lang))}</span>
                   </div>
                   {a.reason && <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{a.reason}</div>}
                   <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.by} {a.admin_name}</div>
@@ -22086,7 +22088,7 @@ function AdminPage({ lang, t }) {
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{r.name}</span>
                     <span style={{ color: 'var(--text-muted,#888)', fontSize: 12, marginLeft: 6 }}>@{r.handle}</span>
                   </div>
-                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#888)' }}>{new Date(r.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#888)' }}>{new Date(r.created_at).toLocaleDateString(getLocale(lang))}</span>
                 </div>
                 {r.reason && <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text,#111)', lineHeight: 1.5 }}>{r.reason}</p>}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -22329,7 +22331,7 @@ function AdminPage({ lang, t }) {
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
                 <span style={{ fontWeight: 700, fontSize: 13 }}>🫂 {t.adminGroupsReportGroup}: <span style={{ color: '#2D6A4F' }}>{r.group_name}</span></span>
                 <span style={{ fontSize: 13, color: '#555' }}>{t.adminGroupsReportBy}: {r.reporter_name}</span>
-                <span style={{ fontSize: 12, color: '#888' }}>{new Date(r.reported_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                <span style={{ fontSize: 12, color: '#888' }}>{new Date(r.reported_at).toLocaleDateString(getLocale(lang))}</span>
               </div>
               <div style={{ fontSize: 13, color: '#333', background: '#f8f8f6', borderRadius: 6, padding: '8px 12px', marginBottom: 6 }}>
                 {r.text_da || r.text_en || '—'}
@@ -22507,7 +22509,7 @@ function AdminPage({ lang, t }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{fb.title}</div>
                     <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>
-                      {typeLabel} · {fb.user_name} (@{fb.user_handle}) · {new Date(fb.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
+                      {typeLabel} · {fb.user_name} (@{fb.user_handle}) · {new Date(fb.created_at).toLocaleDateString(getLocale(lang))}
                     </div>
                   </div>
                   <span style={{ background: statusColors[fb.status] || '#999', color: '#fff', borderRadius: 6, padding: '2px 9px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
@@ -22621,7 +22623,7 @@ function AdminPage({ lang, t }) {
                 </div>
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#666', marginBottom: 12 }}>
                   <span>#{u.id}</span>
-                  <span>{t.adminUserJoinDate}: {u.created_at && !isNaN(new Date(u.created_at)) ? new Date(u.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
+                  <span>{t.adminUserJoinDate}: {u.created_at && !isNaN(new Date(u.created_at)) ? new Date(u.created_at).toLocaleDateString(getLocale(lang)) : '–'}</span>
                   <span>{t.adminUserMode}: {u.mode}</span>
                   <span>{t.adminUserPlan}: {u.plan || '–'}</span>
                   <span>{u.post_count ?? 0} {t.adminUserPostCount}</span>

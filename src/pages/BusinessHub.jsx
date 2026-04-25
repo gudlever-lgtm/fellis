@@ -8,6 +8,7 @@ import {
   apiGetFollowerGrowth, apiGetBestPostTimes,
 } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
+import { getLocale } from '../utils/dateFormat.js'
 import BusinessDirectory from './BusinessDirectory.jsx'
 import AdManager from './AdManager.jsx'
 
@@ -97,7 +98,7 @@ function LeadsSection({ t, lang }) {
              <div style={{ flex: 1 }}>
                <span style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{lead.sender_name || lead.name}</span>
                {lead.sender_handle && <span style={{ color: '#9CA3AF', fontSize: 12, marginLeft: 6 }}>@{lead.sender_handle}</span>}
-               <div style={{ fontSize: 11, color: '#9CA3AF' }}>{new Date(lead.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+               <div style={{ fontSize: 11, color: '#9CA3AF' }}>{new Date(lead.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
              </div>
              <span style={{ ...LEAD_STATUS_STYLE[lead.status], fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>
                {t[`leadStatus${lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}`]}
@@ -174,7 +175,7 @@ function AnnouncementsSection({ t }) {
                <div style={{ fontWeight: 600, fontSize: 14, color: '#111827', marginBottom: 4 }}>{a.title}</div>
                <div style={{ fontSize: 13, color: '#374151', whiteSpace: 'pre-wrap', marginBottom: 4 }}>{a.body}</div>
                {a.cta_url && <a href={a.cta_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#6366F1' }}>{a.cta_url}</a>}
-               <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{new Date(a.created_at).toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+               <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{new Date(a.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}</div>
              </div>
              <button onClick={() => remove(a.id)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #FEE2E2', background: '#FFF5F5', color: '#DC2626', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 10 }}>{t.deleteAnnouncement}</button>
            </div>
