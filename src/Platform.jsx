@@ -11792,8 +11792,11 @@ function EventsPage({ lang, t, currentUser, mode }) {
   const getEventLocation = (e) => typeof e.location === 'string' ? e.location : (e.location?.[lang] || e.location?.da || '')
 
   const now = new Date()
-  const myEvents = events.filter(e => (e.organizer === currentUser.name || e.organizerId === currentUser.id) && new Date(e.date) >= now)
-  const discoverEvents = events.filter(e => e.organizer !== currentUser.name && e.organizerId !== currentUser.id && new Date(e.date) >= now)
+  const isMyEvent = (e) => e.organizer === currentUser.name || e.organizerId === currentUser.id
+  const myUpcoming = events.filter(e => isMyEvent(e) && new Date(e.date) >= now)
+  const myPast = events.filter(e => isMyEvent(e) && new Date(e.date) < now).sort((a, b) => new Date(b.date) - new Date(a.date))
+  const myEvents = [...myUpcoming, ...myPast]
+  const discoverEvents = events.filter(e => !isMyEvent(e) && new Date(e.date) >= now)
   const expiredEvents = events.filter(e => new Date(e.date) < now)
   const displayEvents = tab === 'my' ? myEvents : tab === 'expired' ? expiredEvents : discoverEvents
 
