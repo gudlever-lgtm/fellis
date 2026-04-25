@@ -472,7 +472,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               }
               return (
                 <div key={post.id} style={{ ...s.postCard, ...(post.is_pinned ? s.pinnedCard : {}) }}>
-                  {post.is_pinned && <div style={s.pinLabel}>{'📌'}</div>}
+                  {!!post.is_pinned && <div style={s.pinLabel}>{'📌'}</div>}
                   <div style={s.postHeader}>
                     <div style={{
                       width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
