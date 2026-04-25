@@ -1556,6 +1556,24 @@ setInterval(runDataRetentionCleanup, 6 * 60 * 60 * 1000)
 // Also run once on startup
 runDataRetentionCleanup()
 
+async function initPersonalBirthdays() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS personal_birthdays (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      birthday DATE NOT NULL,
+      relation ENUM('self','family','friend','other') NOT NULL DEFAULT 'family',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_pb_user_id (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    console.log('✓ personal_birthdays table ready')
+  } catch (err) {
+    console.error('✗ initPersonalBirthdays FAILED:', err.message)
+  }
+}
+
 // ── Birthday reminder notifications — runs daily at 08:00 ────────────────────
 async function sendBirthdayReminders() {
   try {
@@ -3410,6 +3428,7 @@ const PORT = process.env.PORT || 3001
   await initBadges()
   await initStoriesHashtags()
   await initSignalEngine()
+  await initPersonalBirthdays()
   // RTMP is handled by mediamtx (external service on port 1935).
   // node-media-server startup is intentionally disabled to avoid port conflicts.
   console.log('fellis.eu startup init complete')
