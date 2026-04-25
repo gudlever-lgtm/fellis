@@ -309,7 +309,7 @@ router.get('/profile', authenticate, async (req, res) => {
       loginMethod: 'email',
       hasPassword: !!u.has_password,
       createdAt: u.created_at || u.join_date || null,
-      birthday: u.birthday || null,
+      birthday: u.birthday ? (u.birthday instanceof Date ? `${u.birthday.getUTCFullYear()}-${String(u.birthday.getUTCMonth() + 1).padStart(2,'0')}-${String(u.birthday.getUTCDate()).padStart(2,'0')}` : String(u.birthday).slice(0, 10)) : null,
       gender: u.gender || null,
       profile_public: !!u.profile_public,
       reputationScore: Number(u.reputation_score || 0),
