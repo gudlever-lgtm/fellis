@@ -2012,7 +2012,7 @@ function MemoriesCard({ lang, t, onShare }) {
     : `${yearsAgo} ${yearsAgo === 1 ? t.memoriesYearAgo : t.memoriesYearAgo + 's'}`
 
   const handleShare = async () => {
-    const text = memory.text[lang] || memory.text.da || ''
+    const text = memory.text?.[lang] || memory.text?.da || ''
     if (onShare) onShare(text)
     setSharedIdx(prev => new Set(prev).add(idx))
   }
@@ -2098,7 +2098,7 @@ function MemoriesCard({ lang, t, onShare }) {
         </div>
         <button style={s.dismiss} onClick={() => setDismissed(true)} title={t.memoriesDismiss}>✕</button>
       </div>
-      <div style={s.body}>{memory.text[lang] || memory.text.da}</div>
+      <div style={s.body}>{memory.text?.[lang] || memory.text?.da}</div>
       <div style={s.footer}>
         {sharedIdx.has(idx)
           ? <span style={s.sharedLabel}>✓ {t.memoriesShared}</span>
@@ -3125,7 +3125,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   }, [])
 
   const handleShareToFriend = useCallback(async (post, friendId) => {
-    const text = post.text[lang] || post.text.da || ''
+    const text = post.text?.[lang] || post.text?.da || ''
     const msg = `${post.author}: "${text.slice(0, 120)}${text.length > 120 ? '…' : ''}" — fellis.eu`
     const conv = await apiCreateConversation([friendId]).catch(() => null)
     if (conv?.id) await apiSendConversationMessage(conv.id, msg).catch(() => {})
@@ -4040,7 +4040,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
               </div>
-              <div className="p-post-text">{post.text[lang]}</div>
+              <div className="p-post-text">{post.text?.[lang]}</div>
               {post.media?.length > 0 && <PostMedia media={post.media} lang={lang} />}
             </div>
           </div>
@@ -4311,7 +4311,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
             }
             timeContent={
               <div className="p-post-time">
-                {post.time[lang]}
+                {post.time?.[lang]}
                 {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
               </div>
             }
@@ -4579,7 +4579,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                     </div>
                     <div className="p-comment-bubble">
                       <span className="p-comment-author">{c.author}</span>
-                      <span><CommentText text={c.text[lang]} lang={lang} /></span>
+                      <span><CommentText text={c.text?.[lang]} lang={lang} /></span>
                       {c.media?.length > 0 && (
                         <div className="p-comment-media">
                           <PostMedia media={c.media} lang={lang} />
@@ -5333,7 +5333,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                 <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
                 <div>
                   <div className="p-post-author">{post.author}</div>
-                  <div className="p-post-time">{post.time[lang]}</div>
+                  <div className="p-post-time">{post.time?.[lang]}</div>
                 </div>
               </div>
               <PostText text={post.text} lang={lang} />
@@ -11044,7 +11044,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
                     <span className="p-search-result-time">{post.time?.[lang]}</span>
                     <span className="p-search-result-arrow">→</span>
                   </div>
-                  <div className="p-search-result-text">{excerpt(post.text[lang], query.trim())}</div>
+                  <div className="p-search-result-text">{excerpt(post.text?.[lang], query.trim())}</div>
                 </div>
               ))}
             </section>
@@ -11067,7 +11067,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
                   </div>
                   <div className="p-search-result-text">
                     <span className="p-search-result-from">{msg.from}: </span>
-                    {excerpt(msg.text[lang], query.trim())}
+                    {excerpt(msg.text?.[lang], query.trim())}
                   </div>
                 </div>
               ))}
@@ -17876,14 +17876,14 @@ function CalendarPage({ lang, t, currentUser }) {
                   <span style={s.dayNum(isSelected)}>{dayNum}</span>
                   <div style={s.dots}>
                     {hols.map((h, j) => (
-                      <span key={j} style={s.dot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} title={h.label[lang]} />
+                      <span key={j} style={s.dot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} title={h.label?.[lang]} />
                     ))}
                     {bdays.map((b, j) => (
                       <span key={j} style={s.dot(BIRTHDAY_COLOR)} title={b.name} />
                     ))}
                     {evts.map((e, j) => {
                       const evtColor = e.isOrganizer ? EVENT_COLOR_ORGANIZER : e.myRsvp === 'going' ? EVENT_COLOR_GOING : EVENT_COLOR_MAYBE
-                      return <span key={j} style={s.dot(evtColor)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
+                      return <span key={j} style={s.dot(evtColor)} title={typeof e.title === 'string' ? e.title : (e.title?.[lang] || e.title?.da)} />
                     })}
                     {rems.map((r, j) => (
                       <span key={j} style={s.dot(REMINDER_COLOR)} title={r.title} />
@@ -17953,7 +17953,7 @@ function CalendarPage({ lang, t, currentUser }) {
           {selectedHolidays.map((h, i) => (
             <div key={i} style={s.item}>
               <span style={s.itemDot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} />
-              <span style={s.itemLabel}>{h.label[lang]}</span>
+              <span style={s.itemLabel}>{h.label?.[lang]}</span>
             </div>
           ))}
           {selectedBirthdays.map((b, i) => {
@@ -19659,10 +19659,10 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                 const eggKey = isEgg ? BADGE_TO_EGG[badge.id] : null
                 const adminEgg = eggKey ? (adminEggConfig[eggKey] || {}) : {}
                 const adminHint = adminEgg.hintsEnabled && adminEgg.hintText ? adminEgg.hintText : ''
-                const displayName = isEgg && !isEarned ? '???' : badge.name[lang] || badge.name.da
+                const displayName = isEgg && !isEarned ? '???' : badge.name?.[lang] || badge.name?.da
                 const displayDesc = isEgg && !isEarned
-                  ? (adminHint ? `💡 ${adminHint}` : `💡 ${badge.description[lang] || badge.description.da}`)
-                  : badge.description[lang] || badge.description.da
+                  ? (adminHint ? `💡 ${adminHint}` : `💡 ${badge.description?.[lang] || badge.description?.da}`)
+                  : badge.description?.[lang] || badge.description?.da
 
                 const eggId = isEgg ? BADGE_TO_EGG[badge.id] : null
                 const hasInterview = eggId && !!EGG_INTERVIEW[eggId]
