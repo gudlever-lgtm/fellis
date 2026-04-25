@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment, lazy, Suspense } from 'react'
-const MiniWorldMap = lazy(() => import('./components/MiniWorldMap.jsx'))
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
 import { detectLanguage } from './utils/detectLanguage.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
@@ -8436,16 +8435,7 @@ function VisitorStatsPage({ lang, onBadgeCheck }) {
         }
       </div>
 
-      {/* Map */}
-      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>🗺️ {t.map}</div>
-        {!stats?.countries?.length
-          ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
-          : <Suspense fallback={null}><MiniWorldMap countries={stats.countries} lang={lang} /></Suspense>
-        }
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <BarChart data={stats?.browsers || []} label={`🌐 ${t.browsers}`} />
         <BarChart data={stats?.oses || []} label={`💻 ${t.os}`} />
       </div>
