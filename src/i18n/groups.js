@@ -116,6 +116,14 @@ export default {
       mute1w: '1 uge',
       muteOff: 'Slå fra',
       mutedLabel: 'Slukket',
+      // Settings page
+      settingsTitle: 'Gruppeindstillinger',
+      settingsSaved: 'Indstillinger gemt',
+      saveSettings: 'Gem indstillinger',
+      dangerZone: 'Farezone',
+      deleteGroup: 'Slet gruppe',
+      deleteGroupConfirm: 'Er du sikker på, at du vil slette denne gruppe? Alt indhold og alle medlemmer fjernes permanent.',
+      groupDeleted: 'Gruppen er slettet',
     },
   },
   en: {
@@ -235,6 +243,14 @@ export default {
       mute1w: '1 week',
       muteOff: 'Turn off',
       mutedLabel: 'Muted',
+      // Settings page
+      settingsTitle: 'Group settings',
+      settingsSaved: 'Settings saved',
+      saveSettings: 'Save settings',
+      dangerZone: 'Danger zone',
+      deleteGroup: 'Delete group',
+      deleteGroupConfirm: 'Are you sure you want to delete this group? All content and members will be permanently removed.',
+      groupDeleted: 'Group deleted',
     },
   },
   de: { groups: {

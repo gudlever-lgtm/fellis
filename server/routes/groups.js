@@ -548,6 +548,80 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
   }
 })
 
+// ── Update group settings (owner/admin) ──────────────────────────────────────
+
+router.patch('/groups/:id', authenticate, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  if (isNaN(groupId)) return res.status(400).json({ error: 'invalid_id' })
+
+  const { name, description, type, category } = req.body || {}
+
+  const validTypes = ['public', 'private', 'hidden']
+  if (type && !validTypes.includes(type)) return res.status(400).json({ error: 'invalid_type' })
+
+  const validCategories = ['interest', 'local', 'professional', 'event', 'other']
+  if (category && !validCategories.includes(category)) return res.status(400).json({ error: 'invalid_category' })
+
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, created_by FROM conversations WHERE id = ? AND is_group = 1',
+      [groupId]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const role = await getMemberRole(groupId, req.userId)
+    if (group.created_by !== req.userId && role !== 'admin') {
+      return res.status(403).json({ error: 'forbidden' })
+    }
+
+    const updates = {}
+    if (name)        updates.name = String(name).trim()
+    if (description !== undefined) updates.description_da = String(description).trim()
+    if (type)        { updates.type = type; updates.is_public = type === 'public' ? 1 : 0 }
+    if (category)    updates.category = category
+
+    if (!Object.keys(updates).length) return res.status(400).json({ error: 'no_changes' })
+
+    const setClauses = Object.keys(updates).map(k => `\`${k}\` = ?`).join(', ')
+    await pool.query(
+      `UPDATE conversations SET ${setClauses} WHERE id = ?`,
+      [...Object.values(updates), groupId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/groups/:id error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// ── Delete group (owner only) ─────────────────────────────────────────────────
+
+router.delete('/groups/:id', authenticate, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  if (isNaN(groupId)) return res.status(400).json({ error: 'invalid_id' })
+
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, created_by FROM conversations WHERE id = ? AND is_group = 1',
+      [groupId]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+    if (group.created_by !== req.userId && !req.adminRole) {
+      return res.status(403).json({ error: 'forbidden' })
+    }
+
+    await pool.query('DELETE FROM posts WHERE group_id = ?', [groupId])
+    await pool.query('DELETE FROM group_polls WHERE group_id = ?', [groupId])
+    await pool.query('DELETE FROM conversation_participants WHERE conversation_id = ?', [groupId])
+    await pool.query('DELETE FROM conversations WHERE id = ?', [groupId])
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/groups/:id error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
 // ── Cover upload ──────────────────────────────────────────────────────────────
 
 router.post('/groups/:id/cover', authenticate, fileUploadLimit, coverUpload.single('cover'), async (req, res) => {

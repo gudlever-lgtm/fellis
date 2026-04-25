@@ -997,6 +997,8 @@ const REQUIRED_GROUP_ROUTES = [
   'DELETE /api/groups/:id/posts/:postId',
   'POST /api/groups/:id/posts/:postId/pin',
   'POST /api/groups/:id/posts/:postId/react',
+  'PATCH /api/groups/:id',
+  'DELETE /api/groups/:id',
 ]
 
 const missingGroupRoutes = REQUIRED_GROUP_ROUTES.filter(r => {
@@ -1071,6 +1073,8 @@ const REQUIRED_GROUP_API_FNS = [
   'apiDeleteGroupPost',
   'apiPinGroupPost',
   'apiReactToGroupPost',
+  'apiUpdateGroupSettings',
+  'apiDeleteOwnGroup',
 ]
 
 const missingGroupApiFns = REQUIRED_GROUP_API_FNS.filter(fn => !apiSrc.includes(fn))
