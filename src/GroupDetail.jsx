@@ -751,9 +751,17 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               <div style={s.feedEmpty}>{g.noEvents}</div>
             ) : events.map(ev => {
               const goingCount = Number(ev.going_count) || 0
+              const isExpired = ev.date && new Date(ev.date) < new Date()
               return (
-                <div key={ev.id} style={s.eventCard}>
-                  <div style={s.eventTitle}>{ev.title}</div>
+                <div key={ev.id} style={{ ...s.eventCard, ...(isExpired ? { opacity: 0.6 } : {}) }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={s.eventTitle}>{ev.title}</div>
+                    {isExpired && (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#f5e6e6', color: '#c0392b' }}>
+                        {t.expired}
+                      </span>
+                    )}
+                  </div>
                   <div style={s.eventMeta}>
                     {ev.date && <span>{'📅 '}{fmtDate(ev.date, lang)}</span>}
                     {ev.location && <span>{'📍 '}{ev.location}</span>}
@@ -763,21 +771,23 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                       </span>
                     )}
                   </div>
-                  <div style={s.rsvpRow}>
-                    {RSVP_STATUSES.map(status => {
-                      const active = ev.my_rsvp === status
-                      const label = g[`rsvp${status.charAt(0).toUpperCase()}${status.slice(1)}`] || status
-                      return (
-                        <button
-                          key={status}
-                          style={{ ...s.rsvpBtn, ...(active ? s.rsvpBtnActive : {}) }}
-                          onClick={() => handleRsvp(ev, status)}
-                        >
-                          {label}
-                        </button>
-                      )
-                    })}
-                  </div>
+                  {!isExpired && (
+                    <div style={s.rsvpRow}>
+                      {RSVP_STATUSES.map(status => {
+                        const active = ev.my_rsvp === status
+                        const label = g[`rsvp${status.charAt(0).toUpperCase()}${status.slice(1)}`] || status
+                        return (
+                          <button
+                            key={status}
+                            style={{ ...s.rsvpBtn, ...(active ? s.rsvpBtnActive : {}) }}
+                            onClick={() => handleRsvp(ev, status)}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )
             })}
