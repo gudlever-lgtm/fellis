@@ -11,6 +11,7 @@ const router = Router()
 
 const VALID_LANGS = new Set(['da', 'en', 'de', 'es', 'fi', 'fr', 'it', 'nl', 'no', 'pl', 'pt', 'sv'])
 const VALID_FEATURES = new Set(['common', 'auth', 'feed', 'profile'])
+const DEEPL_LANGS = new Set(['da', 'en', 'de', 'fr', 'nl', 'sv', 'fi', 'pl', 'es', 'it', 'pt'])
 
 // GET /api/translations?lang=en[&feature=auth]
 // With feature: returns JSON file from src/i18n/<feature>/<lang>.json
@@ -99,6 +100,30 @@ router.get('/content/:id', async (req, res) => {
   } catch (err) {
     console.error('[GET /api/content/:id]', err.message)
     res.status(500).json({ error: 'Could not fetch content' })
+  }
+})
+
+// POST /api/translate { text, sourceLang, targetLang }
+// Translates text via DeepL (cached). Returns { translatedText }.
+router.post('/translate', async (req, res) => {
+  const { text, sourceLang, targetLang } = req.body ?? {}
+
+  if (!text || typeof text !== 'string' || text.trim() === '') {
+    return res.status(400).json({ error: 'text is required and must be a non-empty string' })
+  }
+  if (!DEEPL_LANGS.has(sourceLang)) {
+    return res.status(400).json({ error: `Invalid sourceLang — must be one of: ${[...DEEPL_LANGS].join(', ')}` })
+  }
+  if (!DEEPL_LANGS.has(targetLang)) {
+    return res.status(400).json({ error: `Invalid targetLang — must be one of: ${[...DEEPL_LANGS].join(', ')}` })
+  }
+
+  try {
+    const translatedText = await translate(text.trim(), sourceLang, targetLang)
+    res.json({ translatedText })
+  } catch (err) {
+    console.error('[POST /api/translate]', err.message)
+    res.status(500).json({ error: 'Translation failed' })
   }
 })
 
