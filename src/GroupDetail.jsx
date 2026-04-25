@@ -11,6 +11,7 @@ import {
   apiMuteConversation,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
+import { getLocale } from './utils/dateFormat.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -34,7 +35,7 @@ const RSVP_STATUSES = ['going', 'maybe', 'notGoing']
 function fmtDate(dateStr, lang) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString(
-    lang === 'da' ? 'da-DK' : 'en-US',
+    getLocale(lang),
     { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
   )
 }
@@ -715,6 +716,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                     />
                     <input
                       type="datetime-local"
+                      lang={getLocale(lang)}
                       style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
                       value={eventDate}
                       onChange={e => setEventDate(e.target.value)}
@@ -923,7 +925,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 <div style={s.aboutLabel}>{g.createdLabel}</div>
                 <div style={s.aboutText}>
                   {new Date(group.created_at).toLocaleDateString(
-                    lang === 'da' ? 'da-DK' : 'en-US',
+                    getLocale(lang),
                     { day: 'numeric', month: 'long', year: 'numeric' }
                   )}
                 </div>

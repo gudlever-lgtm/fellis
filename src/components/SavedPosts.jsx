@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { apiGetSavedPosts, apiUnsavePost } from '../api.js'
 import { nameToColor, getInitials, getTranslations } from '../data.js'
+import { getLocale } from '../utils/dateFormat.js'
 
 export default function SavedPosts({ lang, onViewPost }) {
   const [posts, setPosts] = useState(null)
@@ -24,7 +25,7 @@ export default function SavedPosts({ lang, onViewPost }) {
         ? <div style={{ padding: 32, textAlign: 'center', color: '#888' }}>{t.savedPostsEmpty}</div>
         : posts.map(post => {
           const text = post[`text_${lang}`] || post.text_da || post.text_en || ''
-          const savedAt = post.saved_at ? new Date(post.saved_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : null
+          const savedAt = post.saved_at ? new Date(post.saved_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' }) : null
           return (
             <div key={post.id} className="p-card" style={{ marginBottom: 10, padding: '14px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getTheme } from '../userTypeTheme.js'
 import { formatPrice } from '../utils/currency.js'
+import { getLocale } from '../utils/dateFormat.js'
 import { apiFetchPaymentFeatures, apiStartFeaturePayment, apiCancelFeaturePayment } from '../api.js'
 
 const FEATURE_IDS = ['ad_free', 'analytics', 'profile_boost', 'direct_message', 'multi_admin', 'ad_campaigns']
@@ -98,7 +99,7 @@ export default function FeaturesPage({ currentUser, lang, t, onNavigate }) {
     dialogBtns: { display: 'flex', gap: 10, justifyContent: 'flex-end' },
   }
 
-  const dateFmt = new Intl.DateTimeFormat(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+  const dateFmt = new Intl.DateTimeFormat(getLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })
   const perMonth = tf.price_per_month || '/md'
 
   return (

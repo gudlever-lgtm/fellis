@@ -3,6 +3,7 @@ import { nameToColor, getInitials, REACTIONS } from './data.js'
 import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus, apiGetStreamKey, apiRegenerateStreamKey, apiFetchFriends, apiCreateConversation, apiSendConversationMessage, apiShareReel } from './api.js'
 import AdBanner from './AdBanner.jsx'
 import { getTheme } from './userTypeTheme.js'
+import { getLocale } from './utils/dateFormat.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -383,7 +384,7 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
 
   const fmtDate = (iso) => {
     if (!iso) return ''
-    return new Date(iso).toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' })
+    return new Date(iso).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })
   }
   const fmtDuration = (sec) => {
     if (!sec) return ''
