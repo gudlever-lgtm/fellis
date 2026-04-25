@@ -660,7 +660,7 @@ export default function Chat({ lang, user, onLogout }) {
     if (!selectedId) return
     const res = await apiRenameConversation(selectedId, name)
     if (!res?.error) {
-      setConversations(prev => prev.map(c => c.id === selectedId ? { ...c, name, groupName: name } : c))
+      setConversations(prev => prev.map(c => c.id === selectedId ? { ...c, name, convName: name } : c))
     }
     setModal(null)
   }
@@ -688,8 +688,7 @@ export default function Chat({ lang, user, onLogout }) {
   async function handleLeave() {
     const conv = selectedConv
     if (!conv) return
-    const confirmKey = conv.isGroup ? 'leaveConfirm' : 'deleteConfirm'
-    if (!window.confirm(t(lang, confirmKey))) return
+    if (!window.confirm(t(lang, 'leaveConfirm'))) return
     await apiLeaveConversation(selectedId)
     setSelectedId(null)
     await loadConversations()
@@ -777,7 +776,6 @@ export default function Chat({ lang, user, onLogout }) {
                   {convDisplayName(conv, lang)}
                   {conv.unread > 0 && <span style={s.unreadBadge}>{conv.unread}</span>}
                 </div>
-                {conv.isGroup && <div style={s.convMeta}>{t(lang, 'group')}</div>}
               </div>
             ))}
           </div>
@@ -802,26 +800,22 @@ export default function Chat({ lang, user, onLogout }) {
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setMenuOpen(false)} />
                     <div style={s.menuDropdown}>
-                      {selectedConv?.isGroup && (
-                        <button style={s.menuItem} onClick={() => { setModal('members'); setMenuOpen(false) }}>
-                          👥 {t(lang, 'viewMembers')}
-                        </button>
-                      )}
+                      <button style={s.menuItem} onClick={() => { setModal('members'); setMenuOpen(false) }}>
+                        👥 {t(lang, 'viewMembers')}
+                      </button>
                       <button style={s.menuItem} onClick={() => { setModal('addPeople'); setMenuOpen(false) }}>
                         👤+ {t(lang, 'addPeople')}
                       </button>
-                      {selectedConv?.isGroup && (
-                        <button style={s.menuItem} onClick={() => { setModal('rename'); setMenuOpen(false) }}>
-                          ✏️ {t(lang, 'rename')}
-                        </button>
-                      )}
+                      <button style={s.menuItem} onClick={() => { setModal('rename'); setMenuOpen(false) }}>
+                        ✏️ {t(lang, 'rename')}
+                      </button>
                       <button style={s.menuItem} onClick={() => { handleMute(); setMenuOpen(false) }}>
                         🔔 {selectedConv?.mutedUntil && new Date(selectedConv.mutedUntil) > new Date()
                           ? t(lang, 'unmuteNotifications')
                           : t(lang, 'muteNotifications')}
                       </button>
                       <button style={{ ...s.menuItem, color: '#d32f2f' }} onClick={() => { handleLeave(); setMenuOpen(false) }}>
-                        🚪 {selectedConv?.isGroup ? t(lang, 'leaveGroup') : t(lang, 'deleteChat')}
+                        🚪 {t(lang, 'leaveGroup')}
                       </button>
                     </div>
                   </>
@@ -917,7 +911,7 @@ export default function Chat({ lang, user, onLogout }) {
       )}
       {modal === 'rename' && (
         <RenameModal lang={lang}
-          currentName={selectedConv?.groupName || selectedConv?.name || ''}
+          currentName={selectedConv?.convName || selectedConv?.name || ''}
           onSave={handleRename}
           onClose={() => setModal(null)} />
       )}

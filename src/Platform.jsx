@@ -794,11 +794,11 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'groups' && <GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
         {page === 'group-detail' && navParam?.slug && <GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
-        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
+        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id]).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} initialTab={navParam?.tab} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
-            const data = await apiCreateConversation([friend.id], null, false, false).catch(() => null)
+            const data = await apiCreateConversation([friend.id]).catch(() => null)
             if (data?.id) setOpenConvId(data.id)
           }
           navigateTo('messages')
@@ -811,7 +811,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} maxPhotos={marketplaceMaxPhotos} onContactSeller={async (sellerId) => {
           const numId = parseInt(sellerId)
           if (numId > 0 && !isNaN(numId) && numId !== currentUser.id) {
-            const data = await apiCreateConversation([numId], null, false, false).catch(() => null)
+            const data = await apiCreateConversation([numId]).catch(() => null)
             if (data?.id) setOpenConvId(data.id)
           }
           navigateTo('messages')
@@ -3121,7 +3121,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const handleShareToFriend = useCallback(async (post, friendId) => {
     const text = post.text[lang] || post.text.da || ''
     const msg = `${post.author}: "${text.slice(0, 120)}${text.length > 120 ? '…' : ''}" — fellis.eu`
-    const conv = await apiCreateConversation([friendId], null, false, false).catch(() => null)
+    const conv = await apiCreateConversation([friendId]).catch(() => null)
     if (conv?.id) await apiSendConversationMessage(conv.id, msg).catch(() => {})
     setShareSentTo(friendId)
     setTimeout(() => { setSharePopup(null); setShareSentTo(null) }, 1200)
@@ -4845,7 +4845,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
 function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES, initialTab }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
-  const [familyGroups, setFamilyGroups] = useState([])
   const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState(initialTab || 'about')
   const [myCompanies, setMyCompanies] = useState([])
@@ -4927,9 +4926,6 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       if (data?.eggs !== undefined) syncEggsFromServer(data.eggs)
     })
     if (mode === 'privat') {
-      apiFetchConversations().then(convs => {
-        if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
-      })
       apiFetchFriends().then(data => {
         if (data) setFamilyFriends((data.friends || data || []).filter(f => rels[String(f.id)] === 'family'))
       })
@@ -5195,56 +5191,33 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
             <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>🏡 {t.familySection}</h3>
             <p className="p-family-section-desc">{t.familySectionDesc}</p>
-            {familyFriends.length === 0 && familyGroups.length === 0 ? (
+            {familyFriends.length === 0 ? (
               <div className="p-family-empty">{t.noFamilyMembersYetTagFriendsAsFamilyInYourFriendsL}</div>
             ) : (
-              <>
-                {familyFriends.length > 0 && (
-                  <div style={{ marginBottom: familyGroups.length > 0 ? 12 : 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-                      {t.familyMembers}
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                      {familyFriends.map(f => {
-                        const friendAvatarSrc = f.avatarUrl || f.avatar_url
-                          ? (f.avatarUrl || f.avatar_url).startsWith('http') ? (f.avatarUrl || f.avatar_url) : `${API_BASE}${f.avatarUrl || f.avatar_url}`
-                          : null
-                        return (
-                          <div key={f.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 56 }}>
-                            {friendAvatarSrc ? (
-                              <img src={friendAvatarSrc} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e8f5e9' }} />
-                            ) : (
-                              <div style={{ width: 44, height: 44, borderRadius: '50%', background: nameToColor(f.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff', border: '2px solid #e8f5e9' }}>
-                                {getInitials(f.name)}
-                              </div>
-                            )}
-                            <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(f.name || '').split(' ')[0]}</span>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                  {t.familyMembers}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {familyFriends.map(f => {
+                    const friendAvatarSrc = f.avatarUrl || f.avatar_url
+                      ? (f.avatarUrl || f.avatar_url).startsWith('http') ? (f.avatarUrl || f.avatar_url) : `${API_BASE}${f.avatarUrl || f.avatar_url}`
+                      : null
+                    return (
+                      <div key={f.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 56 }}>
+                        {friendAvatarSrc ? (
+                          <img src={friendAvatarSrc} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e8f5e9' }} />
+                        ) : (
+                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: nameToColor(f.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff', border: '2px solid #e8f5e9' }}>
+                            {getInitials(f.name)}
                           </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-                {familyGroups.length > 0 && (
-                  <div>
-                    {familyFriends.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, margin: '12px 0 8px' }}>{t.familyGroups}</div>}
-                    {familyGroups.map(g => (
-                      <div key={g.id} className="p-family-group-row">
-                        <div className="p-family-group-icon">🏡</div>
-                        <div className="p-family-group-info">
-                          <span className="p-family-group-name">{g.name || t.familyGroup}</span>
-                          <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
-                        </div>
-                        <div className="p-family-group-avatars">
-                          {g.participants.slice(0, 4).map(p => (
-                            <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
-                          ))}
-                        </div>
+                        )}
+                        <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(f.name || '').split(' ')[0]}</span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </>
+                    )
+                  })}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -10594,11 +10567,10 @@ function useContactRelationships() {
 }
 
 // ── New Conversation / New Group Modal ──
-function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isGroupMode, onClose, onCreate }) {
+function NewConvModal({ t, lang, friends, existingParticipantIds = [], onClose, onCreate }) {
   const [selected, setSelected] = useState([])
-  const [groupName, setGroupName] = useState('')
+  const [convName, setConvName] = useState('')
   const [search, setSearch] = useState('')
-  const [isFamilyGroup, setIsFamilyGroup] = useState(false)
   const [relFilter, setRelFilter] = useState('all')
   const { rels, setRel } = useContactRelationships()
 
@@ -10615,41 +10587,23 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
     (relFilter === 'all' || rels[String(f.id)] === relFilter)
   )
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-
-  // Allow multi-select in both modes — if >1 selected in 1:1 mode, auto-create a group
-  const effectiveGroupMode = isGroupMode || selected.length > 1
+  const isMulti = selected.length > 1
   const canCreate = selected.length >= 1
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-msg-modal" onClick={e => e.stopPropagation()}>
         <div className="p-msg-modal-header">
-          <span>{isGroupMode ? t.newGroupTitle : t.newConvTitle}</span>
+          <span>{t.newConvTitle}</span>
           <button className="p-msg-modal-close" onClick={onClose}>✕</button>
         </div>
-        {effectiveGroupMode && (
+        {isMulti && (
           <input
             className="p-msg-modal-input"
             placeholder={t.groupNamePlaceholder}
-            value={groupName}
-            onChange={e => setGroupName(e.target.value)}
+            value={convName}
+            onChange={e => setConvName(e.target.value)}
           />
-        )}
-        {effectiveGroupMode && mode === 'privat' && (
-          <label className={`p-family-group-toggle${isFamilyGroup ? ' active' : ''}`}>
-            <input
-              type="checkbox"
-              checked={isFamilyGroup}
-              onChange={e => setIsFamilyGroup(e.target.checked)}
-              style={{ display: 'none' }}
-            />
-            <span className="p-family-toggle-icon">🏡</span>
-            <div className="p-family-toggle-text">
-              <span className="p-family-toggle-label">{t.familyGroupToggle}</span>
-              <span className="p-family-toggle-info">{t.familyGroupInfo}</span>
-            </div>
-            <span className={`p-family-toggle-check${isFamilyGroup ? ' on' : ''}`}>{isFamilyGroup ? '✓' : ''}</span>
-          </label>
         )}
         <input
           className="p-msg-modal-input"
@@ -10702,9 +10656,9 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
           <button
             className="p-msg-modal-btn primary"
             disabled={!canCreate}
-            onClick={() => onCreate(selected, effectiveGroupMode ? (groupName || null) : null, effectiveGroupMode, effectiveGroupMode ? isFamilyGroup : false)}
+            onClick={() => onCreate(selected, isMulti ? (convName || null) : null)}
           >
-            {effectiveGroupMode ? (isFamilyGroup ? `🏡 ${t.createGroup}` : t.createGroup) : t.startConv}
+            {t.startConv}
           </button>
         </div>
       </div>
@@ -10718,27 +10672,21 @@ function ConvMenu({ t, lang, conv, onClose, onInvite, onMute, onRename, onLeave,
 
   return (
     <div className="p-msg-conv-menu" onClick={e => e.stopPropagation()}>
-      {conv.isGroup && (
-        <button className="p-msg-conv-menu-item" onClick={() => { onShowMembers(); onClose() }}>
-          <span>👥</span> {t.showMembers}
-        </button>
-      )}
+      <button className="p-msg-conv-menu-item" onClick={() => { onShowMembers(); onClose() }}>
+        <span>👥</span> {t.showMembers}
+      </button>
       <button className="p-msg-conv-menu-item" onClick={() => { onInvite(); onClose() }}>
         <span>👤+</span> {t.invitePeople}
       </button>
-      {conv.isGroup && (
-        <button className="p-msg-conv-menu-item" onClick={() => { onRename(); onClose() }}>
-          <span>✏️</span> {t.renameGroup}
-        </button>
-      )}
+      <button className="p-msg-conv-menu-item" onClick={() => { onRename(); onClose() }}>
+        <span>✏️</span> {t.renameConv}
+      </button>
       <button className="p-msg-conv-menu-item" onClick={() => { onMute(); onClose() }}>
         <span>{isMuted ? '🔔' : '🔕'}</span> {isMuted ? t.unmuteConv : t.muteConv}
       </button>
-      {conv.isGroup && (
-        <button className="p-msg-conv-menu-item danger" onClick={() => { onLeave(); onClose() }}>
-          <span>🚪</span> {t.leaveGroup}
-        </button>
-      )}
+      <button className="p-msg-conv-menu-item danger" onClick={() => { onLeave(); onClose() }}>
+        <span>🚪</span> {t.leaveConv}
+      </button>
     </div>
   )
 }
@@ -11060,7 +11008,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
   const [msgMedia, setMsgMedia] = useState([]) // [{url, type, mime, preview}]
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
-  const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
+  const [modal, setModal] = useState(null) // null | 'new' | 'invite' | 'mute' | 'rename'
   const [showConvMenu, setShowConvMenu] = useState(false)
   const [deleteConvId, setDeleteConvId] = useState(null) // id to confirm delete
   const messagesEndRef = useRef(null)
@@ -11214,10 +11162,9 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
     })
   }, [])
 
-  // Create new 1:1 or group
-  const handleCreate = async (selectedIds, groupName, isGroup, isFamilyGroup = false) => {
+  const handleCreate = async (selectedIds, convName) => {
     setModal(null)
-    const data = await apiCreateConversation(selectedIds, groupName, isGroup, isFamilyGroup)
+    const data = await apiCreateConversation(selectedIds, convName)
     if (data?.id) {
       // Refresh conversations
       const updated = await apiFetchConversations()
@@ -11261,7 +11208,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
     if (!conv) return
     await apiRenameConversation(conv.id, name)
     setConversations(prev => prev.map((c, i) =>
-      i === activeConv ? { ...c, name, groupName: name } : c))
+      i === activeConv ? { ...c, name, convName: name } : c))
   }
 
   // Leave group
@@ -11311,7 +11258,6 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
           <span className="p-msg-sidebar-title-icon" title={t.messagesTitle}>💬</span>
           <div className="p-msg-sidebar-actions">
             <button className="p-msg-icon-btn" title={t.newMessage} onClick={() => setModal('new')}>✏️</button>
-            <button className="p-msg-icon-btn" title={t.newGroup} onClick={() => setModal('newGroup')}>👥</button>
           </div>
         </div>
 
@@ -11344,8 +11290,8 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
               className={`p-msg-thread${i === activeConv ? ' active' : ''}`}
               onClick={() => selectConv(i)}
             >
-              {/* Avatar: stacked initials for group, single for 1:1 */}
-              {c.isGroup ? (
+              {/* Avatar: stacked for multi-participant, single for 1:1 */}
+              {c.participants.length > 2 ? (
                 <div className="p-msg-group-avatar">
                   {c.participants.slice(0, 2).map((p, pi) => (
                     <div key={p.id} className="p-msg-group-avatar-chip" style={{ background: nameToColor(p.name), zIndex: 2 - pi, marginLeft: pi > 0 ? -10 : 0 }}>
@@ -11365,13 +11311,12 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                 <div className="p-msg-thread-name">
                   <span>{c.name}</span>
                   <span className="p-msg-thread-badges">
-                    {c.isFamilyGroup && <span className="p-msg-family-badge" title={t.familyGroup}>🏡</span>}
                     {cIsMuted && <span className="p-msg-muted-icon" title={t.mutedLabel}>🔕</span>}
                     {c.unread > 0 && <span className="p-msg-badge" title={`${c.unread}${t.unreadMessages}`}>{c.unread}</span>}
                   </span>
                 </div>
                 <div className="p-msg-thread-preview">
-                  {lastMsg ? `${c.isGroup ? (lastMsg.from || '').split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
+                  {lastMsg ? `${c.participants.length > 2 ? (lastMsg.from || '').split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
                 </div>
               </div>
               <button
@@ -11394,7 +11339,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
         <div className="p-msg-main">
           {/* Header */}
           <div className="p-msg-header">
-            {conv.isGroup ? (
+            {conv.participants.length > 2 ? (
               <div className="p-msg-group-avatar" style={{ flexShrink: 0 }}>
                 {conv.participants.slice(0, 2).map((p, pi) => (
                   <div key={p.id} className="p-msg-group-avatar-chip" style={{ background: nameToColor(p.name), zIndex: 2 - pi, marginLeft: pi > 0 ? -10 : 0, width: 32, height: 32, fontSize: 11 }}>
@@ -11410,12 +11355,11 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
             <div className="p-msg-header-info">
               <span className="p-msg-header-name">
                 {conv.name}
-                {conv.isFamilyGroup && <span className="p-msg-family-badge p-msg-family-badge-header" title={t.familyGroup}>🏡</span>}
                 {isMuted && <span className="p-msg-muted-icon" title={t.mutedLabel} style={{ marginLeft: 6 }}>🔕</span>}
               </span>
-              {conv.isGroup && (
+              {conv.participants.length > 2 && (
                 <span className="p-msg-header-sub">
-                  {conv.isFamilyGroup ? `${t.familyGroup} · ` : ''}{conv.participants.length} {t.participants}
+                  {conv.participants.length} {t.participants}
                 </span>
               )}
             </div>
@@ -11467,7 +11411,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', flex: 1 }}>
                     <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
-                      {conv.isGroup && !isMe && (
+                      {conv.participants.length > 2 && !isMe && (
                         <div className="p-msg-sender-name">{(msg.from || '').split(' ')[0]}</div>
                       )}
                       {msg.text[lang] && (
@@ -11608,32 +11552,29 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
       )}
 
       {/* ── Modals ── */}
-      {(modal === 'new' || modal === 'newGroup') && (
+      {modal === 'new' && (
         <NewConvModal
           t={t}
           lang={lang}
-          mode={mode}
           friends={friends}
           existingParticipantIds={[]}
-          isGroupMode={modal === 'newGroup'}
           onClose={() => setModal(null)}
           onCreate={handleCreate}
         />
       )}
       {modal === 'invite' && conv && (
         <NewConvModal
-          t={{ ...t, newConvTitle: t.inviteTitle, startConv: t.inviteBtn, newGroupTitle: t.inviteTitle, createGroup: t.inviteBtn }}
+          t={{ ...t, newConvTitle: t.inviteTitle, startConv: t.inviteBtn }}
           lang={lang}
           friends={nonParticipants}
           existingParticipantIds={conv.participants.map(p => p.id)}
-          isGroupMode={true}
           onClose={() => setModal(null)}
           onCreate={(ids) => handleInvite(ids)}
         />
       )}
       {modal === 'mute' && <MuteModal t={t} onClose={() => setModal(null)} onMute={handleMute} />}
       {modal === 'rename' && conv && (
-        <RenameModal t={t} current={conv.groupName} onClose={() => setModal(null)} onRename={handleRename} />
+        <RenameModal t={t} current={conv.convName} onClose={() => setModal(null)} onRename={handleRename} />
       )}
       {modal === 'members' && conv && (
         <MembersModal
