@@ -469,7 +469,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               if (post.media) {
                 try { media = JSON.parse(post.media) } catch {}
                 if (!Array.isArray(media)) media = []
-                media = media.filter(Boolean)
+                media = media.map(m => (m && typeof m === 'object' ? m.url : m)).filter(Boolean)
               }
               return (
                 <div key={post.id} style={{ ...s.postCard, ...(post.is_pinned ? s.pinnedCard : {}) }}>
