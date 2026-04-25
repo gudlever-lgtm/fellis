@@ -517,7 +517,7 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
     const [[existing]] = await pool.query('SELECT id FROM conversations WHERE slug = ?', [cleanSlug])
     if (existing) return res.status(409).json({ error: 'slug_taken' })
 
-    const groupStatus = req.adminRole ? 'active' : 'pending'
+    const groupStatus = 'active'
     const [result] = await pool.query(
       `INSERT INTO conversations
          (name, slug, description_da, type, category, tags, is_group, is_public,
