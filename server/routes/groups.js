@@ -1078,8 +1078,8 @@ router.get('/groups/:slug/events', authenticate, async (req, res) => {
               (SELECT status FROM event_rsvps WHERE event_id = e.id AND user_id = ?) AS my_rsvp,
               (SELECT COUNT(*) FROM event_rsvps WHERE event_id = e.id AND status = 'going') AS going_count
        FROM events e
-       WHERE e.group_id = ? AND (e.start_time IS NULL OR e.start_time >= NOW())
-       ORDER BY e.start_time ASC
+       WHERE e.group_id = ? AND (COALESCE(e.start_time, e.date) IS NULL OR COALESCE(e.start_time, e.date) >= NOW())
+       ORDER BY COALESCE(e.start_time, e.date) ASC
        LIMIT 20`,
       [req.userId, group.id]
     )
