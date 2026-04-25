@@ -45,7 +45,7 @@ function IconBuilding() {
 
 const CARDS = [
   {
-    mode: 'private',
+    mode: 'privat',
     icon: IconPerson,
     color: '#1877F2',
     colorLight: '#EBF5FF',

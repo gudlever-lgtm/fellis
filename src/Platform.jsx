@@ -221,7 +221,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
   }, [initialProfileUserId])
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
-    if (stored === 'common') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
+    if (stored === 'common' || stored === 'private') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
     return stored
   })
   // Sync Common mode body class for CSS scoping
