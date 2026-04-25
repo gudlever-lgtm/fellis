@@ -5686,7 +5686,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
             <input
               style={{ ...fieldStyle, flex: 1 }}
               type="date" lang="da"
-              lang="da"
               value={birthday}
               onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
               max={new Date().toISOString().slice(0, 10)}
@@ -18153,7 +18152,6 @@ function CalendarPage({ lang, t, currentUser }) {
                 <input
                   required
                   type="date" lang="da"
-                  lang="da"
                   value={bdDate}
                   onChange={e => setBdDate(e.target.value)}
                   style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
