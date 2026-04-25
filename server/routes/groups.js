@@ -822,6 +822,17 @@ router.get('/groups/:id/posts', authenticate, async (req, res) => {
       posts.forEach(p => { p.reactions = reactMap[p.id] || {} })
     }
 
+    posts.forEach(p => {
+      if (p.media) {
+        try {
+          const raw = typeof p.media === 'string' ? JSON.parse(p.media) : p.media
+          p.media = Array.isArray(raw) ? raw.map(m => typeof m === 'string'
+            ? { url: m, type: /\.(mp4|webm|mov)$/i.test(m) ? 'video' : 'image', mime: /\.(mp4|webm|mov)$/i.test(m) ? 'video/mp4' : 'image/jpeg' }
+            : m) : raw
+        } catch { p.media = null }
+      }
+    })
+
     res.json({ posts })
   } catch (err) {
     console.error('GET /api/groups/:id/posts error:', err)
@@ -855,7 +866,11 @@ router.post('/groups/:id/posts', authenticate, writeLimit, upload.single('media'
     }
 
     const clean = text.trim()
-    const mediaJson = req.file ? JSON.stringify([`/uploads/${req.file.filename}`]) : null
+    const mediaJson = req.file ? JSON.stringify([{
+      url: `/uploads/${req.file.filename}`,
+      type: req.file.mimetype.startsWith('video/') ? 'video' : 'image',
+      mime: req.file.mimetype,
+    }]) : null
     const [result] = await pool.query(
       'INSERT INTO posts (author_id, text_da, text_en, media, group_id) VALUES (?, ?, ?, ?, ?)',
       [req.userId, clean, clean, mediaJson, groupId]

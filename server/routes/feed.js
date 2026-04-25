@@ -264,7 +264,12 @@ router.get('/feed', authenticate, async (req, res) => {
     const result = posts.map(p => {
       let media = null
       if (p.media) {
-        try { media = typeof p.media === 'string' ? JSON.parse(p.media) : p.media } catch {}
+        try {
+          const raw = typeof p.media === 'string' ? JSON.parse(p.media) : p.media
+          media = Array.isArray(raw) ? raw.map(m => typeof m === 'string'
+            ? { url: m, type: /\.(mp4|webm|mov)$/i.test(m) ? 'video' : 'image', mime: /\.(mp4|webm|mov)$/i.test(m) ? 'video/mp4' : 'image/jpeg' }
+            : m) : raw
+        } catch {}
       }
       let categories = null
       if (p.categories) {
