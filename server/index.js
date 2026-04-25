@@ -529,8 +529,10 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
 }
 
 const app = express()
+// Trust exactly one proxy hop (lighttpd) so req.ip reflects the real client IP
+// rather than 127.0.0.1, making XFF spoofing ineffective for rate limiting.
 app.set('trust proxy', 1)
-app.use(helmet())
+app.use(helmet({ contentSecurityPolicy: false })) // CSP omitted — React SPA requires nonce-based setup
 app.use(express.json({ limit: '1mb' }))
 
 // ── Strip null bytes from request bodies ─────────────────────────────────
@@ -591,6 +593,12 @@ app.use((_req, res, next) => {
 // Login / MFA: 5 per 15 minutes per IP
 // In non-production, skip rate limiting for loopback IPs so E2E tests can
 // exercise auth endpoints without exhausting the window.
+
+// req.ip is set correctly by Express because trust proxy = 1 (see app.set above).
+// lighttpd sits one hop away and appends the real client IP to X-Forwarded-For.
+function getClientIp(req) {
+  return req.ip || '127.0.0.1'
+}
 
 function isLoopback(req) {
   const ip = req.ip
@@ -850,7 +858,7 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   // explicitUserId lets callers (e.g. login) pass the userId before req.userId is set,
   // avoiding { ...req } spread which drops Express prototype getters like req.ip
   const userId = explicitUserId !== undefined ? explicitUserId : (req.userId || null)
-  const ipAddress = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+  const ipAddress = req.ip || null
   const userAgent = req.headers?.['user-agent'] || null
 
   try {
@@ -1123,7 +1131,7 @@ async function authenticate(req, res, next) {
     const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
     if (!visitedSessions.has(todayKey)) {
       visitedSessions.add(todayKey)
-      const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+      const ip = (req.ip || '').replace(/^::ffff:/, '')
       const ua = req.headers['user-agent'] || null
       const { browser, os } = parseBrowser(ua)
       // Async geo lookup — don't await, fire-and-forget
@@ -1198,6 +1206,98 @@ function validatePasswordStrength(password, policy, lang = 'da') {
 
 // POST /api/auth/login — login with email + password (MFA-aware)
 
+// POST /api/auth/register — create account after migration
+app.post('/api/auth/register', strictLimit, async (req, res) => {
+  const { name, email, password, lang, inviteToken } = req.body
+  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
+  if (name.length > 100) return res.status(400).json({ error: 'Name too long (max 100 chars)' })
+  if (email.length > 255) return res.status(400).json({ error: 'Email too long (max 255 chars)' })
+  const regPolicy = await getPasswordPolicy()
+  const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
+  if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
+  try {
+    const bcryptHash = await bcrypt.hash(password, 10)
+    const handle = '@' + name.toLowerCase().replace(/\s+/g, '.')
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase()
+    const userInviteToken = crypto.randomBytes(32).toString('hex')
+    const [result] = await pool.query(
+      'INSERT INTO users (name, handle, initials, email, password_hash, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, handle, initials, email, bcryptHash, new Date().toISOString().split('T')[0], userInviteToken]
+    )
+    const newUserId = result.insertId
+    const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.ip || null
+    await pool.query(
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, newUserId, lang || 'da', ua, ip]
+    ).catch(() =>
+      pool.query(
+        'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
+        [sessionId, newUserId, lang || 'da']
+      )
+    )
+
+    // If registered via invite link, auto-connect with inviter + record referral
+    if (inviteToken) {
+      try {
+        let referrerId = null
+        let invitationId = null
+        let inviteSource = 'link'
+
+        // Check personal invite token (user.invite_token)
+        const [inviter] = await pool.query('SELECT id FROM users WHERE invite_token = ?', [inviteToken])
+        if (inviter.length > 0) {
+          referrerId = inviter[0].id
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, referrerId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, newUserId])
+        }
+
+        // Check per-email invitation token
+        const [invitation] = await pool.query(
+          'SELECT id, inviter_id, invite_source FROM invitations WHERE invite_token = ? AND status = ?',
+          [inviteToken, 'pending']
+        )
+        if (invitation.length > 0) {
+          referrerId = invitation[0].inviter_id
+          invitationId = invitation[0].id
+          inviteSource = invitation[0].invite_source || 'email'
+          await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', newUserId, invitationId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, referrerId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, newUserId])
+        }
+
+        // Record referral and award badges to inviter
+        if (referrerId) {
+          await pool.query(
+            'INSERT IGNORE INTO referrals (referrer_id, referred_id, invitation_id, invite_source) VALUES (?, ?, ?, ?)',
+            [referrerId, newUserId, invitationId, inviteSource]
+          )
+          await pool.query('UPDATE users SET referral_count = referral_count + 1 WHERE id = ?', [referrerId])
+          await checkAndAwardBadges(referrerId)
+          // Notify inviter that their invitation was accepted
+          const [[newUser]] = await pool.query('SELECT name FROM users WHERE id = ?', [newUserId]).catch(() => [[null]])
+          if (newUser) {
+            createNotification(referrerId, 'friend_accepted',
+              `${newUser.name} accepterede din invitation og er nu din ven`,
+              `${newUser.name} accepted your invitation and is now your friend`,
+              newUserId, newUser.name
+            )
+          }
+        }
+      } catch (err) {
+        console.error('Invite auto-connect error:', err)
+      }
+    }
+
+    setSessionCookie(res, sessionId)
+    res.json({ sessionId, userId: newUserId })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or handle already exists' })
+    console.error('POST /api/auth/register error:', err.message)
+    res.status(500).json({ error: 'Registration failed' })
+  }
+})
 
 // POST /api/auth/forgot-password — request password reset link via email
 

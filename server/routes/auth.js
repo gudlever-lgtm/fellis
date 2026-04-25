@@ -29,9 +29,13 @@ import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '.
 
 const router = express.Router()
 
-// Per-userId MFA attempt tracking. Key: userId, value: { count, otpExpiresAt }.
-// otpExpiresAt is used to detect when a new OTP has been issued (reset counter).
-const mfaAttempts = new Map()
+// Per-userId MFA attempt tracker — max 10 attempts within the 5-minute code window.
+// Protects against IP-rotating brute-force attacks that bypass the per-IP strictLimit.
+const _mfaAttempts = new Map()
+setInterval(() => {
+  const now = Date.now()
+  for (const [k, v] of _mfaAttempts) if (now > v.resetAt) _mfaAttempts.delete(k)
+}, 5 * 60_000)
 
 // ── Google OAuth constants ──
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
@@ -280,7 +284,7 @@ router.post('/auth/login', strictLimit, validate(schemas.login), async (req, res
     // No MFA — create session immediately
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+    const ip = req.ip || null
     // Try with user_agent/ip_address columns; fall back if they don't exist yet
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
@@ -325,7 +329,7 @@ router.post('/auth/register', registerLimit, validate(schemas.register), async (
     const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+    const ip = req.ip || null
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
       [sessionId, newUserId, lang || 'da', ua, ip]
@@ -479,7 +483,7 @@ router.post('/auth/reset-password', strictLimit, async (req, res) => {
     // Create a new login session
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+    const ip = req.ip || null
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
       [sessionId, userId, resetLang || 'da', ua, ip]
@@ -494,6 +498,20 @@ router.post('/auth/reset-password', strictLimit, async (req, res) => {
 
 router.post('/auth/verify-mfa', strictLimit, validate(schemas.verifyMfa), async (req, res) => {
   const { userId, code, lang } = req.body
+
+  // Per-userId rate limit: max 10 failed attempts within the code's 5-minute lifetime.
+  // On limit, the code is invalidated so the attacker must request a fresh SMS.
+  const now = Date.now()
+  let bucket = _mfaAttempts.get(userId)
+  if (!bucket || now > bucket.resetAt) bucket = { count: 0, resetAt: now + 5 * 60_000 }
+  bucket.count++
+  _mfaAttempts.set(userId, bucket)
+  if (bucket.count > 10) {
+    await pool.query('UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId]).catch(() => {})
+    _mfaAttempts.delete(userId)
+    return res.status(429).json({ error: 'For mange forsøg — koden er annulleret, anmod om en ny' })
+  }
+
   try {
     const [rows] = await pool.query(
       'SELECT id, mfa_code_expires FROM users WHERE id = ? AND mfa_code_expires > NOW()',
@@ -522,28 +540,17 @@ router.post('/auth/verify-mfa', strictLimit, validate(schemas.verifyMfa), async 
       'SELECT id FROM users WHERE id = ? AND mfa_code = ?',
       [userId, hashedCode]
     )
-    if (valid.length === 0) {
-      attempt.count++
-      if (attempt.count >= 10) {
-        // Invalidate OTP immediately on 10th failure so even a correct code is rejected
-        await pool.query('UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId])
-        mfaAttempts.delete(userId)
-        return res.status(429).json({ error: 'Too many failed attempts — request a new code' })
-      }
-      return res.status(401).json({ error: 'Invalid code' })
-    }
-
-    // Success — clear counter and OTP, create session
-    mfaAttempts.delete(userId)
+    if (valid.length === 0) return res.status(401).json({ error: 'Invalid code' })
+    // Clear MFA code, reset attempt counter, and create session
     await pool.query(
       'UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId]
     )
+    _mfaAttempts.delete(userId)
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
-    const ip = req.ip || null
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
-      [sessionId, userId, lang || 'da', ua, ip]
+      [sessionId, userId, lang || 'da', ua, req.ip || null]
     )
     setSessionCookie(res, sessionId)
     res.json({ sessionId, userId })
