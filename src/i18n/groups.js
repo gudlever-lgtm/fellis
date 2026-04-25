@@ -95,7 +95,7 @@ export default {
       approveMember: 'Godkend',
       rejectMember: 'Afvis',
       // Events tab
-      noEvents: 'Ingen kommende begivenheder',
+      noEvents: 'Ingen begivenheder endnu',
       createEvent: 'Opret begivenhed',
       createEventSubmit: 'Opret',
       eventTitlePlaceholder: 'Titel...',
@@ -240,7 +240,7 @@ export default {
       approveMember: 'Approve',
       rejectMember: 'Reject',
       // Events tab
-      noEvents: 'No upcoming events',
+      noEvents: 'No events yet',
       createEvent: 'Create event',
       createEventSubmit: 'Create',
       eventTitlePlaceholder: 'Title...',
