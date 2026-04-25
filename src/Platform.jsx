@@ -4221,7 +4221,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{title}</div>
                 <div style={{ fontSize: 13, color: '#777' }}>📍 {loc}</div>
                 <div style={{ fontSize: 12, color: '#aaa', marginTop: 2, marginBottom: 10 }}>
-                  ✅ {ev.going.length} {t.eventAttendees}
+                  ✅ {ev.going?.length ?? 0} {t.eventAttendees}
                 </div>
                 <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                   {[
@@ -11794,8 +11794,8 @@ function EventsPage({ lang, t, currentUser, mode }) {
                       <span>🕐 {formatDate(ev.date)}</span>
                     </div>
                     <div className="p-event-meta" style={{ color: '#888' }}>
-                      <span>✅ {ev.going.length} {t.eventAttendees}</span>
-                      {ev.maybe.length > 0 && <span>❓ {ev.maybe.length} {t.eventMaybes}</span>}
+                      <span>✅ {ev.going?.length ?? 0} {t.eventAttendees}</span>
+                      {(ev.maybe?.length ?? 0) > 0 && <span>❓ {ev.maybe.length} {t.eventMaybes}</span>}
                       {ev.cap && <span>🔢 max {ev.cap}</span>}
                     </div>
                   </div>
@@ -12106,9 +12106,9 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
 
         {/* Attendees */}
         <div style={{ marginTop: 20 }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700 }}>✅ {t.eventGoing} ({event.going.length})</h4>
+          <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700 }}>✅ {t.eventGoing} ({event.going?.length ?? 0})</h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {event.going.map(name => (
+            {(event.going ?? []).map(name => (
               <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#F0FAF4', borderRadius: 20, fontSize: 13 }}>
                 <div style={{ width: 22, height: 22, borderRadius: '50%', background: nameToColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 700 }}>
                   {getInitials(name)}
@@ -12117,7 +12117,7 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
               </div>
             ))}
           </div>
-          {event.maybe.length > 0 && (
+          {(event.maybe?.length ?? 0) > 0 && (
             <>
               <h4 style={{ margin: '14px 0 10px', fontSize: 14, fontWeight: 700 }}>❓ {t.eventMaybe} ({event.maybe.length})</h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
