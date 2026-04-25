@@ -1338,7 +1338,7 @@ function PostMedia({ media, lang = 'da' }) {
   const count = media.length
   const t = getTranslations(lang)
   const lightboxMedia = media.map(m => ({
-    src: m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`,
+    src: m.url ? (m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`) : '',
     type: m.type === 'video' ? 'video' : 'image',
     mime: m.mime,
   }))
@@ -1346,7 +1346,7 @@ function PostMedia({ media, lang = 'da' }) {
     <>
       <div className={`p-post-media p-post-media-${Math.min(count, 4)}`}>
         {media.map((m, i) => {
-          const src = m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`
+          const src = m.url ? (m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`) : ''
           if (m.type === 'video') {
             return (
               <video key={i} className="p-media-item" controls preload="metadata" playsInline
