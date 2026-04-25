@@ -552,7 +552,8 @@ const ALLOWED_ORIGINS = [
   'https://www.fellis.eu',
   'http://localhost:5173',    // Vite dev server
   'http://localhost:3000',    // Alternative dev server
-  process.env.SITE_URL,       // From environment
+  process.env.SITE_URL,       // From environment (e.g. https://test.fellis.eu)
+  ...(process.env.EXTRA_CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean),
 ].filter(Boolean)
 
 app.use((req, res, next) => {
