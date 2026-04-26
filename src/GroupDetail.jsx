@@ -8,7 +8,7 @@ import {
   apiGetGroupPendingMembers, apiApproveGroupMember, apiRejectGroupMember,
   apiGetGroupEvents, apiCreateGroupEvent, apiRsvpGroupEvent,
   apiGetGroupPolls, apiCreateGroupPoll, apiVoteGroupPoll, apiGetGroupInviteLink,
-  apiMuteConversation,
+  apiMuteConversation, apiPreflightPost,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 import { getLocale } from './utils/dateFormat.js'
@@ -73,6 +73,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [pollsLoading, setPollsLoading] = useState(false)
   const [inviteLink, setInviteLink] = useState(null)
   const [copyState, setCopyState] = useState(false)
+  const [keywordWarning, setKeywordWarning] = useState(null)
   const [muteOpen, setMuteOpen] = useState(false)
   const [showEventForm, setShowEventForm] = useState(false)
   const [eventTitle, setEventTitle] = useState('')
@@ -150,17 +151,30 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     }
   }
 
-  const handleCreatePost = async () => {
-    if (!composerText.trim() || composerSubmitting) return
-    setComposerSubmitting(true)
-    const res = await apiCreateGroupPost(group.id, composerText.trim(), composerMedia || undefined)
-    setComposerSubmitting(false)
+  const doCreatePost = async (text, media) => {
+    const res = await apiCreateGroupPost(group.id, text, media || undefined)
     if (res) {
       setPosts(prev => [res, ...prev])
       setComposerText('')
       if (composerPreview) { URL.revokeObjectURL(composerPreview); setComposerPreview(null) }
       setComposerMedia(null)
     }
+  }
+
+  const handleCreatePost = async () => {
+    if (!composerText.trim() || composerSubmitting) return
+    const text = composerText.trim()
+    setComposerSubmitting(true)
+    const check = await apiPreflightPost(text)
+    setComposerSubmitting(false)
+    if (check?.blocked) return
+    if (check?.flagged) {
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, media: composerMedia })
+      return
+    }
+    setComposerSubmitting(true)
+    await doCreatePost(text, composerMedia)
+    setComposerSubmitting(false)
   }
 
   const handleDeletePost = async (postId) => {
@@ -409,6 +423,49 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
 
   return (
     <div style={s.page}>
+      {keywordWarning && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '28px 28px 24px', maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize: 22, marginBottom: 10 }}>⚠️</div>
+            <h3 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>{t.keywordWarnTitle}</h3>
+            {keywordWarning.category && (
+              <div style={{ marginBottom: 10 }}>
+                <span style={{ background: '#F4C26A', color: '#5a3e00', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>
+                  {t.kwCategories?.[keywordWarning.category] || keywordWarning.category}
+                </span>
+              </div>
+            )}
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>
+              {t.keywordWarnBody?.replace('{kw}', keywordWarning.keyword)}
+            </p>
+            {keywordWarning.notes && (
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#8B4513', background: '#FFF8F0', border: '1px solid #F4C26A', borderRadius: 8, padding: '10px 14px', lineHeight: 1.5 }}>
+                {keywordWarning.notes}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setKeywordWarning(null)}
+                style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+              >
+                {t.keywordWarnEdit}
+              </button>
+              <button
+                onClick={async () => {
+                  const { text, media } = keywordWarning
+                  setKeywordWarning(null)
+                  setComposerSubmitting(true)
+                  await doCreatePost(text, media)
+                  setComposerSubmitting(false)
+                }}
+                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                {t.keywordWarnContinue}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div style={s.headerWrap}>
         {coverSrc
