@@ -1365,10 +1365,17 @@ export async function apiAddReelComment(id, text) {
 }
 
 export async function apiEditReelComment(reelId, commentId, text) {
-  return await request(`/api/reels/${reelId}/comments/${commentId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ text }),
-  })
+  try {
+    const res = await fetch(`${API_BASE}/api/reels/${reelId}/comments/${commentId}`, {
+      method: 'PATCH',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ text }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { _error: body.error || 'error', keyword: body.keyword }
+    return body
+  } catch { return null }
 }
 
 export async function apiDeleteReelComment(reelId, commentId) {
