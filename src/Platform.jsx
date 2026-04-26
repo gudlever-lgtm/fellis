@@ -796,7 +796,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           <FeedSidebar lang={lang} t={t} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} onNavigate={navigateTo} />
         </div>
         {page === 'reels' && <Suspense fallback={null}><ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} /></Suspense>}
-        {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
+        {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} onNavigate={navigateGroups} />}
         {page === 'groups' && <Suspense fallback={null}><GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
         {page === 'group-detail' && navParam?.slug && <Suspense fallback={null}><GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
         {page === 'group-settings' && navParam?.slug && <Suspense fallback={null}><GroupSettings slug={navParam.slug} lang={lang} onNavigate={navigateGroups} /></Suspense>}
