@@ -13,7 +13,7 @@ const router = express.Router()
 
 async function getGroupById(id) {
   const [[g]] = await pool.query(
-    'SELECT id, type, is_group, is_frozen FROM conversations WHERE id = ? AND is_group = 1',
+    'SELECT id, type, is_group, is_frozen, created_by FROM conversations WHERE id = ? AND is_group = 1',
     [id]
   )
   return g || null
@@ -538,7 +538,7 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
 
     await pool.query(
       'INSERT INTO conversation_participants (conversation_id, user_id, role) VALUES (?, ?, ?)',
-      [result.insertId, req.userId, 'admin']
+      [result.insertId, req.userId, 'moderator']
     )
 
     res.status(201).json({ id: result.insertId, slug: cleanSlug })
@@ -1015,7 +1015,8 @@ router.put('/groups/:id/members/:userId/role', authenticate, async (req, res) =>
     if (!group) return res.status(404).json({ error: 'not_found' })
 
     const myRole = await getMemberRole(groupId, req.userId)
-    if (myRole !== 'admin') return res.status(403).json({ error: 'admin_only' })
+    const isCreator = group.created_by === req.userId
+    if (myRole !== 'admin' && !isCreator) return res.status(403).json({ error: 'admin_only' })
 
     await pool.query(
       'UPDATE conversation_participants SET role = ? WHERE conversation_id = ? AND user_id = ?',
