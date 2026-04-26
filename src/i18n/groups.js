@@ -130,6 +130,13 @@ export default {
       mute1w: '1 uge',
       muteOff: 'Slå fra',
       mutedLabel: 'Slukket',
+      moderationTab: 'Moderation',
+      modNoReports: 'Ingen verserende anmeldelser',
+      modReportedBy: 'Anmeldt af',
+      modReason: 'Årsag',
+      modDismiss: 'Afvis',
+      modRemovePost: 'Fjern opslag',
+      modConfirmRemove: 'Vil du fjerne dette anmeldte opslag?',
       // Settings page
       settingsTitle: 'Gruppeindstillinger',
       settingsSaved: 'Indstillinger gemt',
@@ -275,6 +282,13 @@ export default {
       mute1w: '1 week',
       muteOff: 'Turn off',
       mutedLabel: 'Muted',
+      moderationTab: 'Moderation',
+      modNoReports: 'No pending reports',
+      modReportedBy: 'Reported by',
+      modReason: 'Reason',
+      modDismiss: 'Dismiss',
+      modRemovePost: 'Remove post',
+      modConfirmRemove: 'Remove this reported post?',
       // Settings page
       settingsTitle: 'Group settings',
       settingsSaved: 'Settings saved',
@@ -396,7 +410,14 @@ export default {
       "mute24h": "24 Stunden",
       "mute1w": "1 Woche",
       "muteOff": "Ausschalten",
-      "mutedLabel": "Stumm"
+      "mutedLabel": "Stumm",
+      "moderationTab": "Moderation",
+      "modNoReports": "Keine offenen Meldungen",
+      "modReportedBy": "Gemeldet von",
+      "modReason": "Grund",
+      "modDismiss": "Verwerfen",
+      "modRemovePost": "Beitrag entfernen",
+      "modConfirmRemove": "Diesen gemeldeten Beitrag entfernen?"
     } },
   fr: { groups: {
       "pageTitle": "Groupes",
@@ -505,7 +526,14 @@ export default {
       "mute24h": "24 heures",
       "mute1w": "1 semaine",
       "muteOff": "Désactiver",
-      "mutedLabel": "Silencieux"
+      "mutedLabel": "Silencieux",
+      "moderationTab": "Modération",
+      "modNoReports": "Aucun signalement en attente",
+      "modReportedBy": "Signalé par",
+      "modReason": "Raison",
+      "modDismiss": "Ignorer",
+      "modRemovePost": "Supprimer la publication",
+      "modConfirmRemove": "Supprimer cette publication signalée ?"
     } },
   nl: { groups: {
       "pageTitle": "Groepen",
@@ -614,7 +642,14 @@ export default {
       "mute24h": "24 uur",
       "mute1w": "1 week",
       "muteOff": "Uitschakelen",
-      "mutedLabel": "Gedempt"
+      "mutedLabel": "Gedempt",
+      "moderationTab": "Moderatie",
+      "modNoReports": "Geen openstaande meldingen",
+      "modReportedBy": "Gemeld door",
+      "modReason": "Reden",
+      "modDismiss": "Afwijzen",
+      "modRemovePost": "Bericht verwijderen",
+      "modConfirmRemove": "Dit gemelde bericht verwijderen?"
     } },
   sv: { groups: {
       "pageTitle": "Grupper",
@@ -723,7 +758,14 @@ export default {
       "mute24h": "24 timmar",
       "mute1w": "1 vecka",
       "muteOff": "Stäng av",
-      "mutedLabel": "Tystad"
+      "mutedLabel": "Tystad",
+      "moderationTab": "Moderering",
+      "modNoReports": "Inga väntande anmälningar",
+      "modReportedBy": "Anmält av",
+      "modReason": "Anledning",
+      "modDismiss": "Avfärda",
+      "modRemovePost": "Ta bort inlägg",
+      "modConfirmRemove": "Ta bort detta anmälda inlägg?"
     } },
   fi: { groups: {
       "pageTitle": "Ryhmät",
@@ -832,7 +874,14 @@ export default {
       "mute24h": "24 tuntia",
       "mute1w": "1 viikko",
       "muteOff": "Poista käytöstä",
-      "mutedLabel": "Mykistetty"
+      "mutedLabel": "Mykistetty",
+      "moderationTab": "Moderointi",
+      "modNoReports": "Ei odottavia ilmoituksia",
+      "modReportedBy": "Ilmoittaja",
+      "modReason": "Syy",
+      "modDismiss": "Hylkää",
+      "modRemovePost": "Poista julkaisu",
+      "modConfirmRemove": "Poistetaanko tämä ilmoitettu julkaisu?"
     } },
   no: { groups: {
       "pageTitle": "Grupper",
@@ -941,7 +990,14 @@ export default {
       "mute24h": "24 timer",
       "mute1w": "1 uke",
       "muteOff": "Slå av",
-      "mutedLabel": "Dempet"
+      "mutedLabel": "Dempet",
+      "moderationTab": "Moderering",
+      "modNoReports": "Ingen ventende anmeldelser",
+      "modReportedBy": "Anmeldt av",
+      "modReason": "Årsak",
+      "modDismiss": "Avvis",
+      "modRemovePost": "Fjern innlegg",
+      "modConfirmRemove": "Fjerne dette anmeldte innlegget?"
     } },
   pl: { groups: {
       "pageTitle": "Grupy",
@@ -1050,7 +1106,14 @@ export default {
       "mute24h": "24 godziny",
       "mute1w": "1 tydzień",
       "muteOff": "Wyłącz",
-      "mutedLabel": "Wyciszono"
+      "mutedLabel": "Wyciszono",
+      "moderationTab": "Moderacja",
+      "modNoReports": "Brak oczekujących zgłoszeń",
+      "modReportedBy": "Zgłoszone przez",
+      "modReason": "Powód",
+      "modDismiss": "Odrzuć",
+      "modRemovePost": "Usuń post",
+      "modConfirmRemove": "Usunąć ten zgłoszony post?"
     } },
   es: { groups: {
       "pageTitle": "Grupos",
@@ -1157,6 +1220,13 @@ export default {
       "mute1h": "1 hora",
       "mute8h": "8 horas",
       "mute24h": "24 horas",
+      "moderationTab": "Moderación",
+      "modNoReports": "Sin denuncias pendientes",
+      "modReportedBy": "Denunciado por",
+      "modReason": "Motivo",
+      "modDismiss": "Desestimar",
+      "modRemovePost": "Eliminar publicación",
+      "modConfirmRemove": "¿Eliminar esta publicación denunciada?",
       "mute1w": "1 semana",
       "muteOff": "Desactivar",
       "mutedLabel": "Silenciado"
@@ -1268,7 +1338,14 @@ export default {
       "mute24h": "24 ore",
       "mute1w": "1 settimana",
       "muteOff": "Disattiva",
-      "mutedLabel": "Silenziato"
+      "mutedLabel": "Silenziato",
+      "moderationTab": "Moderazione",
+      "modNoReports": "Nessuna segnalazione in attesa",
+      "modReportedBy": "Segnalato da",
+      "modReason": "Motivo",
+      "modDismiss": "Ignora",
+      "modRemovePost": "Rimuovi post",
+      "modConfirmRemove": "Rimuovere questo post segnalato?"
     } },
   pt: { groups: {
       "pageTitle": "Grupos",
@@ -1371,6 +1448,13 @@ export default {
       "linkCopied": "Copiado!",
       "muteGroup": "Silenciar notificações",
       "unmuteGroup": "Ativar notificações",
+      "moderationTab": "Moderação",
+      "modNoReports": "Sem denúncias pendentes",
+      "modReportedBy": "Denunciado por",
+      "modReason": "Motivo",
+      "modDismiss": "Ignorar",
+      "modRemovePost": "Remover publicação",
+      "modConfirmRemove": "Remover esta publicação denunciada?",
       "muteTitle": "Silenciar notificações por...",
       "mute1h": "1 hora",
       "mute8h": "8 horas",

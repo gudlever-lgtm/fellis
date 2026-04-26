@@ -2814,6 +2814,37 @@ router.post('/reports', authenticate, async (req, res) => {
       'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
       [req.userId, target_type, target_id, reason, details || null]
     )
+
+    // Notify group moderators/admins when a group post is reported
+    if (target_type === 'post') {
+      const [[post]] = await pool.query(
+        'SELECT group_id, author_id FROM posts WHERE id = ?', [target_id]
+      ).catch(() => [[null]])
+      if (post?.group_id) {
+        const [mods] = await pool.query(
+          `SELECT user_id FROM conversation_participants
+           WHERE conversation_id = ? AND role IN ('admin','moderator') AND status = 'active' AND user_id != ?`,
+          [post.group_id, req.userId]
+        ).catch(() => [[]])
+        const [[grp]] = await pool.query(
+          'SELECT name, slug, created_by FROM conversations WHERE id = ?', [post.group_id]
+        ).catch(() => [[null]])
+        if (grp) {
+          const targets = new Set(mods.map(m => m.user_id))
+          targets.add(grp.created_by)
+          targets.delete(req.userId)
+          for (const uid of targets) {
+            await createNotification(
+              uid, 'group_report',
+              `Et opslag i gruppen "${grp.name}" er blevet anmeldt`,
+              `A post in the group "${grp.name}" has been reported`,
+              req.userId, grp.slug
+            ).catch(() => {})
+          }
+        }
+      }
+    }
+
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/reports error:', err)

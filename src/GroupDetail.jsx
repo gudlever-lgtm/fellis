@@ -8,7 +8,8 @@ import {
   apiGetGroupPendingMembers, apiApproveGroupMember, apiRejectGroupMember,
   apiGetGroupEvents, apiCreateGroupEvent, apiRsvpGroupEvent,
   apiGetGroupPolls, apiCreateGroupPoll, apiVoteGroupPoll, apiGetGroupInviteLink,
-  apiMuteConversation, apiPreflightPost,
+  apiMuteConversation,
+  apiGetGroupModerationReports, apiDismissGroupReport,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 import { getLocale } from './utils/dateFormat.js'
@@ -84,6 +85,8 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [pollQuestion, setPollQuestion] = useState('')
   const [pollOptions, setPollOptions] = useState(['', ''])
   const [pollSaving, setPollSaving] = useState(false)
+  const [modReports, setModReports] = useState([])
+  const [modLoading, setModLoading] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -291,6 +294,15 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     })
   }, [tab, loadState, group?.id, group?.slug, group?.membership?.isMember])
 
+  useEffect(() => {
+    if (tab !== 'moderation' || loadState !== 'ready') return
+    setModLoading(true)
+    apiGetGroupModerationReports(group.id).then(data => {
+      setModReports(data?.reports || [])
+      setModLoading(false)
+    })
+  }, [tab, loadState, group?.id])
+
   const handleVote = async (poll, optionIdx) => {
     setPolls(prev => prev.map(p => {
       if (p.id !== poll.id) return p
@@ -405,13 +417,14 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     ? (group.cover_url.startsWith('http') ? group.cover_url : `${API_BASE}${group.cover_url}`)
     : null
 
-  const TABS = ['feed', 'members', 'events', 'polls', 'about']
+  const TABS = ['feed', 'members', 'events', 'polls', 'about', ...(isMod ? ['moderation'] : [])]
   const TAB_LABEL = {
     feed: g.feed,
     members: g.membersTab,
     events: g.events,
     polls: g.polls,
     about: g.about,
+    moderation: g.moderationTab,
   }
 
   const composerT = {
@@ -534,6 +547,11 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
             onClick={() => setTab(key)}
           >
             {TAB_LABEL[key] || key}
+            {key === 'moderation' && modReports.length > 0 && (
+              <span style={{ marginLeft: 5, background: '#E07A5F', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>
+                {modReports.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -1012,6 +1030,49 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {tab === 'moderation' && isMod && (
+          <div>
+            {modLoading ? (
+              <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>{g.loading}</div>
+            ) : modReports.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>✅ {g.modNoReports}</div>
+            ) : modReports.map(report => (
+              <div key={report.report_id} style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', marginBottom: 12, border: '1px solid #E8E4DF' }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                  🚩 {g.modReportedBy} <strong>{report.reporter_name}</strong>
+                  {report.reason && <> · {g.modReason}: {report.reason}</>}
+                  <span style={{ marginLeft: 8 }}>{fmtTime(report.reported_at, lang)}</span>
+                </div>
+                <div style={{ background: '#f9f7f5', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 12, color: '#444' }}>
+                  <strong>{report.author_name}</strong>{report.author_handle ? ` @${report.author_handle}` : ''}: {(report.text_da || '').slice(0, 300)}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #E8E4DF', fontSize: 13, cursor: 'pointer', background: '#fff' }}
+                    onClick={async () => {
+                      await apiDismissGroupReport(group.id, report.report_id)
+                      setModReports(prev => prev.filter(r => r.report_id !== report.report_id))
+                    }}
+                  >
+                    {g.modDismiss}
+                  </button>
+                  <button
+                    style={{ padding: '6px 12px', borderRadius: 7, border: 'none', fontSize: 13, cursor: 'pointer', background: '#E07A5F', color: '#fff', fontWeight: 600 }}
+                    onClick={async () => {
+                      if (!window.confirm(g.modConfirmRemove)) return
+                      await apiDeleteGroupPost(group.id, report.post_id)
+                      setModReports(prev => prev.filter(r => r.report_id !== report.report_id))
+                      setPosts(prev => prev.filter(p => p.id !== report.post_id))
+                    }}
+                  >
+                    {g.modRemovePost}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
