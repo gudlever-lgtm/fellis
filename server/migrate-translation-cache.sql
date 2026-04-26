@@ -16,16 +16,10 @@ CREATE TABLE IF NOT EXISTS translation_cache (
   KEY idx_cache_key (cache_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Upgrade path for existing installations: add new columns and relax the old hash column
+-- Upgrade path for existing installations: add new columns if missing
 ALTER TABLE translation_cache
   ADD COLUMN IF NOT EXISTS cache_key CHAR(64) NULL AFTER id,
-  ADD COLUMN IF NOT EXISTS original_text TEXT NULL AFTER target_lang,
-  MODIFY COLUMN IF EXISTS original_text_hash CHAR(64) NULL DEFAULT NULL;
-
--- Backfill cache_key from original_text_hash for pre-existing rows
-UPDATE translation_cache
-  SET cache_key = original_text_hash
-  WHERE cache_key IS NULL AND original_text_hash IS NOT NULL;
+  ADD COLUMN IF NOT EXISTS original_text TEXT NULL AFTER target_lang;
 
 -- Ensure unique index on cache_key
 ALTER TABLE translation_cache
