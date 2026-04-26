@@ -1351,10 +1351,17 @@ export async function apiFetchReelComments(id) {
 }
 
 export async function apiAddReelComment(id, text) {
-  return await request(`/api/reels/${id}/comments`, {
-    method: 'POST',
-    body: JSON.stringify({ text }),
-  })
+  try {
+    const res = await fetch(`${API_BASE}/api/reels/${id}/comments`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ text }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { _error: body.error || 'error', keyword: body.keyword }
+    return body
+  } catch { return null }
 }
 
 export async function apiEditReelComment(reelId, commentId, text) {

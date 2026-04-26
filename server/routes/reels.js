@@ -176,7 +176,7 @@ router.post('/reels/:id/comments', authenticate, writeLimit, async (req, res) =>
       await pool.query(
         'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, "reel_comment", ?, "keyword_flag", ?)',
         [req.userId, result.insertId, `Auto-flagged: keyword "${kw.keyword}"`]
-      )
+      ).catch(e => console.error('reel_comment flag insert failed (run migrate-reel-comment-message-moderation.sql):', e.message))
     }
     const [[comment]] = await pool.query(
       `SELECT rc.id, rc.user_id, rc.text, rc.created_at,
