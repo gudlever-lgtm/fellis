@@ -26,6 +26,7 @@ import path from 'path'
 import multer from 'multer'
 import bcrypt from 'bcrypt'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
+import { checkKeywords } from '../helpers.js'
 
 const router = express.Router()
 
@@ -145,7 +146,7 @@ router.post('/reels/:id/share', authenticate, writeLimit, async (req, res) => {
 router.get('/reels/:id/comments', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT rc.id, rc.text, rc.created_at,
+      `SELECT rc.id, rc.user_id, rc.text, rc.created_at,
               u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
        FROM reel_comments rc JOIN users u ON rc.user_id = u.id
        WHERE rc.reel_id = ?
@@ -160,16 +161,25 @@ router.get('/reels/:id/comments', authenticate, async (req, res) => {
 })
 
 
-router.post('/reels/:id/comments', authenticate, async (req, res) => {
+router.post('/reels/:id/comments', authenticate, writeLimit, async (req, res) => {
   try {
     const text = (req.body.text || '').trim()
     if (!text) return res.status(400).json({ error: 'Comment cannot be empty' })
+    const clean = text.slice(0, 2000)
+    const kw = checkKeywords(clean)
+    if (kw?.action === 'block') return res.status(400).json({ error: 'blocked_keyword', keyword: kw.keyword })
     const [result] = await pool.query(
       'INSERT INTO reel_comments (reel_id, user_id, text) VALUES (?, ?, ?)',
-      [req.params.id, req.userId, text.slice(0, 2000)]
+      [req.params.id, req.userId, clean]
     )
+    if (kw?.action === 'flag') {
+      await pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, "reel_comment", ?, "keyword_flag", ?)',
+        [req.userId, result.insertId, `Auto-flagged: keyword "${kw.keyword}"`]
+      )
+    }
     const [[comment]] = await pool.query(
-      `SELECT rc.id, rc.text, rc.created_at,
+      `SELECT rc.id, rc.user_id, rc.text, rc.created_at,
               u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
        FROM reel_comments rc JOIN users u ON rc.user_id = u.id WHERE rc.id = ?`,
       [result.insertId]
@@ -177,6 +187,40 @@ router.post('/reels/:id/comments', authenticate, async (req, res) => {
     res.status(201).json({ comment })
   } catch (err) {
     console.error('POST /api/reels/:id/comments error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.patch('/reels/:reelId/comments/:commentId', authenticate, writeLimit, async (req, res) => {
+  const commentId = parseInt(req.params.commentId)
+  if (isNaN(commentId)) return res.status(400).json({ error: 'Invalid comment ID' })
+  try {
+    const [[c]] = await pool.query('SELECT user_id FROM reel_comments WHERE id = ?', [commentId])
+    if (!c) return res.status(404).json({ error: 'Not found' })
+    if (c.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    const text = (req.body.text || '').trim().slice(0, 2000)
+    if (!text) return res.status(400).json({ error: 'Comment cannot be empty' })
+    await pool.query('UPDATE reel_comments SET text = ? WHERE id = ?', [text, commentId])
+    res.json({ ok: true, text })
+  } catch (err) {
+    console.error('PATCH /api/reels/:reelId/comments/:commentId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.delete('/reels/:reelId/comments/:commentId', authenticate, async (req, res) => {
+  const commentId = parseInt(req.params.commentId)
+  if (isNaN(commentId)) return res.status(400).json({ error: 'Invalid comment ID' })
+  try {
+    const [[c]] = await pool.query('SELECT user_id FROM reel_comments WHERE id = ?', [commentId])
+    if (!c) return res.status(404).json({ error: 'Not found' })
+    if (c.user_id !== req.userId && !req.isModerator) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM reel_comments WHERE id = ?', [commentId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/reels/:reelId/comments/:commentId error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

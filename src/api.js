@@ -1357,12 +1357,34 @@ export async function apiAddReelComment(id, text) {
   })
 }
 
+export async function apiEditReelComment(reelId, commentId, text) {
+  return await request(`/api/reels/${reelId}/comments/${commentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function apiDeleteReelComment(reelId, commentId) {
+  return await request(`/api/reels/${reelId}/comments/${commentId}`, { method: 'DELETE' })
+}
+
 export async function apiDeleteReel(id) {
   return await request(`/api/reels/${id}`, { method: 'DELETE' })
 }
 
 export async function apiShareReel(id) {
   return await request(`/api/reels/${id}/share`, { method: 'POST' })
+}
+
+export async function apiDeleteMessage(id) {
+  return await request(`/api/messages/${id}`, { method: 'DELETE' })
+}
+
+export async function apiEditMessage(id, text) {
+  return await request(`/api/messages/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ text }),
+  })
 }
 
 // ── Calendar ──

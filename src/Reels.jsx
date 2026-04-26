@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, REACTIONS } from './data.js'
-import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus, apiGetStreamKey, apiRegenerateStreamKey, apiFetchFriends, apiCreateConversation, apiSendConversationMessage, apiShareReel } from './api.js'
+import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReelComment, apiEditReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus, apiGetStreamKey, apiRegenerateStreamKey, apiFetchFriends, apiCreateConversation, apiSendConversationMessage, apiShareReel, apiReportContent } from './api.js'
 import AdBanner from './AdBanner.jsx'
 import { getTheme } from './userTypeTheme.js'
 import { getLocale } from './utils/dateFormat.js'
@@ -29,6 +29,10 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
   const [shareSentTo, setShareSentTo] = useState(null)
   const [copyLinkDone, setCopyLinkDone] = useState(false)
   const [sharesCount, setSharesCount] = useState(Number(reel.shares_count) || 0)
+  const [editingComment, setEditingComment] = useState(null) // { id, text }
+  const [reportingComment, setReportingComment] = useState(null) // commentId
+  const [reportReason, setReportReason] = useState('')
+  const [reportDone, setReportDone] = useState(false)
   const videoRef = useRef(null)
   const progressRef = useRef(null)
 
@@ -620,7 +624,9 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
               <div style={{ color: '#888', padding: '8px 0', fontSize: 13 }}>...</div>
             ) : comments.length === 0 ? (
               <div style={{ color: '#888', padding: '8px 0', fontSize: 13 }}>—</div>
-            ) : comments.map(c => (
+            ) : comments.map(c => {
+              const isMyComment = currentUser?.id && c.user_id === currentUser.id
+              return (
               <div key={c.id} style={s.commentItem}>
                 <div style={s.commentMeta}>
                   {c.author_avatar
@@ -629,10 +635,76 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
                   }
                   <span style={s.commentName}>{c.author_name}</span>
                   <span style={s.commentDate}>{fmtDate(c.created_at)}</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                    {isMyComment && (
+                      <>
+                        <button onClick={() => setEditingComment({ id: c.id, text: c.text })}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 12, padding: '1px 5px' }}>✏️</button>
+                        <button onClick={async () => {
+                          await apiDeleteReelComment(reel.id, c.id)
+                          setComments(prev => prev.filter(x => x.id !== c.id))
+                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 12, padding: '1px 5px' }}>🗑️</button>
+                      </>
+                    )}
+                    {!isMyComment && (
+                      <button onClick={() => { setReportingComment(c.id); setReportReason(''); setReportDone(false) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 11, padding: '1px 5px' }}>⚑</button>
+                    )}
+                  </div>
                 </div>
-                <div style={s.commentText}>{c.text}</div>
+                {editingComment?.id === c.id ? (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                    <input
+                      style={{ flex: 1, padding: '5px 8px', borderRadius: 8, border: '1px solid #555', background: '#111', color: '#fff', fontSize: 13 }}
+                      value={editingComment.text}
+                      onChange={e => setEditingComment(prev => ({ ...prev, text: e.target.value }))}
+                      maxLength={2000}
+                      autoFocus
+                    />
+                    <button onClick={async () => {
+                      const res = await apiEditReelComment(reel.id, c.id, editingComment.text)
+                      if (res?.ok) setComments(prev => prev.map(x => x.id === c.id ? { ...x, text: editingComment.text } : x))
+                      setEditingComment(null)
+                    }} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontSize: 12, cursor: 'pointer' }}>✓</button>
+                    <button onClick={() => setEditingComment(null)}
+                      style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #555', background: 'none', color: '#aaa', fontSize: 12, cursor: 'pointer' }}>✕</button>
+                  </div>
+                ) : (
+                  <div style={s.commentText}>{c.text}</div>
+                )}
+                {reportingComment === c.id && (
+                  <div style={{ marginTop: 6, padding: '8px 10px', background: '#1a1a1a', borderRadius: 8 }}>
+                    {reportDone ? (
+                      <span style={{ color: '#52b788', fontSize: 12 }}>✓ {t.reported || 'Anmeldt'}</span>
+                    ) : (
+                      <>
+                        <select value={reportReason} onChange={e => setReportReason(e.target.value)}
+                          style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #444', background: '#222', color: '#fff', fontSize: 12, marginBottom: 6 }}>
+                          <option value="">{t.reportSelectReason || 'Vælg årsag...'}</option>
+                          <option value="spam">{t.reportReasonSpam || 'Spam'}</option>
+                          <option value="hate">{t.reportReasonHate || 'Hadefuldt'}</option>
+                          <option value="harassment">{t.reportReasonHarassment || 'Chikane'}</option>
+                          <option value="violence">{t.reportReasonViolence || 'Vold'}</option>
+                          <option value="other">{t.reportReasonOther || 'Andet'}</option>
+                        </select>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button disabled={!reportReason} onClick={async () => {
+                            await apiReportContent('reel_comment', c.id, reportReason)
+                            setReportDone(true)
+                            setTimeout(() => setReportingComment(null), 1500)
+                          }} style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: reportReason ? '#e53e3e' : '#555', color: '#fff', fontSize: 12, cursor: reportReason ? 'pointer' : 'default' }}>
+                            {t.report || 'Anmeld'}
+                          </button>
+                          <button onClick={() => setReportingComment(null)}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #444', background: 'none', color: '#aaa', fontSize: 12, cursor: 'pointer' }}>✕</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
+              )
+            })}
           </div>
           <form style={s.commentForm} onSubmit={submitComment}>
             <input

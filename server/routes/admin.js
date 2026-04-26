@@ -856,7 +856,12 @@ router.get('/admin/moderation/queue', authenticate, requireModerator, async (req
               u.name AS reporter_name, u.handle AS reporter_handle
        FROM reports r
        JOIN users u ON u.id = r.reporter_id
+       LEFT JOIN posts p ON p.id = r.target_id AND r.target_type = 'post'
+       LEFT JOIN comments c ON c.id = r.target_id AND r.target_type = 'comment'
+       LEFT JOIN posts cp ON cp.id = c.post_id
        WHERE r.status = 'pending'
+         AND (r.target_type != 'post' OR p.group_id IS NULL)
+         AND (r.target_type != 'comment' OR cp.group_id IS NULL)
        ORDER BY r.created_at ASC
        LIMIT 100`
     )
@@ -872,6 +877,12 @@ router.get('/admin/moderation/queue', authenticate, requireModerator, async (req
         } else if (r.target_type === 'comment') {
           const [[c]] = await pool.query('SELECT c.text_da, c.text_en, u.name AS author, c.post_id FROM comments c JOIN users u ON u.id = c.author_id WHERE c.id = ?', [r.target_id])
           preview = c || null
+        } else if (r.target_type === 'reel_comment') {
+          const [[rc]] = await pool.query('SELECT rc.text AS text_da, rc.text AS text_en, u.name AS author, rc.reel_id FROM reel_comments rc JOIN users u ON u.id = rc.user_id WHERE rc.id = ?', [r.target_id])
+          preview = rc || null
+        } else if (r.target_type === 'message') {
+          const [[m]] = await pool.query('SELECT m.text_da, m.text_en, u.name AS author, m.conversation_id FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?', [r.target_id])
+          preview = m || null
         } else if (r.target_type === 'user') {
           const [[u]] = await pool.query('SELECT name, handle, status, strike_count FROM users WHERE id = ?', [r.target_id])
           preview = u || null
@@ -917,7 +928,7 @@ router.post('/admin/moderation/reports/:id/dismiss', authenticate, requireModera
 
 router.post('/admin/moderation/content/remove', authenticate, requireModerator, async (req, res) => {
   const { type, target_id, report_id, reason } = req.body
-  if (!['post', 'comment'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })
+  if (!['post', 'comment', 'reel_comment'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })
   try {
     // Business post moderation requires admin
     if (type === 'post') {
@@ -926,8 +937,8 @@ router.post('/admin/moderation/content/remove', authenticate, requireModerator, 
         return res.status(403).json({ error: 'admin_required_for_business_posts' })
       }
     }
-    const table = type === 'post' ? 'posts' : 'comments'
-    await pool.query(`DELETE FROM ${table} WHERE id = ?`, [target_id])
+    const tableMap = { post: 'posts', comment: 'comments', reel_comment: 'reel_comments' }
+    await pool.query(`DELETE FROM ${tableMap[type]} WHERE id = ?`, [target_id])
     if (report_id) {
       await pool.query(
         'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',

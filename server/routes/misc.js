@@ -2801,7 +2801,7 @@ router.post('/cv/generate', authenticate, async (req, res) => {
 
 router.post('/reports', authenticate, async (req, res) => {
   const { target_type, target_id, reason, details } = req.body
-  if (!['post', 'comment', 'user'].includes(target_type)) return res.status(400).json({ error: 'Invalid target_type' })
+  if (!['post', 'comment', 'user', 'reel_comment', 'message'].includes(target_type)) return res.status(400).json({ error: 'Invalid target_type' })
   if (!target_id || !reason) return res.status(400).json({ error: 'target_id and reason required' })
   try {
     // Prevent duplicate reports from same user on same target

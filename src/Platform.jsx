@@ -6,7 +6,8 @@ import { getLocale } from './utils/dateFormat.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiFetchPersonalBirthdays, apiAddPersonalBirthday, apiUpdatePersonalBirthday, apiDeletePersonalBirthday, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
   apiGetEurDkkRate, apiFetchFriendSuggestions,
-  apiFetchNetworkFeed, apiFetchBusinessFeed } from './api.js'
+  apiFetchNetworkFeed, apiFetchBusinessFeed,
+  apiDeleteMessage, apiEditMessage } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -970,7 +971,7 @@ const NOTIF_TYPE_PAGE = {
   like: 'feed', comment: 'feed',
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
-  moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile', group_report: 'groups',
+  moderator_granted: 'moderation', mod_result: 'profile', moderation: 'profile', group_report: 'groups',
   new_message: 'messages', badge: 'badges',
 }
 
@@ -10969,6 +10970,10 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
   const menuRef = useRef(null)
   const [msgHintOpen, setMsgHintOpen] = useState(false)
   const msgHintCloseRef = useRef(null)
+  const [editingMsg, setEditingMsg] = useState(null) // { id, text }
+  const [reportingMsg, setReportingMsg] = useState(null) // msgId
+  const [msgReportReason, setMsgReportReason] = useState('')
+  const [msgReportDone, setMsgReportDone] = useState(false)
   const handleMsgHintClick = () => {
     setMsgHintOpen(v => {
       if (!v) {
@@ -11077,15 +11082,25 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
     const conv = conversations[activeConv]
     const now = new Date()
     const time = now.toLocaleTimeString(getLocale(lang), { hour: '2-digit', minute: '2-digit' })
+    const tmpKey = `tmp_${now.getTime()}`
     setConversations(prev => prev.map((c, i) => {
       if (i !== activeConv) return c
-      const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, media, time, createdAtRaw: now.toISOString() }]
+      const msgs = [...c.messages, { _tmpKey: tmpKey, sender_id: currentUser.id, from: currentUser.name, text: { da: text, en: text }, media, time, createdAtRaw: now.toISOString() }]
       return { ...c, messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
         totalMessages: (c.totalMessages || c.messages.length) + 1, unread: 0 }
     }))
     setNewMsg('')
     setMsgMedia([])
-    if (conv?.id) apiSendConversationMessage(conv.id, text, media).catch(() => {})
+    if (conv?.id) {
+      apiSendConversationMessage(conv.id, text, media).then(res => {
+        if (res?.id) {
+          setConversations(prev => prev.map(c => ({
+            ...c,
+            messages: c.messages.map(m => m._tmpKey === tmpKey ? { ...m, id: res.id, _tmpKey: undefined } : m)
+          })))
+        }
+      }).catch(() => {})
+    }
   }, [newMsg, msgMedia, activeConv, conversations, currentUser.name])
 
   const handleMediaFiles = useCallback(async (files) => {
@@ -11344,7 +11359,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
               </div>
             )}
             {conv.messages.map((msg, i) => {
-              const isMe = msg.from === currentUser.name
+              const isMe = msg.sender_id === currentUser.id || msg.from === currentUser.name
               // Read receipt: track who has read up to this message
               const isLastMine = isMe && conv.messages.slice(i + 1).every(m => m.from !== currentUser.name)
               const readers = isMe && msg.createdAtRaw
@@ -11352,6 +11367,8 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                 : []
               // Replied: someone else sent a message after this one
               const hasReplyAfter = isMe && conv.messages.slice(i + 1).some(m => m.from !== currentUser.name)
+              const isEditing = editingMsg?.id && editingMsg.id === msg.id
+              const isReporting = reportingMsg === msg.id
               return (
                 <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
                   {!isMe && (
@@ -11360,27 +11377,98 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                     </div>
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', flex: 1 }}>
-                    <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
+                    <div className={`p-msg-bubble${isMe ? ' mine' : ''}`} style={{ position: 'relative' }}>
                       {conv.participants.length > 2 && !isMe && (
                         <div className="p-msg-sender-name">{(msg.from || '').split(' ')[0]}</div>
                       )}
-                      {msg.text[lang] && (
-                        <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang]).map((p, pi) =>
-                          p.t === 'url'
-                            ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
-                            : p.t === 'mention'
-                              ? <span key={pi} className="p-mention">{p.v}</span>
-                              : <span key={pi}>{p.v}</span>
-                        )}</div>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
+                          <textarea
+                            autoFocus
+                            rows={2}
+                            style={{ flex: 1, padding: '5px 8px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', resize: 'none', minWidth: 160 }}
+                            value={editingMsg.text}
+                            onChange={e => setEditingMsg(m => ({ ...m, text: e.target.value }))}
+                          />
+                          <button onClick={async () => {
+                            await apiEditMessage(msg.id, editingMsg.text)
+                            setConversations(prev => prev.map(c => ({
+                              ...c,
+                              messages: c.messages.map(m => m.id === msg.id ? { ...m, text: { da: editingMsg.text, en: editingMsg.text } } : m)
+                            })))
+                            setEditingMsg(null)
+                          }} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: '#1877F2', color: '#fff', fontSize: 12, cursor: 'pointer' }}>✓</button>
+                          <button onClick={() => setEditingMsg(null)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#666', fontSize: 12, cursor: 'pointer' }}>✕</button>
+                        </div>
+                      ) : (
+                        msg.text[lang] && (
+                          <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang]).map((p, pi) =>
+                            p.t === 'url'
+                              ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
+                              : p.t === 'mention'
+                                ? <span key={pi} className="p-mention">{p.v}</span>
+                                : <span key={pi}>{p.v}</span>
+                          )}</div>
+                        )
                       )}
-                      {msg.media?.length > 0 && (
+                      {!isEditing && msg.media?.length > 0 && (
                         <div style={{ marginTop: msg.text[lang] ? 6 : 0, maxWidth: 260 }}>
                           <PostMedia media={msg.media} lang={lang} />
                         </div>
                       )}
                       <div className="p-msg-time">{msg.time}</div>
                     </div>
-                    {/* Message status indicators: shown on every sent message */}
+                    {/* Action buttons — only shown when message has a server ID */}
+                    {msg.id && (
+                      <div style={{ display: 'flex', gap: 3, marginTop: 2, opacity: 0.55 }}>
+                        {isMe && (
+                          <>
+                            <button onClick={() => setEditingMsg({ id: msg.id, text: msg.text[lang] || '' })}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, padding: '0 3px', color: 'inherit' }} title={t.edit || 'Rediger'}>✏️</button>
+                            <button onClick={async () => {
+                              await apiDeleteMessage(msg.id)
+                              setConversations(prev => prev.map(c => ({
+                                ...c, messages: c.messages.filter(m => m.id !== msg.id)
+                              })))
+                            }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, padding: '0 3px', color: 'inherit' }} title={t.delete || 'Slet'}>🗑️</button>
+                          </>
+                        )}
+                        {!isMe && (
+                          <button onClick={() => { setReportingMsg(msg.id); setMsgReportReason(''); setMsgReportDone(false) }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, padding: '0 3px', color: 'inherit' }} title={t.report || 'Anmeld'}>⚑</button>
+                        )}
+                      </div>
+                    )}
+                    {isReporting && (
+                      <div style={{ background: 'var(--card-bg,#fff)', border: '1px solid var(--border,#ddd)', borderRadius: 8, padding: '8px 10px', marginTop: 4, minWidth: 200 }}>
+                        {msgReportDone ? (
+                          <span style={{ color: '#22c55e', fontSize: 12 }}>✓ {t.reported || 'Anmeldt'}</span>
+                        ) : (
+                          <>
+                            <select value={msgReportReason} onChange={e => setMsgReportReason(e.target.value)}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border,#ddd)', fontSize: 12, marginBottom: 6 }}>
+                              <option value="">{t.reportSelectReason || 'Vælg årsag...'}</option>
+                              <option value="spam">{t.reportReasonSpam || 'Spam'}</option>
+                              <option value="hate">{t.reportReasonHate || 'Hadefuldt'}</option>
+                              <option value="harassment">{t.reportReasonHarassment || 'Chikane'}</option>
+                              <option value="violence">{t.reportReasonViolence || 'Vold'}</option>
+                              <option value="other">{t.reportReasonOther || 'Andet'}</option>
+                            </select>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button disabled={!msgReportReason} onClick={async () => {
+                                await apiReportContent('message', msg.id, msgReportReason)
+                                setMsgReportDone(true)
+                                setTimeout(() => setReportingMsg(null), 1500)
+                              }} style={{ padding: '3px 10px', borderRadius: 6, border: 'none', background: msgReportReason ? '#ef4444' : '#ccc', color: '#fff', fontSize: 12, cursor: msgReportReason ? 'pointer' : 'default' }}>
+                                {t.report || 'Anmeld'}
+                              </button>
+                              <button onClick={() => setReportingMsg(null)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border,#ddd)', background: 'none', color: '#888', fontSize: 12, cursor: 'pointer' }}>✕</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {/* Message status indicators */}
                     {isMe && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2, marginRight: 2 }}>
                         {readers.length > 0 ? (
@@ -18108,6 +18196,7 @@ function ModeratorPage({ lang, t, currentUser }) {
   const [userQ, setUserQ] = useState('')
   const [toast, setToast] = useState(null)
   const [reasons, setReasons] = useState({})
+  const [warnModal, setWarnModal] = useState(null) // { userId, userName, reason }
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500) }
 
@@ -18122,6 +18211,15 @@ function ModeratorPage({ lang, t, currentUser }) {
   }, [userQ])
 
   const refreshQueue = () => apiGetModerationQueue().then(d => { if (d) setQueue(d.reports || []) })
+
+  const openWarnModal = (userId, userName) => setWarnModal({ userId, userName, reason: '' })
+  const submitWarn = async () => {
+    if (!warnModal) return
+    await apiWarnUser(warnModal.userId, warnModal.reason)
+    setWarnModal(null)
+    if (tab === 'users') apiGetModerationUsers(userQ).then(d => { if (d) setUsers(d.users || []) })
+    showToast('✓ Advarsel sendt')
+  }
 
   const s = {
     page: { maxWidth: 900, margin: '0 auto', padding: '24px 16px' },
@@ -18142,6 +18240,33 @@ function ModeratorPage({ lang, t, currentUser }) {
   return (
     <div style={s.page}>
       {toast && <div style={s.toast}>{toast}</div>}
+
+      {warnModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setWarnModal(null) }}>
+          <div style={{ background: 'var(--card-bg,#fff)', borderRadius: 14, padding: '28px 28px 24px', width: 400, maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>⚠️ {t.adminModWarn || 'Advar bruger'}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted,#888)', marginBottom: 16 }}>{warnModal.userName}</div>
+            <textarea
+              autoFocus
+              rows={3}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }}
+              placeholder={t.adminModWarnReason || 'Angiv grund til advarsel...'}
+              value={warnModal.reason}
+              onChange={e => setWarnModal(m => ({ ...m, reason: e.target.value }))}
+            />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={{ ...s.btn(), background: 'var(--border,#eee)', color: 'var(--text,#333)' }} onClick={() => setWarnModal(null)}>
+                {t.cancel || 'Annuller'}
+              </button>
+              <button style={s.btn('#f97316')} onClick={submitWarn}>
+                {t.adminModWarn || 'Send advarsel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h2 style={s.title}>🛡️ {t.modPageTitle}</h2>
       <div style={s.tabs}>
         {[['queue', t.modTabQueue], ['users', t.modTabUsers], ['log', t.modTabLog]].map(([key, label]) => (
@@ -18159,6 +18284,15 @@ function ModeratorPage({ lang, t, currentUser }) {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{r.reason}</span>
                 <span style={{ color: 'var(--text-muted, #888)', fontSize: 13 }}>{r.reporter_name} → {r.target_type} #{r.target_id}</span>
               </div>
+              {r.preview && (
+                <div style={{ background: 'var(--bg, #f9f7f5)', borderRadius: 8, padding: '8px 12px', fontSize: 13, margin: '8px 0', color: 'var(--text, #444)' }}>
+                  {r.target_type === 'user' ? (
+                    <><strong>{r.preview.name}</strong> (@{r.preview.handle}) — {r.preview.status}</>
+                  ) : (
+                    <><strong>{r.preview.author}:</strong> {(lang === 'en' ? (r.preview.text_en || r.preview.text_da) : (r.preview.text_da || r.preview.text_en) || '').slice(0, 300)}</>
+                  )}
+                </div>
+              )}
               <div style={{ ...s.row, marginTop: 10, gap: 8 }}>
                 <input
                   style={{ ...s.input, marginBottom: 0, flex: 1 }}
@@ -18171,11 +18305,17 @@ function ModeratorPage({ lang, t, currentUser }) {
                   await refreshQueue()
                   showToast('✓ Afvist')
                 }}>{t.adminModDismiss || 'Afvis'}</button>
-                <button style={s.btn('#ef4444')} onClick={async () => {
-                  await apiModerateRemoveContent(r.target_type, r.target_id, r.id, reasons[r.id] || '')
-                  await refreshQueue()
-                  showToast('✓ Indhold fjernet')
-                }}>{t.adminModRemove || 'Fjern indhold'}</button>
+                {r.target_type === 'user' ? (
+                  <button style={s.btn('#f97316')} onClick={() => openWarnModal(r.target_id, r.preview?.name || `#${r.target_id}`)}>
+                    {t.adminModWarn || 'Advar bruger'}
+                  </button>
+                ) : (
+                  <button style={s.btn('#ef4444')} onClick={async () => {
+                    await apiModerateRemoveContent(r.target_type, r.target_id, r.id, reasons[r.id] || '')
+                    await refreshQueue()
+                    showToast('✓ Indhold fjernet')
+                  }}>{t.adminModRemove || 'Fjern indhold'}</button>
+                )}
               </div>
             </div>
           ))}
@@ -18184,7 +18324,20 @@ function ModeratorPage({ lang, t, currentUser }) {
 
       {tab === 'users' && (
         <div>
-          <input style={s.input} placeholder={t.adminModSearchUsers || 'Søg brugere...'} value={userQ} onChange={e => setUserQ(e.target.value)} />
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <input
+              style={{ ...s.input, marginBottom: 0, paddingRight: userQ ? 36 : 12 }}
+              placeholder={t.adminModSearchUsers || 'Søg brugere...'}
+              value={userQ}
+              onChange={e => setUserQ(e.target.value)}
+            />
+            {userQ && (
+              <button onClick={() => setUserQ('')}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted,#aaa)', lineHeight: 1, padding: '0 2px' }}>
+                ×
+              </button>
+            )}
+          </div>
           {users.length === 0 && <div style={s.empty}>{t.adminModNoUsers || 'Ingen brugere fundet'}</div>}
           {users.map(u => (
             <div key={u.id} style={s.card}>
@@ -18195,13 +18348,9 @@ function ModeratorPage({ lang, t, currentUser }) {
                 {u.strike_count > 0 && <span style={s.badge('#f97316')}>{u.strike_count} strike{u.strike_count !== 1 ? 's' : ''}</span>}
               </div>
               <div style={{ ...s.row, marginTop: 10 }}>
-                <button style={s.btn('#f97316')} onClick={async () => {
-                  const reason = prompt(t.adminModWarnReason || 'Advarsel — angiv grund:')
-                  if (reason === null) return
-                  await apiWarnUser(u.id, reason)
-                  apiGetModerationUsers(userQ).then(d => { if (d) setUsers(d.users || []) })
-                  showToast('✓ Advarsel sendt')
-                }}>{t.adminModWarn || 'Advar'}</button>
+                <button style={s.btn('#f97316')} onClick={() => openWarnModal(u.id, u.name)}>
+                  {t.adminModWarn || 'Advar bruger'}
+                </button>
               </div>
             </div>
           ))}
@@ -18214,12 +18363,13 @@ function ModeratorPage({ lang, t, currentUser }) {
           {actions.map(a => (
             <div key={a.id} style={{ ...s.card, padding: '10px 16px' }}>
               <div style={s.row}>
-                <span style={s.badge('#6C63FF')}>{a.action_type}</span>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>{a.admin_name}</span>
-                {a.target_name && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>→ {a.target_name}</span>}
-                {a.reason && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>— {a.reason}</span>}
+                <span style={s.badge('#6C63FF')}>{a.action_type.replace(/_/g, ' ')}</span>
+                {a.target_user_name && <span style={{ fontSize: 13, color: 'var(--text,#333)' }}>→ {a.target_user_name} {a.target_user_handle ? `(@${a.target_user_handle})` : ''}</span>}
+                {a.target_type && !a.target_user_name && <span style={{ fontSize: 12, color: 'var(--text-muted,#888)' }}>{a.target_type} #{a.target_id}</span>}
+                <span style={{ fontSize: 12, color: 'var(--text-muted,#888)' }}>{t.by || 'af'} {a.admin_name}</span>
                 <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString(getLocale(lang))}</span>
               </div>
+              {a.reason && <div style={{ fontSize: 12, color: 'var(--text-muted,#666)', marginTop: 4 }}>{a.reason}</div>}
             </div>
           ))}
         </div>
