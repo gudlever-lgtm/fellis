@@ -33,6 +33,7 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
   const [reportingComment, setReportingComment] = useState(null) // commentId
   const [reportReason, setReportReason] = useState('')
   const [reportDone, setReportDone] = useState(false)
+  const [commentError, setCommentError] = useState(null)
   const videoRef = useRef(null)
   const progressRef = useRef(null)
 
@@ -151,8 +152,13 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
     const text = commentText.trim()
     if (!text || submitting) return
     setSubmitting(true)
+    setCommentError(null)
     const data = await apiAddReelComment(reel.id, text)
-    if (data?.comment) {
+    if (data?._error) {
+      setCommentError(data._error === 'blocked_keyword'
+        ? (t.commentBlocked || 'Kommentaren indeholder et blokeret ord')
+        : (t.commentError || 'Kommentaren kunne ikke sendes'))
+    } else if (data?.comment) {
       setComments(prev => [...(prev || []), data.comment])
       setCommentText('')
     }
@@ -706,12 +712,15 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
               )
             })}
           </div>
+          {commentError && (
+            <div style={{ color: '#ef4444', fontSize: 12, padding: '4px 8px 2px', fontWeight: 600 }}>{commentError}</div>
+          )}
           <form style={s.commentForm} onSubmit={submitComment}>
             <input
               style={s.commentInput}
               placeholder={t.reelsComment}
               value={commentText}
-              onChange={e => setCommentText(e.target.value)}
+              onChange={e => { setCommentText(e.target.value); if (commentError) setCommentError(null) }}
               maxLength={2000}
             />
             <button style={s.commentSubmit} type="submit" disabled={submitting || !commentText.trim()}>
