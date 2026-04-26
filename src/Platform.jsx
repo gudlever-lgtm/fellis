@@ -21421,12 +21421,19 @@ function AdminPage({ lang, t }) {
                 const reason = modReason[report.id] || ''
                 const setReason = v => setModReason(prev => ({ ...prev, [report.id]: v }))
                 const refresh = () => apiGetModerationQueue().then(d => { if (d) setModQueue(d.reports) })
+                const isBusinessPost = report.target_type === 'post' && report.preview?.user_mode === 'business'
+                const canActOnReport = !isBusinessPost || currentUser?.is_admin
                 return (
                   <div key={report.id} className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                       <span style={{ background: '#FFF3CD', color: '#856404', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
                         {report.target_type.toUpperCase()}
                       </span>
+                      {isBusinessPost && (
+                        <span style={{ background: '#EEF2FF', color: '#3730A3', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                          💼 Business
+                        </span>
+                      )}
                       <span style={{ fontSize: 12, color: '#888' }}>
                         #{report.id} · {report.reason} · {t.reportedBy} {report.reporter_name}
                       </span>
@@ -21440,18 +21447,26 @@ function AdminPage({ lang, t }) {
                         )}
                       </div>
                     )}
+                    {!canActOnReport && (
+                      <div style={{ fontSize: 12, color: '#6366F1', marginBottom: 8 }}>
+                        {t.adminModBusinessAdminOnly || 'Business opslag kræver administrator'}
+                      </div>
+                    )}
                     <input
                       placeholder={t.adminModReasonPlaceholder}
                       value={reason}
                       onChange={e => setReason(e.target.value)}
                       style={{ width: '100%', padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box' }}
+                      disabled={!canActOnReport}
                     />
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {canActOnReport && (
                       <button style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #E8E4DF', fontSize: 13, cursor: 'pointer', background: '#fff' }}
                         onClick={async () => { await apiDismissReport(report.id, reason); await refresh(); showModToast('✓ Dismissed') }}>
                         {t.adminModDismiss}
                       </button>
-                      {report.target_type !== 'user' && (
+                      )}
+                      {report.target_type !== 'user' && canActOnReport && (
                         <button style={{ padding: '6px 12px', borderRadius: 7, border: 'none', fontSize: 13, cursor: 'pointer', background: '#E07A5F', color: '#fff', fontWeight: 600 }}
                           onClick={async () => {
                             await apiModerateRemoveContent(report.target_type, report.target_id, report.id, reason)

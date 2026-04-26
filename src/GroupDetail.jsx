@@ -392,7 +392,8 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   // ── Group ready ───────────────────────────────────────────────────────────
 
   const { membership } = group
-  const isAdmin = membership.role === 'admin'
+  const isCreator = group.created_by === currentUser?.id
+  const isAdmin = membership.role === 'admin' || (membership.role === 'moderator' && isCreator)
   const isMod = membership.role === 'admin' || membership.role === 'moderator'
   const isMuted = group.mutedUntil && new Date(group.mutedUntil) > new Date()
 
