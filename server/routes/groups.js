@@ -5,6 +5,7 @@ import path from 'path'
 import {
   authenticate, writeLimit, fileUploadLimit,
   upload, coverUpload, UPLOADS_DIR,
+  createNotification,
 } from '../middleware.js'
 
 const router = express.Router()
@@ -1347,6 +1348,67 @@ router.get('/groups/:slug/invite', authenticate, async (req, res) => {
     res.json({ link: `/groups/${group.slug}` })
   } catch (err) {
     console.error('GET /api/groups/:slug/invite error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// ── Group moderation (mod/admin only) ────────────────────────────────────────
+
+router.get('/groups/:id/moderation', authenticate, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  if (isNaN(groupId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const myRole = await getMemberRole(groupId, req.userId)
+    if (myRole !== 'admin' && myRole !== 'moderator') {
+      const group = await getGroupById(groupId)
+      if (!group || group.created_by !== req.userId) return res.status(403).json({ error: 'forbidden' })
+    }
+    const [reports] = await pool.query(
+      `SELECT r.id AS report_id, r.reason, r.details, r.created_at AS reported_at,
+              p.id AS post_id, p.text_da, p.text_en, p.author_id,
+              reporter.name AS reporter_name,
+              author.name AS author_name, author.handle AS author_handle
+       FROM reports r
+       JOIN posts p ON p.id = r.target_id AND r.target_type = 'post'
+       JOIN users reporter ON reporter.id = r.reporter_id
+       LEFT JOIN users author ON author.id = p.author_id
+       WHERE p.group_id = ? AND r.status = 'pending'
+       ORDER BY r.created_at DESC
+       LIMIT 50`,
+      [groupId]
+    )
+    res.json({ reports })
+  } catch (err) {
+    console.error('GET /api/groups/:id/moderation error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.post('/groups/:id/moderation/:reportId/dismiss', authenticate, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  const reportId = parseInt(req.params.reportId)
+  if (isNaN(groupId) || isNaN(reportId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const myRole = await getMemberRole(groupId, req.userId)
+    if (myRole !== 'admin' && myRole !== 'moderator') {
+      const group = await getGroupById(groupId)
+      if (!group || group.created_by !== req.userId) return res.status(403).json({ error: 'forbidden' })
+    }
+    // Verify the report belongs to a post in this group
+    const [[report]] = await pool.query(
+      `SELECT r.id FROM reports r
+       JOIN posts p ON p.id = r.target_id AND r.target_type = 'post'
+       WHERE r.id = ? AND p.group_id = ? AND r.status = 'pending'`,
+      [reportId, groupId]
+    )
+    if (!report) return res.status(404).json({ error: 'not_found' })
+    await pool.query(
+      'UPDATE reports SET status = "dismissed", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+      [req.userId, reportId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/:id/moderation/:reportId/dismiss error:', err)
     res.status(500).json({ error: 'server_error' })
   }
 })

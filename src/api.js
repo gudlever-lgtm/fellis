@@ -1288,6 +1288,11 @@ export const apiDeleteOwnGroup = (groupId) =>
 
 export const apiGetGroupInviteLink = (slug) => request(`/api/groups/${slug}/invite`)
 
+export const apiGetGroupModerationReports = (groupId) => request(`/api/groups/${groupId}/moderation`)
+
+export const apiDismissGroupReport = (groupId, reportId) =>
+  request(`/api/groups/${groupId}/moderation/${reportId}/dismiss`, { method: 'POST' })
+
 export async function apiUploadGroupCover(groupId, file) {
   const form = new FormData()
   form.append('cover', file)
