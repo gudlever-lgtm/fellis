@@ -865,8 +865,10 @@ router.get('/admin/moderation/queue', authenticate, requireModerator, async (req
       let preview = null
       try {
         if (r.target_type === 'post') {
-          const [[p]] = await pool.query('SELECT p.text_da, p.text_en, u.name AS author FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?', [r.target_id])
+          const [[p]] = await pool.query('SELECT p.text_da, p.text_en, p.user_mode, u.name AS author FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?', [r.target_id])
           preview = p || null
+          // Non-admins cannot act on business posts — skip them
+          if (p?.user_mode === 'business' && !req.adminRole) return null
         } else if (r.target_type === 'comment') {
           const [[c]] = await pool.query('SELECT c.text_da, c.text_en, u.name AS author, c.post_id FROM comments c JOIN users u ON u.id = c.author_id WHERE c.id = ?', [r.target_id])
           preview = c || null
@@ -877,7 +879,7 @@ router.get('/admin/moderation/queue', authenticate, requireModerator, async (req
       } catch { /* ignore */ }
       return { ...r, preview }
     }))
-    res.json({ reports: enriched })
+    res.json({ reports: enriched.filter(Boolean) })
   } catch (err) {
     console.error('GET /api/admin/moderation/queue error:', err)
     res.status(500).json({ error: 'Failed to load moderation queue' })
@@ -889,6 +891,14 @@ router.post('/admin/moderation/reports/:id/dismiss', authenticate, requireModera
   const reportId = parseInt(req.params.id)
   if (isNaN(reportId)) return res.status(400).json({ error: 'Invalid report ID' })
   try {
+    // Business post reports require admin
+    const [[report]] = await pool.query('SELECT target_type, target_id FROM reports WHERE id = ?', [reportId])
+    if (report?.target_type === 'post') {
+      const [[post]] = await pool.query('SELECT user_mode FROM posts WHERE id = ?', [report.target_id])
+      if (post?.user_mode === 'business' && !req.adminRole) {
+        return res.status(403).json({ error: 'admin_required_for_business_posts' })
+      }
+    }
     await pool.query(
       'UPDATE reports SET status = "dismissed", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
       [req.userId, reportId]
@@ -909,6 +919,13 @@ router.post('/admin/moderation/content/remove', authenticate, requireModerator, 
   const { type, target_id, report_id, reason } = req.body
   if (!['post', 'comment'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })
   try {
+    // Business post moderation requires admin
+    if (type === 'post') {
+      const [[post]] = await pool.query('SELECT user_mode FROM posts WHERE id = ?', [target_id])
+      if (post?.user_mode === 'business' && !req.adminRole) {
+        return res.status(403).json({ error: 'admin_required_for_business_posts' })
+      }
+    }
     const table = type === 'post' ? 'posts' : 'comments'
     await pool.query(`DELETE FROM ${table} WHERE id = ?`, [target_id])
     if (report_id) {
