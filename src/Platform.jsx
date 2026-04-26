@@ -21767,6 +21767,48 @@ function AdminPage({ lang, t }) {
           {/* ── Keyword filters ── */}
           {modSubTab === 'keywords' && (
             <div>
+              {/* Category guide (collapsible) */}
+              <div className="p-card" style={{ marginBottom: 12, padding: '10px 18px' }}>
+                <button
+                  onClick={() => setShowKwGuide(v => !v)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#2D6A4F', padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  {showKwGuide ? '▾' : '▸'} {t.adminModKeywordCategoryGuide}
+                </button>
+                {showKwGuide && (
+                  <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+                    {Object.entries(t.kwCategoryDesc || {}).map(([key, desc]) => (
+                      <div key={key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13 }}>
+                        <span style={{ background: '#EEF0F2', color: '#444', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', marginTop: 1 }}>
+                          {t.kwCategories?.[key] || key}
+                        </span>
+                        <span style={{ color: '#555', lineHeight: 1.45 }}>{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Search */}
+              {modKeywords && modKeywords.length > 0 && (
+                <div style={{ marginBottom: 12, position: 'relative' }}>
+                  <input
+                    value={kwSearch}
+                    onChange={e => setKwSearch(e.target.value)}
+                    placeholder={t.adminModKeywordSearch}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '8px 36px 8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#333' }}
+                  />
+                  {kwSearch && (
+                    <button
+                      onClick={() => setKwSearch('')}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+                      aria-label="Ryd søgning"
+                    >×</button>
+                  )}
+                </div>
+              )}
+
+              {/* New keyword form */}
               <div className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
                   <input
@@ -21811,38 +21853,6 @@ function AdminPage({ lang, t }) {
                   </button>
                 </div>
               </div>
-              {/* Category guide (collapsible) */}
-              <div className="p-card" style={{ marginBottom: 12, padding: '10px 18px' }}>
-                <button
-                  onClick={() => setShowKwGuide(v => !v)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#2D6A4F', padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}
-                >
-                  {showKwGuide ? '▾' : '▸'} {t.adminModKeywordCategoryGuide}
-                </button>
-                {showKwGuide && (
-                  <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
-                    {Object.entries(t.kwCategoryDesc || {}).map(([key, desc]) => (
-                      <div key={key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13 }}>
-                        <span style={{ background: '#EEF0F2', color: '#444', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', marginTop: 1 }}>
-                          {t.kwCategories?.[key] || key}
-                        </span>
-                        <span style={{ color: '#555', lineHeight: 1.45 }}>{desc}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {modKeywords && modKeywords.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <input
-                    value={kwSearch}
-                    onChange={e => setKwSearch(e.target.value)}
-                    placeholder={t.adminModKeywordSearch}
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#333' }}
-                  />
-                </div>
-              )}
               {!modKeywords ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.loading2}</div>
               ) : modKeywords.length === 0 ? (
