@@ -20566,6 +20566,7 @@ function AdminPage({ lang, t }) {
   const [editingKwId, setEditingKwId] = useState(null)
   const [editKw, setEditKw] = useState({ keyword: '', action: 'flag', category: 'profanity', notes: '' })
   const [showKwGuide, setShowKwGuide] = useState(false)
+  const [kwSearch, setKwSearch] = useState('')
   const [modToast, setModToast] = useState(null)
   // Moderator management state
   const [modModerators, setModModerators] = useState([])
@@ -21832,11 +21833,21 @@ function AdminPage({ lang, t }) {
                 )}
               </div>
 
+              {modKeywords && modKeywords.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <input
+                    value={kwSearch}
+                    onChange={e => setKwSearch(e.target.value)}
+                    placeholder={t.adminModKeywordSearch}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#333' }}
+                  />
+                </div>
+              )}
               {!modKeywords ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.loading2}</div>
               ) : modKeywords.length === 0 ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.noKeywordFiltersYet}</div>
-              ) : modKeywords.map(kw => {
+              ) : modKeywords.filter(kw => !kwSearch.trim() || kw.keyword.toLowerCase().includes(kwSearch.toLowerCase()) || (kw.notes || '').toLowerCase().includes(kwSearch.toLowerCase())).map(kw => {
                 const isEditing = editingKwId === kw.id
                 return (
                   <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px' }}>
