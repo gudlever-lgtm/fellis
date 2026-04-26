@@ -92,6 +92,9 @@ export default {
     streamKeyRegenerateConfirm: 'Er du sikker? Den gamle nøgle holder op med at virke med det samme.',
     streamKeyLoading: 'Indlæser...',
     streamKeyError: 'Kunne ikke hente stream-nøgle',
+    commentBlocked: 'Kommentaren indeholder et blokeret ord',
+    commentError: 'Kommentaren kunne ikke sendes',
+    commentFlagged: 'Din kommentar er sendt til gennemgang',
   },
   en: {
     reels: 'Reels',
@@ -186,6 +189,9 @@ export default {
     streamKeyRegenerateConfirm: 'Are you sure? The old key will stop working immediately.',
     streamKeyLoading: 'Loading...',
     streamKeyError: 'Could not load stream key',
+    commentBlocked: 'Your comment contains a blocked word',
+    commentError: 'The comment could not be sent',
+    commentFlagged: 'Your comment has been sent for review',
   },
   no: {
     reels: 'Reels',
