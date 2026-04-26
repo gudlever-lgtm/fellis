@@ -10,6 +10,7 @@ import {
   apiGetGroupPolls, apiCreateGroupPoll, apiVoteGroupPoll, apiGetGroupInviteLink,
   apiMuteConversation,
   apiGetGroupModerationReports, apiDismissGroupReport,
+  apiPreflightPost,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 import { getLocale } from './utils/dateFormat.js'
