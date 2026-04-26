@@ -7,6 +7,7 @@ import {
   upload, coverUpload, UPLOADS_DIR,
   createNotification,
 } from '../middleware.js'
+import { checkKeywords } from '../helpers.js'
 
 const router = express.Router()
 
@@ -867,6 +868,14 @@ router.post('/groups/:id/posts', authenticate, writeLimit, upload.single('media'
     }
 
     const clean = text.trim()
+
+    const kw = checkKeywords(clean)
+    if (kw?.action === 'block') {
+      if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
+      return res.status(400).json({ error: 'Post indeholder forbudt indhold / Post contains prohibited content' })
+    }
+    const autoFlagKeyword = kw?.action === 'flag' ? kw.keyword : null
+
     const mediaJson = req.file ? JSON.stringify([{
       url: `/uploads/${req.file.filename}`,
       type: req.file.mimetype.startsWith('video/') ? 'video' : 'image',
@@ -878,13 +887,20 @@ router.post('/groups/:id/posts', authenticate, writeLimit, upload.single('media'
     )
     await pool.query('UPDATE conversations SET post_count = post_count + 1 WHERE id = ?', [groupId])
 
+    if (autoFlagKeyword) {
+      pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, 'post', result.insertId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeyword}"`]
+      ).catch(() => {})
+    }
+
     const [[post]] = await pool.query(
       `SELECT p.id, p.text_da, p.text_en, p.media, p.created_at, p.is_pinned,
               u.name AS author_name, u.id AS author_id
        FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?`,
       [result.insertId]
     )
-    res.status(201).json({ ...post, reactions: {}, my_reaction: null })
+    res.status(201).json({ ...post, reactions: {}, my_reaction: null, flagged: autoFlagKeyword ? true : undefined })
   } catch (err) {
     console.error('POST /api/groups/:id/posts error:', err)
     if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})

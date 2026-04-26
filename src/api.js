@@ -2026,6 +2026,9 @@ export async function apiGetExploreFeed(cursor, filter, tag) {
 export async function apiGetSuggestedUsers(limit = 6) {
   return await request(`/api/users/suggested?limit=${limit}`)
 }
+export async function apiGetExploreGroupPosts() {
+  return await request('/api/explore/group-posts')
+}
 
 // ── Signal Engine / Interest Graph ────────────────────────────────────────────
 // Batch-send behavioral signals to the server. Each signal: { signal_type, source_type?, source_id?, interest_slugs?, context? }
