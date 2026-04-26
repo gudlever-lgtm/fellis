@@ -36,12 +36,14 @@ router.get('/conversations/:id/messages', authenticate, async (req, res) => {
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const [msgs] = await pool.query(
-      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at, m.media
+      `SELECT m.id, m.sender_id, u.name as from_name, m.text_da, m.text_en, m.time, m.created_at, m.media
        FROM messages m JOIN users u ON m.sender_id = u.id
        WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 50`,
       [convId])
     msgs.reverse()
     res.json({ messages: msgs.map(m => ({
+      id: m.id,
+      sender_id: m.sender_id,
       from: m.from_name,
       text: { da: m.text_da, en: m.text_en },
       time: m.created_at ? formatMsgTime(m.created_at) : m.time,
@@ -63,12 +65,12 @@ router.get('/conversations/:id/messages/older', authenticate, async (req, res) =
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const [msgs] = await pool.query(
-      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at
+      `SELECT m.id, m.sender_id, u.name as from_name, m.text_da, m.text_en, m.time, m.created_at
        FROM messages m JOIN users u ON m.sender_id = u.id
        WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT ? OFFSET ?`,
       [convId, limit, offset])
     msgs.reverse()
-    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })) })
+    res.json({ messages: msgs.map(m => ({ id: m.id, sender_id: m.sender_id, from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })) })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load messages' })
   }
@@ -317,6 +319,47 @@ router.delete('/messages/:id/react', authenticate, async (req, res) => {
     await pool.query('DELETE FROM message_reactions WHERE message_id=? AND user_id=?', [req.params.id, req.userId])
     res.json({ ok: true })
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.delete('/messages/:id', authenticate, async (req, res) => {
+  const msgId = parseInt(req.params.id)
+  if (isNaN(msgId)) return res.status(400).json({ error: 'Invalid message ID' })
+  try {
+    const [[msg]] = await pool.query('SELECT sender_id, conversation_id FROM messages WHERE id = ?', [msgId])
+    if (!msg) return res.status(404).json({ error: 'Not found' })
+    if (msg.sender_id !== req.userId && !req.isModerator) return res.status(403).json({ error: 'Forbidden' })
+    // Verify requester is participant
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [msg.conversation_id, req.userId])
+    if (!check.length && !req.isModerator) return res.status(403).json({ error: 'Not a participant' })
+    await pool.query('DELETE FROM messages WHERE id = ?', [msgId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/messages/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.patch('/messages/:id', authenticate, writeLimit, async (req, res) => {
+  const msgId = parseInt(req.params.id)
+  if (isNaN(msgId)) return res.status(400).json({ error: 'Invalid message ID' })
+  try {
+    const [[msg]] = await pool.query('SELECT sender_id, conversation_id FROM messages WHERE id = ?', [msgId])
+    if (!msg) return res.status(404).json({ error: 'Not found' })
+    if (msg.sender_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [msg.conversation_id, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    const text = (req.body.text || '').trim()
+    if (!text) return res.status(400).json({ error: 'Message cannot be empty' })
+    await pool.query('UPDATE messages SET text_da = ?, text_en = ? WHERE id = ?', [text, text, msgId])
+    res.json({ ok: true, text })
+  } catch (err) {
+    console.error('PATCH /api/messages/:id error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
