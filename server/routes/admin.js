@@ -856,7 +856,12 @@ router.get('/admin/moderation/queue', authenticate, requireModerator, async (req
               u.name AS reporter_name, u.handle AS reporter_handle
        FROM reports r
        JOIN users u ON u.id = r.reporter_id
+       LEFT JOIN posts p ON p.id = r.target_id AND r.target_type = 'post'
+       LEFT JOIN comments c ON c.id = r.target_id AND r.target_type = 'comment'
+       LEFT JOIN posts cp ON cp.id = c.post_id
        WHERE r.status = 'pending'
+         AND (r.target_type != 'post' OR p.group_id IS NULL)
+         AND (r.target_type != 'comment' OR cp.group_id IS NULL)
        ORDER BY r.created_at ASC
        LIMIT 100`
     )

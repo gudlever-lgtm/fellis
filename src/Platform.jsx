@@ -970,7 +970,7 @@ const NOTIF_TYPE_PAGE = {
   like: 'feed', comment: 'feed',
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
-  moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile', group_report: 'groups',
+  moderator_granted: 'moderation', mod_result: 'profile', moderation: 'profile', group_report: 'groups',
   new_message: 'messages', badge: 'badges',
 }
 
@@ -18159,6 +18159,15 @@ function ModeratorPage({ lang, t, currentUser }) {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{r.reason}</span>
                 <span style={{ color: 'var(--text-muted, #888)', fontSize: 13 }}>{r.reporter_name} → {r.target_type} #{r.target_id}</span>
               </div>
+              {r.preview && (
+                <div style={{ background: 'var(--bg, #f9f7f5)', borderRadius: 8, padding: '8px 12px', fontSize: 13, margin: '8px 0', color: 'var(--text, #444)' }}>
+                  {r.target_type === 'user' ? (
+                    <><strong>{r.preview.name}</strong> (@{r.preview.handle}) — {r.preview.status}</>
+                  ) : (
+                    <><strong>{r.preview.author}:</strong> {(lang === 'en' ? (r.preview.text_en || r.preview.text_da) : (r.preview.text_da || r.preview.text_en) || '').slice(0, 300)}</>
+                  )}
+                </div>
+              )}
               <div style={{ ...s.row, marginTop: 10, gap: 8 }}>
                 <input
                   style={{ ...s.input, marginBottom: 0, flex: 1 }}
@@ -18214,12 +18223,13 @@ function ModeratorPage({ lang, t, currentUser }) {
           {actions.map(a => (
             <div key={a.id} style={{ ...s.card, padding: '10px 16px' }}>
               <div style={s.row}>
-                <span style={s.badge('#6C63FF')}>{a.action_type}</span>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>{a.admin_name}</span>
-                {a.target_name && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>→ {a.target_name}</span>}
-                {a.reason && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>— {a.reason}</span>}
+                <span style={s.badge('#6C63FF')}>{a.action_type.replace(/_/g, ' ')}</span>
+                {a.target_user_name && <span style={{ fontSize: 13, color: 'var(--text,#333)' }}>→ {a.target_user_name} {a.target_user_handle ? `(@${a.target_user_handle})` : ''}</span>}
+                {a.target_type && !a.target_user_name && <span style={{ fontSize: 12, color: 'var(--text-muted,#888)' }}>{a.target_type} #{a.target_id}</span>}
+                <span style={{ fontSize: 12, color: 'var(--text-muted,#888)' }}>{t.by || 'af'} {a.admin_name}</span>
                 <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString(getLocale(lang))}</span>
               </div>
+              {a.reason && <div style={{ fontSize: 12, color: 'var(--text-muted,#666)', marginTop: 4 }}>{a.reason}</div>}
             </div>
           ))}
         </div>
