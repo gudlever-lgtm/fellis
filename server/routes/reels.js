@@ -30,6 +30,19 @@ import { checkKeywords } from '../helpers.js'
 
 const router = express.Router()
 
+async function notifyModerators(pool, createNotification, actorId, keyword) {
+  try {
+    const [mods] = await pool.query('SELECT id FROM users WHERE is_moderator = 1 OR id = 1')
+    const msgDa = `Reel-kommentar markeret automatisk (ord: "${keyword}")`
+    const msgEn = `Reel comment auto-flagged (word: "${keyword}")`
+    for (const mod of mods) {
+      createNotification(mod.id, 'moderation', msgDa, msgEn, actorId)
+    }
+  } catch (e) {
+    console.error('notifyModerators error:', e.message)
+  }
+}
+
 router.get('/reels', authenticate, async (req, res) => {
   try {
     const offset = parseInt(req.query.offset) || 0
@@ -177,6 +190,7 @@ router.post('/reels/:id/comments', authenticate, writeLimit, async (req, res) =>
         'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, "reel_comment", ?, "keyword_flag", ?)',
         [req.userId, result.insertId, `Auto-flagged: keyword "${kw.keyword}"`]
       ).catch(e => console.error('reel_comment flag insert failed (run migrate-reel-comment-message-moderation.sql):', e.message))
+      notifyModerators(pool, createNotification, req.userId, kw.keyword)
     }
     const [[comment]] = await pool.query(
       `SELECT rc.id, rc.user_id, rc.text, rc.created_at,
@@ -184,7 +198,7 @@ router.post('/reels/:id/comments', authenticate, writeLimit, async (req, res) =>
        FROM reel_comments rc JOIN users u ON rc.user_id = u.id WHERE rc.id = ?`,
       [result.insertId]
     )
-    res.status(201).json({ comment })
+    res.status(201).json({ comment, flagged: kw?.action === 'flag' })
   } catch (err) {
     console.error('POST /api/reels/:id/comments error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -209,8 +223,9 @@ router.patch('/reels/:reelId/comments/:commentId', authenticate, writeLimit, asy
         'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, "reel_comment", ?, "keyword_flag", ?)',
         [req.userId, commentId, `Auto-flagged on edit: keyword "${kw.keyword}"`]
       ).catch(e => console.error('reel_comment edit flag insert failed:', e.message))
+      notifyModerators(pool, createNotification, req.userId, kw.keyword)
     }
-    res.json({ ok: true, text })
+    res.json({ ok: true, text, flagged: kw?.action === 'flag' })
   } catch (err) {
     console.error('PATCH /api/reels/:reelId/comments/:commentId error:', err.message)
     res.status(500).json({ error: 'Server error' })

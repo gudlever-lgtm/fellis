@@ -34,6 +34,7 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
   const [reportReason, setReportReason] = useState('')
   const [reportDone, setReportDone] = useState(false)
   const [commentError, setCommentError] = useState(null)
+  const [commentInfo, setCommentInfo] = useState(null)
   const videoRef = useRef(null)
   const progressRef = useRef(null)
 
@@ -153,6 +154,7 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
     if (!text || submitting) return
     setSubmitting(true)
     setCommentError(null)
+    setCommentInfo(null)
     const data = await apiAddReelComment(reel.id, text)
     if (data?._error) {
       setCommentError(data._error === 'blocked_keyword'
@@ -161,6 +163,7 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
     } else if (data?.comment) {
       setComments(prev => [...(prev || []), data.comment])
       setCommentText('')
+      if (data.flagged) setCommentInfo(t.commentFlagged || 'Din kommentar er sendt til gennemgang')
     }
     setSubmitting(false)
   }
@@ -675,7 +678,10 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
                           : (t.commentError || 'Kommentaren kunne ikke sendes'))
                         return
                       }
-                      if (res?.ok) setComments(prev => prev.map(x => x.id === c.id ? { ...x, text: editingComment.text } : x))
+                      if (res?.ok) {
+                        setComments(prev => prev.map(x => x.id === c.id ? { ...x, text: editingComment.text } : x))
+                        if (res.flagged) setCommentInfo(t.commentFlagged || 'Din kommentar er sendt til gennemgang')
+                      }
                       setEditingComment(null)
                     }} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontSize: 12, cursor: 'pointer' }}>✓</button>
                     <button onClick={() => setEditingComment(null)}
@@ -721,12 +727,15 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
           {commentError && (
             <div style={{ color: '#ef4444', fontSize: 12, padding: '4px 8px 2px', fontWeight: 600 }}>{commentError}</div>
           )}
+          {commentInfo && (
+            <div style={{ color: '#f59e0b', fontSize: 12, padding: '4px 8px 2px', fontWeight: 600 }}>{commentInfo}</div>
+          )}
           <form style={s.commentForm} onSubmit={submitComment}>
             <input
               style={s.commentInput}
               placeholder={t.reelsComment}
               value={commentText}
-              onChange={e => { setCommentText(e.target.value); if (commentError) setCommentError(null) }}
+              onChange={e => { setCommentText(e.target.value); if (commentError) setCommentError(null); if (commentInfo) setCommentInfo(null) }}
               maxLength={2000}
             />
             <button style={s.commentSubmit} type="submit" disabled={submitting || !commentText.trim()}>
