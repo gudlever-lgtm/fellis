@@ -6,6 +6,7 @@ import {
   authenticate, writeLimit, fileUploadLimit,
   upload, coverUpload, UPLOADS_DIR,
 } from '../middleware.js'
+import { checkKeywords } from '../helpers.js'
 
 const router = express.Router()
 
@@ -13,7 +14,7 @@ const router = express.Router()
 
 async function getGroupById(id) {
   const [[g]] = await pool.query(
-    'SELECT id, type, is_group, is_frozen FROM conversations WHERE id = ? AND is_group = 1',
+    'SELECT id, type, is_group, is_frozen, created_by FROM conversations WHERE id = ? AND is_group = 1',
     [id]
   )
   return g || null
@@ -538,7 +539,7 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
 
     await pool.query(
       'INSERT INTO conversation_participants (conversation_id, user_id, role) VALUES (?, ?, ?)',
-      [result.insertId, req.userId, 'admin']
+      [result.insertId, req.userId, 'moderator']
     )
 
     res.status(201).json({ id: result.insertId, slug: cleanSlug })
@@ -866,6 +867,14 @@ router.post('/groups/:id/posts', authenticate, writeLimit, upload.single('media'
     }
 
     const clean = text.trim()
+
+    const kw = checkKeywords(clean)
+    if (kw?.action === 'block') {
+      if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
+      return res.status(400).json({ error: 'Post indeholder forbudt indhold / Post contains prohibited content' })
+    }
+    const autoFlagKeyword = kw?.action === 'flag' ? kw.keyword : null
+
     const mediaJson = req.file ? JSON.stringify([{
       url: `/uploads/${req.file.filename}`,
       type: req.file.mimetype.startsWith('video/') ? 'video' : 'image',
@@ -877,13 +886,20 @@ router.post('/groups/:id/posts', authenticate, writeLimit, upload.single('media'
     )
     await pool.query('UPDATE conversations SET post_count = post_count + 1 WHERE id = ?', [groupId])
 
+    if (autoFlagKeyword) {
+      pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, 'post', result.insertId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeyword}"`]
+      ).catch(() => {})
+    }
+
     const [[post]] = await pool.query(
       `SELECT p.id, p.text_da, p.text_en, p.media, p.created_at, p.is_pinned,
               u.name AS author_name, u.id AS author_id
        FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?`,
       [result.insertId]
     )
-    res.status(201).json({ ...post, reactions: {}, my_reaction: null })
+    res.status(201).json({ ...post, reactions: {}, my_reaction: null, flagged: autoFlagKeyword ? true : undefined })
   } catch (err) {
     console.error('POST /api/groups/:id/posts error:', err)
     if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
@@ -1015,7 +1031,8 @@ router.put('/groups/:id/members/:userId/role', authenticate, async (req, res) =>
     if (!group) return res.status(404).json({ error: 'not_found' })
 
     const myRole = await getMemberRole(groupId, req.userId)
-    if (myRole !== 'admin') return res.status(403).json({ error: 'admin_only' })
+    const isCreator = group.created_by === req.userId
+    if (myRole !== 'admin' && !isCreator) return res.status(403).json({ error: 'admin_only' })
 
     await pool.query(
       'UPDATE conversation_participants SET role = ? WHERE conversation_id = ? AND user_id = ?',

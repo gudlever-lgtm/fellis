@@ -556,87 +556,69 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
               <span className="p-nav-tab-label">{t.businessHub}</span>
             </button>
           )}
-          {/* "Mere" / "More" dropdown for secondary tabs */}
-          <div ref={moreMenuRef} style={{ position: 'relative' }}>
-            <button
-              className={`p-nav-tab${(mode === 'business'
-                ? ['friends', 'calendar', 'marketplace', 'explore', 'saved-posts', 'groups', 'group-detail', 'group-settings']
-                : ['friends', 'calendar', 'marketplace', 'jobs', 'explore', 'saved-posts', 'groups', 'group-detail', 'group-settings']
-              ).includes(page) ? ' active' : ''}`}
-              onClick={() => setShowMoreMenu(v => !v)}
-            >
-              <span className="p-nav-tab-icon">{'⋯'}</span>
-              <span className="p-nav-tab-label">{t.more}</span>
-            </button>
-            {showMoreMenu && (() => {
-              const moreGroups = [
-                {
-                  label: t.navGroupSocial,
-                  items: [
-                    { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
-                    { id: 'groups', icon: '🫂', label: t.navGroups },
-                    { id: 'explore', icon: '🔭', label: t.explore },
-                    { id: 'calendar', icon: '🗓️', label: t.calendar },
-                    { id: 'saved-posts', icon: '🔖', label: t.savedPosts },
-                  ],
-                },
-                {
-                  label: t.navGroupCommerce,
-                  items: [
-                    { id: 'marketplace', icon: '🛍️', label: t.marketplace },
-                    ...(mode !== 'business' ? [{ id: 'jobs', icon: '💼', label: t.jobs }] : []),
-                  ],
-                },
-              ]
-              const allItems = moreGroups.flatMap(g => g.items)
-              // Mobile: inline accordion
-              if (showMobileMenu) {
-                return (
-                  <div style={{ borderTop: '1px solid #f0ede9' }}>
-                    {allItems.map(item => (
-                      <button key={item.id}
-                        onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                        className={`p-nav-tab${page === item.id ? ' active' : ''}`}
-                        style={{ width: '100%', borderRadius: 0, paddingLeft: 36, fontSize: 14 }}
-                      >
-                        <span className="p-nav-tab-icon">{item.icon}</span>
-                        <span className="p-nav-tab-label">{item.label}</span>
-                      </button>
-                    ))}
+          {/* Secondary tabs — inline in mobile, dropdown on desktop */}
+          {(() => {
+            const moreItems = [
+              { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
+              { id: 'groups', icon: '🫂', label: t.navGroups },
+              { id: 'explore', icon: '🔭', label: t.explore },
+              { id: 'calendar', icon: '🗓️', label: t.calendar },
+              { id: 'saved-posts', icon: '🔖', label: t.savedPosts },
+              { id: 'marketplace', icon: '🛍️', label: t.marketplace },
+              ...(mode !== 'business' ? [{ id: 'jobs', icon: '💼', label: t.jobs }] : []),
+            ]
+            const secondaryPages = moreItems.map(i => i.id).concat(['group-detail', 'group-settings'])
+            if (showMobileMenu) {
+              return moreItems.map(item => (
+                <button key={item.id}
+                  className={`p-nav-tab${page === item.id ? ' active' : ''}`}
+                  onClick={() => { navigateTo(item.id); setShowMobileMenu(false) }}
+                >
+                  <span className="p-nav-tab-icon">{item.icon}</span>
+                  <span className="p-nav-tab-label">{item.label}</span>
+                </button>
+              ))
+            }
+            return (
+              <div ref={moreMenuRef} style={{ position: 'relative' }}>
+                <button
+                  className={`p-nav-tab${secondaryPages.includes(page) ? ' active' : ''}`}
+                  onClick={() => setShowMoreMenu(v => !v)}
+                >
+                  <span className="p-nav-tab-icon">{'⋯'}</span>
+                  <span className="p-nav-tab-label">{t.more}</span>
+                </button>
+                {showMoreMenu && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, zIndex: 200,
+                    background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
+                    border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
+                      {moreItems.map(item => (
+                        <button key={item.id}
+                          onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '8px 10px', borderRadius: 8,
+                            background: page === item.id ? '#f0f7f4' : 'none',
+                            border: 'none', cursor: 'pointer', fontSize: 13,
+                            fontWeight: page === item.id ? 700 : 400,
+                            color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                            transition: 'background 0.12s',
+                          }}
+                          onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
+                          onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
+                        >
+                          <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )
-              }
-              // Desktop: flat dropdown
-              return (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, zIndex: 200,
-                  background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
-                  border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
-                }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
-                    {allItems.map(item => (
-                      <button key={item.id}
-                        onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '8px 10px', borderRadius: 8,
-                          background: page === item.id ? '#f0f7f4' : 'none',
-                          border: 'none', cursor: 'pointer', fontSize: 13,
-                          fontWeight: page === item.id ? 700 : 400,
-                          color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                          transition: 'background 0.12s',
-                        }}
-                        onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
-                        onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
-                      >
-                        <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
         <div className="p-nav-right">
           <button
@@ -796,7 +778,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           <FeedSidebar lang={lang} t={t} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} onNavigate={navigateTo} />
         </div>
         {page === 'reels' && <Suspense fallback={null}><ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} /></Suspense>}
-        {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
+        {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} onNavigate={navigateGroups} />}
         {page === 'groups' && <Suspense fallback={null}><GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
         {page === 'group-detail' && navParam?.slug && <Suspense fallback={null}><GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
         {page === 'group-settings' && navParam?.slug && <Suspense fallback={null}><GroupSettings slug={navParam.slug} lang={lang} onNavigate={navigateGroups} /></Suspense>}
@@ -21421,12 +21403,19 @@ function AdminPage({ lang, t }) {
                 const reason = modReason[report.id] || ''
                 const setReason = v => setModReason(prev => ({ ...prev, [report.id]: v }))
                 const refresh = () => apiGetModerationQueue().then(d => { if (d) setModQueue(d.reports) })
+                const isBusinessPost = report.target_type === 'post' && report.preview?.user_mode === 'business'
+                const canActOnReport = !isBusinessPost || currentUser?.is_admin
                 return (
                   <div key={report.id} className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                       <span style={{ background: '#FFF3CD', color: '#856404', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
                         {report.target_type.toUpperCase()}
                       </span>
+                      {isBusinessPost && (
+                        <span style={{ background: '#EEF2FF', color: '#3730A3', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                          💼 Business
+                        </span>
+                      )}
                       <span style={{ fontSize: 12, color: '#888' }}>
                         #{report.id} · {report.reason} · {t.reportedBy} {report.reporter_name}
                       </span>
@@ -21440,18 +21429,26 @@ function AdminPage({ lang, t }) {
                         )}
                       </div>
                     )}
+                    {!canActOnReport && (
+                      <div style={{ fontSize: 12, color: '#6366F1', marginBottom: 8 }}>
+                        {t.adminModBusinessAdminOnly || 'Business opslag kræver administrator'}
+                      </div>
+                    )}
                     <input
                       placeholder={t.adminModReasonPlaceholder}
                       value={reason}
                       onChange={e => setReason(e.target.value)}
                       style={{ width: '100%', padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box' }}
+                      disabled={!canActOnReport}
                     />
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {canActOnReport && (
                       <button style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #E8E4DF', fontSize: 13, cursor: 'pointer', background: '#fff' }}
                         onClick={async () => { await apiDismissReport(report.id, reason); await refresh(); showModToast('✓ Dismissed') }}>
                         {t.adminModDismiss}
                       </button>
-                      {report.target_type !== 'user' && (
+                      )}
+                      {report.target_type !== 'user' && canActOnReport && (
                         <button style={{ padding: '6px 12px', borderRadius: 7, border: 'none', fontSize: 13, cursor: 'pointer', background: '#E07A5F', color: '#fff', fontWeight: 600 }}
                           onClick={async () => {
                             await apiModerateRemoveContent(report.target_type, report.target_id, report.id, reason)

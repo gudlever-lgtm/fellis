@@ -39,3 +39,4 @@ server/ecosystem.config.cjs
 *.njsproj
 *.sln
 *.sw?
+.gitnexus
