@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, PT } from '../data.js'
-import { apiGetTrendingTags, apiGetExploreFeed, apiGetSuggestedUsers, apiSendFriendRequest } from '../api.js'
+import { apiGetTrendingTags, apiGetExploreFeed, apiGetSuggestedUsers, apiSendFriendRequest, apiGetExploreGroupPosts } from '../api.js'
 
 const FILTERS = ['all', 'images']
 
@@ -97,12 +97,76 @@ function SuggestedCard({ user, lang, onViewProfile }) {
   )
 }
 
-export default function ExplorePage({ lang, onViewProfile }) {
+function GroupPostCard({ post, lang, onViewProfile, onNavigate }) {
+  const text = post.text?.[lang] || post.text?.da || ''
+  const time = post.created_at ? timeAgo(post.created_at, lang) : ''
+  const media = post.media || []
+  const da = lang === 'da'
+
+  return (
+    <div className="p-card p-post">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <button
+          onClick={() => onNavigate && post.group_slug && onNavigate(`/groups/${post.group_slug}`)}
+          style={{ background: '#f0f7f4', border: 'none', borderRadius: 12, padding: '3px 10px', fontSize: 12, color: '#2D6A4F', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
+        >
+          🫂 {post.group_name}
+        </button>
+      </div>
+      <div className="p-post-header">
+        <div
+          className="p-avatar-sm"
+          style={{ background: nameToColor(post.author || ''), cursor: onViewProfile ? 'pointer' : 'default' }}
+          onClick={() => onViewProfile && post.author_id && onViewProfile(post.author_id)}
+        >
+          {post.avatar_url
+            ? <img src={post.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+            : (post.initials || getInitials(post.author || ''))}
+        </div>
+        <div>
+          <div
+            className="p-post-author"
+            style={onViewProfile ? { cursor: 'pointer' } : {}}
+            onClick={() => onViewProfile && post.author_id && onViewProfile(post.author_id)}
+          >
+            {post.author}
+          </div>
+          <div className="p-post-time">{time}</div>
+        </div>
+      </div>
+      {text && <div className="p-post-body">{text}</div>}
+      {media.length > 0 && (
+        <div className={`p-post-media p-post-media-${Math.min(media.length, 4)}`} style={{ marginTop: 8 }}>
+          {media.slice(0, 4).map((m, i) => (
+            <div key={i} className="p-media-item">
+              {m.type === 'video'
+                ? <video src={m.url} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="p-post-stats" style={{ marginTop: 10, fontSize: 13, color: '#A09890', display: 'flex', gap: 12 }}>
+        <span>{post.likes} {PT[lang].likes}</span>
+        {post.comment_count > 0 && <span>{post.comment_count} {PT[lang].reelsComments}</span>}
+      </div>
+      <button
+        onClick={() => onNavigate && post.group_slug && onNavigate(`/groups/${post.group_slug}`)}
+        style={{ marginTop: 8, background: 'none', border: '1px solid #d4e9de', borderRadius: 8, padding: '5px 12px', fontSize: 12, color: '#2D6A4F', cursor: 'pointer', width: '100%' }}
+      >
+        {da ? 'Se gruppe' : 'View group'} →
+      </button>
+    </div>
+  )
+}
+
+export default function ExplorePage({ lang, onViewProfile, onNavigate }) {
   const da = lang === 'da'
   const t = {
     title: da ? 'Udforsk' : 'Explore',
     trendingTags: da ? 'Populære emner' : 'Trending topics',
     suggestedProfiles: da ? 'Foreslåede profiler' : 'Suggested profiles',
+    groupPosts: da ? 'Fra offentlige grupper' : 'From public groups',
     filter: {
       all: da ? 'Alt' : 'All',
       images: da ? 'Billeder' : 'Images',
@@ -116,6 +180,7 @@ export default function ExplorePage({ lang, onViewProfile }) {
 
   const [tags, setTags] = useState([])
   const [suggested, setSuggested] = useState([])
+  const [groupPosts, setGroupPosts] = useState([])
   const [activeTag, setActiveTag] = useState(null)
   const [filter, setFilter] = useState('all')
   const [posts, setPosts] = useState([])
@@ -124,10 +189,11 @@ export default function ExplorePage({ lang, onViewProfile }) {
   const [hasMore, setHasMore] = useState(true)
   const sentinelRef = useRef(null)
 
-  // Fetch trending tags + suggested on mount
+  // Fetch trending tags, suggested users, and group posts on mount
   useEffect(() => {
     apiGetTrendingTags().then(d => setTags(Array.isArray(d) ? d : []))
     apiGetSuggestedUsers(6).then(d => setSuggested(Array.isArray(d) ? d : []))
+    apiGetExploreGroupPosts().then(d => setGroupPosts(Array.isArray(d?.posts) ? d.posts : []))
   }, [])
 
   const fetchPosts = useCallback(async (reset = false) => {
@@ -213,6 +279,16 @@ export default function ExplorePage({ lang, onViewProfile }) {
               <SuggestedCard key={u.id} user={u} lang={lang} onViewProfile={onViewProfile} />
             ))}
           </div>
+        </>
+      )}
+
+      {/* Public group posts based on user interests */}
+      {groupPosts.length > 0 && (
+        <>
+          <div className="explore-section-title">{t.groupPosts}</div>
+          {groupPosts.map(post => (
+            <GroupPostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} onNavigate={onNavigate} />
+          ))}
         </>
       )}
 

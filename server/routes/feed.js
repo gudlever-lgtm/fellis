@@ -1438,6 +1438,62 @@ router.get('/explore/feed', authenticate, async (req, res) => {
   }
 })
 
+router.get('/explore/group-posts', authenticate, async (req, res) => {
+  const limit = 20
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        p.id, p.text_da, p.text_en, p.media, p.created_at, p.likes,
+        u.name AS author_name, u.id AS author_id, u.avatar_url, u.initials,
+        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+        cv.id AS group_id, cv.name AS group_name, cv.slug AS group_slug,
+        COALESCE(MAX(iscore.weight), 0) AS interest_weight
+      FROM posts p
+      JOIN users u ON u.id = p.author_id
+      JOIN conversations cv ON cv.id = p.group_id
+      LEFT JOIN interest_scores iscore
+        ON iscore.user_id = ?
+        AND cv.tags IS NOT NULL
+        AND JSON_SEARCH(cv.tags, 'one', iscore.interest_slug) IS NOT NULL
+      WHERE cv.is_group = 1
+        AND cv.type = 'public'
+        AND (cv.group_status IS NULL OR cv.group_status = 'active')
+        AND NOT EXISTS (
+          SELECT 1 FROM conversation_participants cp
+          WHERE cp.conversation_id = cv.id
+            AND cp.user_id = ?
+            AND cp.status = 'active'
+        )
+        AND p.scheduled_at IS NULL
+      GROUP BY p.id, u.name, u.id, u.avatar_url, u.initials,
+               cv.id, cv.name, cv.slug,
+               p.text_da, p.text_en, p.media, p.created_at, p.likes
+      ORDER BY interest_weight DESC, p.created_at DESC
+      LIMIT ?
+    `, [req.userId, req.userId, limit])
+
+    const posts = rows.map(r => ({
+      id: r.id,
+      author: r.author_name,
+      author_id: r.author_id,
+      avatar_url: r.avatar_url,
+      initials: r.initials,
+      text: { da: r.text_da, en: r.text_en },
+      likes: r.likes,
+      comment_count: Number(r.comment_count),
+      media: r.media ? JSON.parse(r.media) : null,
+      created_at: r.created_at,
+      group_id: r.group_id,
+      group_name: r.group_name,
+      group_slug: r.group_slug,
+    }))
+
+    res.json({ posts })
+  } catch (err) {
+    console.error('GET /api/explore/group-posts error:', err.message)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
 
 router.get('/feed/suggested-posts', authenticate, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 40)
