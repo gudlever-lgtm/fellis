@@ -201,7 +201,15 @@ router.patch('/reels/:reelId/comments/:commentId', authenticate, writeLimit, asy
     if (c.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
     const text = (req.body.text || '').trim().slice(0, 2000)
     if (!text) return res.status(400).json({ error: 'Comment cannot be empty' })
+    const kw = checkKeywords(text)
+    if (kw?.action === 'block') return res.status(400).json({ error: 'blocked_keyword', keyword: kw.keyword })
     await pool.query('UPDATE reel_comments SET text = ? WHERE id = ?', [text, commentId])
+    if (kw?.action === 'flag') {
+      await pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, "reel_comment", ?, "keyword_flag", ?)',
+        [req.userId, commentId, `Auto-flagged on edit: keyword "${kw.keyword}"`]
+      ).catch(e => console.error('reel_comment edit flag insert failed:', e.message))
+    }
     res.json({ ok: true, text })
   } catch (err) {
     console.error('PATCH /api/reels/:reelId/comments/:commentId error:', err.message)

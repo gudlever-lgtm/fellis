@@ -669,6 +669,12 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
                     />
                     <button onClick={async () => {
                       const res = await apiEditReelComment(reel.id, c.id, editingComment.text)
+                      if (res?._error) {
+                        setCommentError(res._error === 'blocked_keyword'
+                          ? (t.commentBlocked || 'Kommentaren indeholder et blokeret ord')
+                          : (t.commentError || 'Kommentaren kunne ikke sendes'))
+                        return
+                      }
                       if (res?.ok) setComments(prev => prev.map(x => x.id === c.id ? { ...x, text: editingComment.text } : x))
                       setEditingComment(null)
                     }} style={{ padding: '5px 10px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontSize: 12, cursor: 'pointer' }}>✓</button>
