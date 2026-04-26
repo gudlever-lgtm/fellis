@@ -649,9 +649,10 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                 titleRef={notifTitleRef}
                 onMarkAllRead={markAllRead}
                 onNavigate={(page, param) => { if (param?.convId) setOpenConvId(param.convId); navigateTo(page); setShowNotifPanel(false) }}
-                onMarkRead={(id) => {
-                  setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-                  apiMarkNotificationRead(id).catch(() => {})
+                onMarkRead={(ids) => {
+                  const idSet = new Set(Array.isArray(ids) ? ids : [ids])
+                  setNotifs(prev => prev.map(n => idSet.has(n.id) ? { ...n, read: true } : n))
+                  idSet.forEach(id => apiMarkNotificationRead(id).catch(() => {}))
                 }}
                 testResult={notifTestResult}
                 onTest={() => {
@@ -971,7 +972,7 @@ const NOTIF_TYPE_PAGE = {
   like: 'feed', comment: 'feed',
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
-  moderator_granted: 'moderation', mod_result: 'profile', moderation: 'profile', group_report: 'groups',
+  moderator_granted: 'moderation', mod_result: 'moderation', moderation: 'moderation', group_report: 'moderation',
   new_message: 'messages', badge: 'badges',
 }
 
@@ -998,11 +999,27 @@ function normaliseNotif(n, lang) {
   }
 }
 
+function groupNotifs(notifs) {
+  const groups = new Map()
+  for (const n of notifs) {
+    if (!groups.has(n.type)) {
+      groups.set(n.type, { ...n, ids: [n.id], count: 1, hasUnread: !n.read })
+    } else {
+      const g = groups.get(n.type)
+      g.ids.push(n.id)
+      g.count++
+      if (!n.read) g.hasUnread = true
+    }
+  }
+  return Array.from(groups.values())
+}
+
 function NotificationsPanel({ notifs, t, lang, titleRef, onMarkAllRead, onMarkRead, onNavigate, onTest, testResult }) {
   const unread = notifs.filter(n => !n.read).length
-  const handleClick = (n) => {
-    onMarkRead(n.id)
-    if (n.page && onNavigate) onNavigate(n.page, n.convId ? { convId: n.convId } : null)
+  const groups = groupNotifs(notifs)
+  const handleClick = (g) => {
+    onMarkRead(g.ids)
+    if (g.page && onNavigate) onNavigate(g.page, g.convId ? { convId: g.convId } : null)
   }
   return (
     <div className="notif-panel">
@@ -1013,20 +1030,27 @@ function NotificationsPanel({ notifs, t, lang, titleRef, onMarkAllRead, onMarkRe
         )}
       </div>
       <div className="notif-list">
-        {notifs.length === 0 ? (
+        {groups.length === 0 ? (
           <div className="notif-empty">{t.noNotifications}</div>
-        ) : notifs.map(n => (
+        ) : groups.map(g => (
           <div
-            key={n.id}
-            className={`notif-item${n.read ? '' : ' notif-item-unread'}`}
-            onClick={() => handleClick(n)}
+            key={g.type}
+            className={`notif-item${g.hasUnread ? ' notif-item-unread' : ''}`}
+            onClick={() => handleClick(g)}
           >
-            <div className="notif-item-dot" style={{ opacity: n.read ? 0 : 1 }} />
+            <div className="notif-item-dot" style={{ opacity: g.hasUnread ? 1 : 0 }} />
             <div className="notif-item-body">
-              <span className="notif-item-icon" style={{ marginRight: 6 }}>{n.icon}</span>
-              <span>{n.message}</span>
+              <div>
+                <span className="notif-item-icon" style={{ marginRight: 6 }}>{g.icon}</span>
+                <span>{g.message}</span>
+              </div>
+              {g.count > 1 && (
+                <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                  {(t.notifAndMore || 'og {n} mere').replace('{n}', g.count - 1)}
+                </div>
+              )}
             </div>
-            <div className="notif-item-time">{n.time}</div>
+            <div className="notif-item-time">{g.time}</div>
           </div>
         ))}
       </div>
@@ -20542,6 +20566,7 @@ function AdminPage({ lang, t }) {
   const [editingKwId, setEditingKwId] = useState(null)
   const [editKw, setEditKw] = useState({ keyword: '', action: 'flag', category: 'profanity', notes: '' })
   const [showKwGuide, setShowKwGuide] = useState(false)
+  const [kwSearch, setKwSearch] = useState('')
   const [modToast, setModToast] = useState(null)
   // Moderator management state
   const [modModerators, setModModerators] = useState([])
@@ -21808,11 +21833,21 @@ function AdminPage({ lang, t }) {
                 )}
               </div>
 
+              {modKeywords && modKeywords.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <input
+                    value={kwSearch}
+                    onChange={e => setKwSearch(e.target.value)}
+                    placeholder={t.adminModKeywordSearch}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#333' }}
+                  />
+                </div>
+              )}
               {!modKeywords ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.loading2}</div>
               ) : modKeywords.length === 0 ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.noKeywordFiltersYet}</div>
-              ) : modKeywords.map(kw => {
+              ) : modKeywords.filter(kw => !kwSearch.trim() || kw.keyword.toLowerCase().includes(kwSearch.toLowerCase()) || (kw.notes || '').toLowerCase().includes(kwSearch.toLowerCase())).map(kw => {
                 const isEditing = editingKwId === kw.id
                 return (
                   <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px' }}>
