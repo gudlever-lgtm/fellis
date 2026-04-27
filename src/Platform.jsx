@@ -1319,11 +1319,17 @@ function LinkWithMenu({ href, lang, onRemove }) {
   )
 }
 
-// Languages supported by the DeepL translation API (excluding 'da' which is the source)
-const DEEPL_SUPPORTED = new Set(['en', 'de', 'fr', 'nl', 'sv', 'fi', 'pl', 'es', 'it', 'pt'])
+// Languages supported by DeepL as both source and target
+const DEEPL_SUPPORTED = new Set(['da', 'en', 'de', 'fr', 'nl', 'sv', 'fi', 'pl', 'es', 'it', 'pt'])
 const translationBtnStyle = {
   fontSize: 11, color: '#aaa', background: 'none', border: 'none',
   cursor: 'pointer', padding: '3px 0 0', display: 'block', textAlign: 'left',
+}
+
+// Returns [sourceLang, sourceText] — the first non-empty entry in a text object
+function getSourceEntry(textObj) {
+  const entry = Object.entries(textObj || {}).find(([, v]) => v)
+  return entry || [null, null]
 }
 
 function PostText({ text, lang }) {
@@ -1332,21 +1338,25 @@ function PostText({ text, lang }) {
   const [showOriginal, setShowOriginal] = useState(false)
 
   useEffect(() => {
-    if (lang === 'da' || !DEEPL_SUPPORTED.has(lang) || !text?.da) return
+    const [origLang, origText] = getSourceEntry(text)
+    if (!origLang || origLang === lang) return
+    if (!DEEPL_SUPPORTED.has(origLang) || !DEEPL_SUPPORTED.has(lang)) return
     if (text[lang]) return
     setFetchedTranslation(null)
     let cancelled = false
-    apiTranslateText(text.da, 'da', lang)
+    apiTranslateText(origText, origLang, lang)
       .then(res => { if (!cancelled && res?.translatedText) setFetchedTranslation(res.translatedText) })
       .catch(() => {})
     return () => { cancelled = true }
   }, [text, lang])
 
-  const canTranslate = lang !== 'da' && DEEPL_SUPPORTED.has(lang) && !!text?.da
+  const [originalLang, originalText] = getSourceEntry(text)
   const storedTranslation = text?.[lang]
+  const canTranslate = !!originalLang && originalLang !== lang
+    && DEEPL_SUPPORTED.has(originalLang) && DEEPL_SUPPORTED.has(lang)
   const displayStr = showOriginal
-    ? (text?.da || '')
-    : (storedTranslation || fetchedTranslation || text?.da || '')
+    ? (originalText || '')
+    : (storedTranslation || fetchedTranslation || originalText || '')
   const isTranslated = canTranslate && !showOriginal && (storedTranslation || fetchedTranslation)
 
   const uiT = getTranslations(lang)
@@ -1899,27 +1909,32 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
 }
 
 // Renders text with mentions and linkified URLs; supports right-click link removal
-// textObj: full {da, en, …} object for feed comments — enables on-demand translation
+// textObj: full {da, en, sv, …} object for feed comments — enables on-demand translation
 function CommentText({ text, textObj, lang }) {
   const [removedUrls, setRemovedUrls] = useState(new Set())
   const [fetchedTranslation, setFetchedTranslation] = useState(null)
   const [showOriginal, setShowOriginal] = useState(false)
 
   useEffect(() => {
-    if (!textObj?.da || lang === 'da' || !DEEPL_SUPPORTED.has(lang)) return
+    if (!textObj) return
+    const [origLang, origText] = getSourceEntry(textObj)
+    if (!origLang || origLang === lang) return
+    if (!DEEPL_SUPPORTED.has(origLang) || !DEEPL_SUPPORTED.has(lang)) return
     if (textObj[lang]) return
     setFetchedTranslation(null)
     let cancelled = false
-    apiTranslateText(textObj.da, 'da', lang)
+    apiTranslateText(origText, origLang, lang)
       .then(res => { if (!cancelled && res?.translatedText) setFetchedTranslation(res.translatedText) })
       .catch(() => {})
     return () => { cancelled = true }
   }, [textObj, lang])
 
-  const canTranslate = !!textObj?.da && lang !== 'da' && DEEPL_SUPPORTED.has(lang)
+  const [originalLang, originalText] = getSourceEntry(textObj)
   const storedTranslation = textObj?.[lang]
+  const canTranslate = !!originalLang && originalLang !== lang
+    && DEEPL_SUPPORTED.has(originalLang) && DEEPL_SUPPORTED.has(lang)
   const displayText = showOriginal
-    ? (textObj?.da || text || '')
+    ? (originalText || text || '')
     : (storedTranslation || fetchedTranslation || text || '')
   const isTranslated = canTranslate && !showOriginal && (storedTranslation || fetchedTranslation)
 
