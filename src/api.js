@@ -2515,5 +2515,9 @@ export const apiGetCompanyProfile = (userId) => request(`/api/company/profile/${
 export const apiCreateCompanyProfile = (data) =>
   request('/api/company/profile', { method: 'POST', body: JSON.stringify(data) })
 
+export const apiGetAdminFlagged = () => request('/api/admin/flagged')
+export const apiAdminModerateAction = (contentType, contentId, action) =>
+  request('/api/admin/moderate-action', { method: 'POST', body: JSON.stringify({ contentType, contentId, action }) })
+
 export const apiTranslate = (text, targetLang) =>
   request('/api/translate', { method: 'POST', body: JSON.stringify({ text, targetLang }) })

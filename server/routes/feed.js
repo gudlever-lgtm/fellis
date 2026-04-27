@@ -30,6 +30,7 @@ import {
   getMollieClient, checkKeywords, getMediaMaxFiles,
   isSafeExternalUrl, extractOgMeta, decodeHTMLEntities,
 } from '../helpers.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -642,6 +643,20 @@ router.post('/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILE
   // flag: allow post but auto-create a report for admin review
   const autoFlagKeyword = kw?.action === 'flag' ? kw.keyword : null
 
+  // AI content moderation
+  let postModResult = { safe: true, reason: null, confidence: 'low' }
+  if (text) {
+    postModResult = await moderateContent(text, 'post')
+    if (!postModResult.safe && postModResult.confidence === 'high') {
+      pool.query(
+        'INSERT INTO moderation_log (content_type, content_id, result, reason, confidence) VALUES (?, ?, ?, ?, ?)',
+        ['post', null, 'blocked', postModResult.reason, postModResult.confidence]
+      ).catch(() => {})
+      return res.status(403).json({ error: 'Content not allowed' })
+    }
+  }
+  const postModerationFlagged = postModResult.safe ? 0 : 1
+
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
   if (req.files?.length) {
@@ -700,6 +715,13 @@ router.post('/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILE
     const [[badgeRow]] = await pool.query('SELECT COUNT(*) as cnt FROM earned_badges WHERE user_id = ?', [req.userId]).catch(() => [[{ cnt: 0 }]])
     const now = new Date()
     const postId = result.insertId
+    if (postModerationFlagged) {
+      pool.query('UPDATE posts SET flagged = 1 WHERE id = ?', [postId]).catch(() => {})
+    }
+    pool.query(
+      'INSERT INTO moderation_log (content_type, content_id, result, reason, confidence) VALUES (?, ?, ?, ?, ?)',
+      ['post', postId, postModResult.safe ? 'safe' : 'flagged', postModResult.reason, postModResult.confidence]
+    ).catch(() => {})
     // Extract and store hashtags (max 10)
     if (text) {
       const tags = [...new Set((text.match(/#([\wæøåÆØÅ]{1,99})/g) || []).map(t => t.slice(1).toLowerCase()))].slice(0, 10)
@@ -859,6 +881,21 @@ router.post('/feed/:id/comment', authenticate, writeLimit, upload.single('media'
   const kwc = checkKeywords(text)
   if (kwc?.action === 'block') return res.status(400).json({ error: 'Kommentar indeholder forbudt indhold / Comment contains prohibited content' })
   const autoFlagKeywordComment = kwc?.action === 'flag' ? kwc.keyword : null
+
+  // AI content moderation
+  let commentModResult = { safe: true, reason: null, confidence: 'low' }
+  if (text) {
+    commentModResult = await moderateContent(text, 'comment')
+    if (!commentModResult.safe && commentModResult.confidence === 'high') {
+      pool.query(
+        'INSERT INTO moderation_log (content_type, content_id, result, reason, confidence) VALUES (?, ?, ?, ?, ?)',
+        ['comment', null, 'blocked', commentModResult.reason, commentModResult.confidence]
+      ).catch(() => {})
+      return res.status(403).json({ error: 'Content not allowed' })
+    }
+  }
+  const commentModerationFlagged = commentModResult.safe ? 0 : 1
+
   let mediaJson = null
   if (req.file) {
     const header = Buffer.alloc(16)
@@ -888,6 +925,13 @@ router.post('/feed/:id/comment', authenticate, writeLimit, upload.single('media'
     }
     const [rows2] = await pool.query('SELECT LAST_INSERT_ID() as id')
     const commentId = rows2[0].id
+    if (commentModerationFlagged) {
+      pool.query('UPDATE comments SET flagged = 1 WHERE id = ?', [commentId]).catch(() => {})
+    }
+    pool.query(
+      'INSERT INTO moderation_log (content_type, content_id, result, reason, confidence) VALUES (?, ?, ?, ?, ?)',
+      ['comment', commentId, commentModResult.safe ? 'safe' : 'flagged', commentModResult.reason, commentModResult.confidence]
+    ).catch(() => {})
     if (autoFlagKeywordComment) {
       pool.query(
         'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
