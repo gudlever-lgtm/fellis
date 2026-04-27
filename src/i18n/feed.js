@@ -79,6 +79,9 @@ export default {
     // Translation
     translatedShowOriginal: 'Oversat · vis originaltekst',
     showTranslation: 'Vis oversættelse',
+    translate_post: 'Oversæt opslag',
+    show_original: 'Vis original',
+    translating: 'Oversætter...',
   },
   en: {
     newPost: "What's on your mind?",
@@ -160,6 +163,9 @@ export default {
     // Translation
     translatedShowOriginal: 'Translated · show original',
     showTranslation: 'Show translation',
+    translate_post: 'Translate post',
+    show_original: 'Show original',
+    translating: 'Translating...',
   },
   sv: {
     newPost: 'Vad tänker du på?',
@@ -232,6 +238,9 @@ export default {
     imageMissingHint: 'Men här är lite solsken istället ☀️',
     translatedShowOriginal: 'Översatt · visa originaltext',
     showTranslation: 'Visa översättning',
+    translate_post: 'Översätt inlägg',
+    show_original: 'Visa original',
+    translating: 'Översätter...',
   },
   no: {
     newPost: 'Hva tenker du på?',
@@ -304,6 +313,9 @@ export default {
     imageMissingHint: 'Men her er litt solskinn i stedet ☀️',
     translatedShowOriginal: 'Oversatt · vis originaltekst',
     showTranslation: 'Vis oversettelse',
+    translate_post: 'Oversett innlegg',
+    show_original: 'Vis original',
+    translating: 'Oversetter...',
   },
   de: {
     newPost: 'Was denkst du?',
@@ -376,6 +388,9 @@ export default {
     imageMissingHint: 'Aber hier ist stattdessen etwas Sonnenschein ☀️',
     translatedShowOriginal: 'Übersetzt · Original anzeigen',
     showTranslation: 'Übersetzung anzeigen',
+    translate_post: 'Beitrag übersetzen',
+    show_original: 'Original anzeigen',
+    translating: 'Wird übersetzt...',
   },
   fr: {
     newPost: 'Quoi de neuf ?',
@@ -448,6 +463,9 @@ export default {
     imageMissingHint: 'Mais voici un peu de soleil à la place ☀️',
     translatedShowOriginal: 'Traduit · voir l\'original',
     showTranslation: 'Voir la traduction',
+    translate_post: 'Traduire le post',
+    show_original: "Afficher l'original",
+    translating: 'Traduction...',
   },
   es: {
     newPost: '¿Qué hay de nuevo?',
@@ -520,6 +538,9 @@ export default {
     imageMissingHint: 'Pero aquí hay un poco de sol en su lugar ☀️',
     translatedShowOriginal: 'Traducido · ver original',
     showTranslation: 'Ver traducción',
+    translate_post: 'Traducir publicación',
+    show_original: 'Ver original',
+    translating: 'Traduciendo...',
   },
   it: {
     newPost: 'A cosa stai pensando?',
@@ -592,6 +613,9 @@ export default {
     imageMissingHint: 'Ma ecco un po\' di sole al suo posto ☀️',
     translatedShowOriginal: 'Tradotto · mostra originale',
     showTranslation: 'Mostra traduzione',
+    translate_post: 'Traduci post',
+    show_original: 'Mostra originale',
+    translating: 'Traduzione...',
   },
   nl: {
     newPost: 'Wat heb je op je hart?',
@@ -664,6 +688,9 @@ export default {
     imageMissingHint: 'Maar hier is een beetje zonneschijn in plaats daarvan ☀️',
     translatedShowOriginal: 'Vertaald · origineel weergeven',
     showTranslation: 'Vertaling weergeven',
+    translate_post: 'Bericht vertalen',
+    show_original: 'Origineel tonen',
+    translating: 'Vertalen...',
   },
   pl: {
     newPost: 'Co masz na myśli?',
@@ -736,6 +763,9 @@ export default {
     imageMissingHint: 'Ale oto trochę słońca zamiast ☀️',
     translatedShowOriginal: 'Przetłumaczono · pokaż oryginał',
     showTranslation: 'Pokaż tłumaczenie',
+    translate_post: 'Przetłumacz post',
+    show_original: 'Pokaż oryginał',
+    translating: 'Tłumaczenie...',
   },
   pt: {
     newPost: 'O que tens na mente?',
@@ -808,11 +838,17 @@ export default {
     imageMissingHint: 'Mas aqui está um pouco de sol em alternativa ☀️',
     translatedShowOriginal: 'Traduzido · ver original',
     showTranslation: 'Ver tradução',
+    translate_post: 'Traduzir publicação',
+    show_original: 'Mostrar original',
+    translating: 'A traduzir...',
   },
   fi: {
     feedTab: { social: 'Sosiaalinen', network: 'Verkosto', business: 'Yritys' },
     postContext: { social: 'Sosiaalinen', professional: 'Ammatillinen', business: 'Yritys' },
     translatedShowOriginal: 'Käännetty · näytä alkuperäinen',
     showTranslation: 'Näytä käännös',
+    translate_post: 'Käännä julkaisu',
+    show_original: 'Näytä alkuperäinen',
+    translating: 'Käännetään...',
   },
 }

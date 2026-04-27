@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import pool from '../db.js'
 import { getSessionIdFromRequest } from '../middleware.js'
 import { translate } from '../translate.js'
+import { translateText } from '../translation.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const router = Router()
@@ -103,24 +104,22 @@ router.get('/content/:id', async (req, res) => {
   }
 })
 
-// POST /api/translate { text, sourceLang, targetLang }
-// Translates text via DeepL (cached). Returns { translatedText }.
+// POST /api/translate { text, targetLang }
+// Translates text via DeepL (auto-detects source language, cached).
+// Returns { translatedText, detectedSourceLang }.
 router.post('/translate', async (req, res) => {
-  const { text, sourceLang, targetLang } = req.body ?? {}
+  const { text, targetLang } = req.body ?? {}
 
   if (!text || typeof text !== 'string' || text.trim() === '') {
     return res.status(400).json({ error: 'text is required and must be a non-empty string' })
-  }
-  if (!DEEPL_LANGS.has(sourceLang)) {
-    return res.status(400).json({ error: `Invalid sourceLang — must be one of: ${[...DEEPL_LANGS].join(', ')}` })
   }
   if (!DEEPL_LANGS.has(targetLang)) {
     return res.status(400).json({ error: `Invalid targetLang — must be one of: ${[...DEEPL_LANGS].join(', ')}` })
   }
 
   try {
-    const translatedText = await translate(text.trim(), sourceLang, targetLang)
-    res.json({ translatedText })
+    const { translatedText, detectedSourceLang } = await translateText(text.trim(), targetLang)
+    res.json({ translatedText, detectedSourceLang })
   } catch (err) {
     console.error('[POST /api/translate]', err.message)
     res.status(500).json({ error: 'Translation failed' })
