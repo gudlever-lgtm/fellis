@@ -57,6 +57,7 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
   apiGetMyServices,
   apiGetCompanyProfile,
   apiCreateCompanyProfile,
+  apiTranslateText,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import CompanyProfileForm from './CompanyProfileForm.jsx'
@@ -1318,10 +1319,38 @@ function LinkWithMenu({ href, lang, onRemove }) {
   )
 }
 
+// Languages supported by the DeepL translation API (excluding 'da' which is the source)
+const DEEPL_SUPPORTED = new Set(['en', 'de', 'fr', 'nl', 'sv', 'fi', 'pl', 'es', 'it', 'pt'])
+const translationBtnStyle = {
+  fontSize: 11, color: '#aaa', background: 'none', border: 'none',
+  cursor: 'pointer', padding: '3px 0 0', display: 'block', textAlign: 'left',
+}
+
 function PostText({ text, lang }) {
   const [removedUrls, setRemovedUrls] = useState(new Set())
-  const str = text[lang] || text.da || ''
-  const parts = linkifyText(str)
+  const [fetchedTranslation, setFetchedTranslation] = useState(null)
+  const [showOriginal, setShowOriginal] = useState(false)
+
+  useEffect(() => {
+    if (lang === 'da' || !DEEPL_SUPPORTED.has(lang) || !text?.da) return
+    if (text[lang]) return
+    setFetchedTranslation(null)
+    let cancelled = false
+    apiTranslateText(text.da, 'da', lang)
+      .then(res => { if (!cancelled && res?.translatedText) setFetchedTranslation(res.translatedText) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [text, lang])
+
+  const canTranslate = lang !== 'da' && DEEPL_SUPPORTED.has(lang) && !!text?.da
+  const storedTranslation = text?.[lang]
+  const displayStr = showOriginal
+    ? (text?.da || '')
+    : (storedTranslation || fetchedTranslation || text?.da || '')
+  const isTranslated = canTranslate && !showOriginal && (storedTranslation || fetchedTranslation)
+
+  const uiT = getTranslations(lang)
+  const parts = linkifyText(displayStr)
   const firstUrl = parts.find(p => p.t === 'url' && !removedUrls.has(p.v))?.v
   return (
     <>
@@ -1336,6 +1365,16 @@ function PostText({ text, lang }) {
         })}
       </div>
       {firstUrl && <LinkPreview url={firstUrl} />}
+      {isTranslated && (
+        <button style={translationBtnStyle} onClick={() => setShowOriginal(true)}>
+          {uiT.translatedShowOriginal}
+        </button>
+      )}
+      {!isTranslated && canTranslate && showOriginal && (
+        <button style={translationBtnStyle} onClick={() => setShowOriginal(false)}>
+          {uiT.showTranslation}
+        </button>
+      )}
     </>
   )
 }
@@ -1860,9 +1899,32 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
 }
 
 // Renders text with mentions and linkified URLs; supports right-click link removal
-function CommentText({ text, lang }) {
+// textObj: full {da, en, …} object for feed comments — enables on-demand translation
+function CommentText({ text, textObj, lang }) {
   const [removedUrls, setRemovedUrls] = useState(new Set())
-  const parts = linkifyText(text || '')
+  const [fetchedTranslation, setFetchedTranslation] = useState(null)
+  const [showOriginal, setShowOriginal] = useState(false)
+
+  useEffect(() => {
+    if (!textObj?.da || lang === 'da' || !DEEPL_SUPPORTED.has(lang)) return
+    if (textObj[lang]) return
+    setFetchedTranslation(null)
+    let cancelled = false
+    apiTranslateText(textObj.da, 'da', lang)
+      .then(res => { if (!cancelled && res?.translatedText) setFetchedTranslation(res.translatedText) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [textObj, lang])
+
+  const canTranslate = !!textObj?.da && lang !== 'da' && DEEPL_SUPPORTED.has(lang)
+  const storedTranslation = textObj?.[lang]
+  const displayText = showOriginal
+    ? (textObj?.da || text || '')
+    : (storedTranslation || fetchedTranslation || text || '')
+  const isTranslated = canTranslate && !showOriginal && (storedTranslation || fetchedTranslation)
+
+  const uiT = canTranslate ? getTranslations(lang) : null
+  const parts = linkifyText(displayText)
   return (
     <>
       {parts.map((p, i) => {
@@ -1877,6 +1939,16 @@ function CommentText({ text, lang }) {
         )
         return <span key={i}>{p.v}</span>
       })}
+      {isTranslated && (
+        <button style={translationBtnStyle} onClick={() => setShowOriginal(true)}>
+          {uiT.translatedShowOriginal}
+        </button>
+      )}
+      {!isTranslated && canTranslate && showOriginal && (
+        <button style={translationBtnStyle} onClick={() => setShowOriginal(false)}>
+          {uiT.showTranslation}
+        </button>
+      )}
     </>
   )
 }
@@ -4587,7 +4659,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                     </div>
                     <div className="p-comment-bubble">
                       <span className="p-comment-author">{c.author}</span>
-                      <span><CommentText text={c.text?.[lang]} lang={lang} /></span>
+                      <span><CommentText text={c.text?.[lang] || c.text?.da || ''} textObj={c.text} lang={lang} /></span>
                       {c.media?.length > 0 && (
                         <div className="p-comment-media">
                           <PostMedia media={c.media} lang={lang} />

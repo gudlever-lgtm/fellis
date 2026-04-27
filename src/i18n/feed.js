@@ -76,6 +76,9 @@ export default {
     // Empty feed
     feedEmptyText: 'Dit feed er tomt — find nye mennesker og indhold på Udforsk',
     feedEmptyExplore: 'Gå til Udforsk',
+    // Translation
+    translatedShowOriginal: 'Oversat · vis originaltekst',
+    showTranslation: 'Vis oversættelse',
   },
   en: {
     newPost: "What's on your mind?",
@@ -154,6 +157,9 @@ export default {
     // Empty feed
     feedEmptyText: 'Your feed is empty — discover new people and content on Explore',
     feedEmptyExplore: 'Go to Explore',
+    // Translation
+    translatedShowOriginal: 'Translated · show original',
+    showTranslation: 'Show translation',
   },
   sv: {
     newPost: 'Vad tänker du på?',
@@ -224,6 +230,8 @@ export default {
     composerLinkDismiss: 'Ta bort förhandsgranskning',
     imageMissing: 'Bilden är inte tillgänglig',
     imageMissingHint: 'Men här är lite solsken istället ☀️',
+    translatedShowOriginal: 'Översatt · visa originaltext',
+    showTranslation: 'Visa översättning',
   },
   no: {
     newPost: 'Hva tenker du på?',
@@ -294,6 +302,8 @@ export default {
     composerLinkDismiss: 'Fjern forhåndsvisning',
     imageMissing: 'Bildet er ikke tilgjengelig',
     imageMissingHint: 'Men her er litt solskinn i stedet ☀️',
+    translatedShowOriginal: 'Oversatt · vis originaltekst',
+    showTranslation: 'Vis oversettelse',
   },
   de: {
     newPost: 'Was denkst du?',
@@ -364,6 +374,8 @@ export default {
     composerLinkDismiss: 'Vorschau entfernen',
     imageMissing: 'Bild nicht verfügbar',
     imageMissingHint: 'Aber hier ist stattdessen etwas Sonnenschein ☀️',
+    translatedShowOriginal: 'Übersetzt · Original anzeigen',
+    showTranslation: 'Übersetzung anzeigen',
   },
   fr: {
     newPost: 'Quoi de neuf ?',
@@ -434,6 +446,8 @@ export default {
     composerLinkDismiss: 'Supprimer l\'aperçu',
     imageMissing: 'Image non disponible',
     imageMissingHint: 'Mais voici un peu de soleil à la place ☀️',
+    translatedShowOriginal: 'Traduit · voir l\'original',
+    showTranslation: 'Voir la traduction',
   },
   es: {
     newPost: '¿Qué hay de nuevo?',
@@ -504,6 +518,8 @@ export default {
     composerLinkDismiss: 'Eliminar vista previa',
     imageMissing: 'Imagen no disponible',
     imageMissingHint: 'Pero aquí hay un poco de sol en su lugar ☀️',
+    translatedShowOriginal: 'Traducido · ver original',
+    showTranslation: 'Ver traducción',
   },
   it: {
     newPost: 'A cosa stai pensando?',
@@ -574,6 +590,8 @@ export default {
     composerLinkDismiss: 'Rimuovi anteprima',
     imageMissing: 'Immagine non disponibile',
     imageMissingHint: 'Ma ecco un po\' di sole al suo posto ☀️',
+    translatedShowOriginal: 'Tradotto · mostra originale',
+    showTranslation: 'Mostra traduzione',
   },
   nl: {
     newPost: 'Wat heb je op je hart?',
@@ -644,6 +662,8 @@ export default {
     composerLinkDismiss: 'Voorbeeld verwijderen',
     imageMissing: 'Afbeelding niet beschikbaar',
     imageMissingHint: 'Maar hier is een beetje zonneschijn in plaats daarvan ☀️',
+    translatedShowOriginal: 'Vertaald · origineel weergeven',
+    showTranslation: 'Vertaling weergeven',
   },
   pl: {
     newPost: 'Co masz na myśli?',
@@ -714,6 +734,8 @@ export default {
     composerLinkDismiss: 'Usuń podgląd',
     imageMissing: 'Obraz niedostępny',
     imageMissingHint: 'Ale oto trochę słońca zamiast ☀️',
+    translatedShowOriginal: 'Przetłumaczono · pokaż oryginał',
+    showTranslation: 'Pokaż tłumaczenie',
   },
   pt: {
     newPost: 'O que tens na mente?',
@@ -784,9 +806,13 @@ export default {
     composerLinkDismiss: 'Remover pré-visualização',
     imageMissing: 'Imagem indisponível',
     imageMissingHint: 'Mas aqui está um pouco de sol em alternativa ☀️',
+    translatedShowOriginal: 'Traduzido · ver original',
+    showTranslation: 'Ver tradução',
   },
   fi: {
     feedTab: { social: 'Sosiaalinen', network: 'Verkosto', business: 'Yritys' },
     postContext: { social: 'Sosiaalinen', professional: 'Ammatillinen', business: 'Yritys' },
+    translatedShowOriginal: 'Käännetty · näytä alkuperäinen',
+    showTranslation: 'Näytä käännös',
   },
 }
