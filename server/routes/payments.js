@@ -246,13 +246,19 @@ router.post('/mollie/payment/webhook', express.urlencoded({ extended: false }), 
       const paidAmount = parseFloat(payment.amount?.value) || null
 
       if (sub.plan === 'ad_activation') {
-        // Activate the ad and extend paid_until
-        if (adId) await pool.query(
-          "UPDATE ads SET status = 'active', paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY), payment_status = 'paid', paid_amount = ?, paid_at = NOW() WHERE id = ?",
-          [paidAmount, adId]
-        ).catch(() =>
-          pool.query("UPDATE ads SET status = 'active', paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id = ?", [adId])
-        )
+        // Activate the ad; paid_until = ad's end_date if set, otherwise 30 days from now
+        if (adId) {
+          const [[adRow]] = await pool.query('SELECT end_date FROM ads WHERE id = ?', [adId]).catch(() => [[null]])
+          const paidUntil = adRow?.end_date
+            ? new Date(adRow.end_date)
+            : new Date(Date.now() + 30 * 86400000)
+          await pool.query(
+            "UPDATE ads SET status = 'active', paid_until = ?, payment_status = 'paid', paid_amount = ?, paid_at = NOW() WHERE id = ?",
+            [paidUntil, paidAmount, adId]
+          ).catch(() =>
+            pool.query("UPDATE ads SET status = 'active', paid_until = ? WHERE id = ?", [paidUntil, adId])
+          )
+        }
       } else if (sub.plan === 'boost') {
         // Boost the marketplace listing for 7 days
         const listingId = sub.ad_id || payment.metadata?.listing_id

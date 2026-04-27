@@ -2501,6 +2501,10 @@ export const apiSendBusinessInquiry = (id, subject, preferred_date, message) =>
 export const apiSetLanguage = (lang) =>
   request('/api/set-language', { method: 'POST', body: JSON.stringify({ lang }) })
 
+// Content translation (DeepL-backed, cached server-side)
+export const apiTranslateText = (text, sourceLang, targetLang) =>
+  request('/api/translate', { method: 'POST', body: JSON.stringify({ text, sourceLang, targetLang }) })
+
 // User type selector
 export const apiUpdateUserType = (mode) =>
   request('/api/user/type', { method: 'PATCH', body: JSON.stringify({ mode }) })
@@ -2510,3 +2514,10 @@ export const apiGetUserType = (userId) => request(`/api/user/${userId}/type`)
 export const apiGetCompanyProfile = (userId) => request(`/api/company/profile/${userId}`)
 export const apiCreateCompanyProfile = (data) =>
   request('/api/company/profile', { method: 'POST', body: JSON.stringify(data) })
+
+export const apiGetAdminFlagged = () => request('/api/admin/flagged')
+export const apiAdminModerateAction = (contentType, contentId, action) =>
+  request('/api/admin/moderate-action', { method: 'POST', body: JSON.stringify({ contentType, contentId, action }) })
+
+export const apiTranslate = (text, targetLang) =>
+  request('/api/translate', { method: 'POST', body: JSON.stringify({ text, targetLang }) })
