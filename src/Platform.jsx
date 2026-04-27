@@ -4419,6 +4419,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
               <div className="p-post-time">
                 {post.time?.[lang]}
                 {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
+                {post.groupId && post.groupSlug && (
+                  <span
+                    onClick={e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) }}
+                    style={{ marginLeft: 6, color: '#1877F2', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                    title={post.groupName}
+                  >🫂 {post.groupName}</span>
+                )}
               </div>
             }
             menuContent={
