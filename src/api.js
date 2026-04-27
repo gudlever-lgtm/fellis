@@ -2514,3 +2514,6 @@ export const apiGetUserType = (userId) => request(`/api/user/${userId}/type`)
 export const apiGetCompanyProfile = (userId) => request(`/api/company/profile/${userId}`)
 export const apiCreateCompanyProfile = (data) =>
   request('/api/company/profile', { method: 'POST', body: JSON.stringify(data) })
+
+export const apiTranslate = (text, targetLang) =>
+  request('/api/translate', { method: 'POST', body: JSON.stringify({ text, targetLang }) })

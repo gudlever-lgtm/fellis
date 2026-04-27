@@ -7,7 +7,8 @@ import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddCom
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
   apiGetEurDkkRate, apiFetchFriendSuggestions,
   apiFetchNetworkFeed, apiFetchBusinessFeed,
-  apiDeleteMessage, apiEditMessage } from './api.js'
+  apiDeleteMessage, apiEditMessage,
+  apiTranslate } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -1334,56 +1335,64 @@ function getSourceEntry(textObj) {
 
 function PostText({ text, lang }) {
   const [removedUrls, setRemovedUrls] = useState(new Set())
-  const [fetchedTranslation, setFetchedTranslation] = useState(null)
-  const [showOriginal, setShowOriginal] = useState(false)
+  const [translated, setTranslated] = useState(null)
+  const [translating, setTranslating] = useState(false)
+  const [showingTranslated, setShowingTranslated] = useState(false)
 
-  useEffect(() => {
-    const [origLang, origText] = getSourceEntry(text)
-    if (!origLang || origLang === lang) return
-    if (!DEEPL_SUPPORTED.has(origLang) || !DEEPL_SUPPORTED.has(lang)) return
-    if (text[lang]) return
-    setFetchedTranslation(null)
-    let cancelled = false
-    apiTranslateText(origText, origLang, lang)
-      .then(res => { if (!cancelled && res?.translatedText) setFetchedTranslation(res.translatedText) })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [text, lang])
+  const effectiveLang = lang || navigator.language?.split('-')[0] || 'da'
+  const [origLang, origText] = getSourceEntry(text)
+  const enableTranslate = !!origLang && origLang !== effectiveLang
+    && DEEPL_SUPPORTED.has(origLang) && DEEPL_SUPPORTED.has(effectiveLang)
 
-  const [originalLang, originalText] = getSourceEntry(text)
-  const storedTranslation = text?.[lang]
-  const canTranslate = !!originalLang && originalLang !== lang
-    && DEEPL_SUPPORTED.has(originalLang) && DEEPL_SUPPORTED.has(lang)
-  const displayStr = showOriginal
-    ? (originalText || '')
-    : (storedTranslation || fetchedTranslation || originalText || '')
-  const isTranslated = canTranslate && !showOriginal && (storedTranslation || fetchedTranslation)
-
-  const uiT = getTranslations(lang)
+  const displayStr = (showingTranslated && translated)
+    ? translated
+    : (text?.[effectiveLang] || origText || '')
   const parts = linkifyText(displayStr)
   const firstUrl = parts.find(p => p.t === 'url' && !removedUrls.has(p.v))?.v
+
+  const handleTranslate = async () => {
+    if (translated) { setShowingTranslated(true); return }
+    setTranslating(true)
+    const result = await apiTranslate(origText, effectiveLang)
+    setTranslating(false)
+    if (result?.translatedText) {
+      setTranslated(result.translatedText)
+      setShowingTranslated(true)
+    }
+  }
+
+  const tLang = getTranslations(effectiveLang)
+
   return (
     <>
       <div className="p-post-body">
         {parts.map((p, i) => {
           if (p.t === 'url') {
             if (removedUrls.has(p.v)) return <span key={i}>{p.v}</span>
-            return <LinkWithMenu key={i} href={p.v} lang={lang} onRemove={() => setRemovedUrls(prev => new Set([...prev, p.v]))} />
+            return <LinkWithMenu key={i} href={p.v} lang={effectiveLang} onRemove={() => setRemovedUrls(prev => new Set([...prev, p.v]))} />
           }
           if (p.t === 'mention') return <span key={i} className="p-mention">{p.v}</span>
           return <span key={i}>{p.v}</span>
         })}
       </div>
       {firstUrl && <LinkPreview url={firstUrl} />}
-      {isTranslated && (
-        <button style={translationBtnStyle} onClick={() => setShowOriginal(true)}>
-          {uiT.translatedShowOriginal}
-        </button>
-      )}
-      {!isTranslated && canTranslate && showOriginal && (
-        <button style={translationBtnStyle} onClick={() => setShowOriginal(false)}>
-          {uiT.showTranslation}
-        </button>
+      {enableTranslate && (
+        showingTranslated ? (
+          <button
+            onClick={() => setShowingTranslated(false)}
+            style={{ marginTop: 6, display: 'block', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#1877F2', padding: 0, fontFamily: 'inherit' }}
+          >
+            {tLang.show_original}
+          </button>
+        ) : (
+          <button
+            onClick={handleTranslate}
+            disabled={translating}
+            style={{ marginTop: 6, display: 'block', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#1877F2', padding: 0, fontFamily: 'inherit', opacity: translating ? 0.6 : 1 }}
+          >
+            {translating ? tLang.translating : tLang.translate_post}
+          </button>
+        )
       )}
     </>
   )
