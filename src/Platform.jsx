@@ -5177,7 +5177,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
               <span>{mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
             </div>
             <div className="p-profile-stat" style={{ cursor: 'pointer' }} onClick={() => setProfileTab('photos')}>
-              <strong>{(profile.photoCount || 0).toLocaleString()}</strong>
+              <strong>{photos.length.toLocaleString()}</strong>
               <span>{t.photosLabel}</span>
             </div>
             {earnedBadges !== null && earnedBadges.length > 0 && (
