@@ -103,6 +103,11 @@ export default {
     modTabQueue: 'Rapporter',
     modTabUsers: 'Brugere',
     modTabLog: 'Log',
+    moderation_queue: 'AI-markeret indhold',
+    approve: 'Godkend',
+    remove: 'Fjern',
+    flagged_reason: 'AI-årsag',
+    no_flagged_content: 'Ingen markeret indhold afventer gennemgang',
   },
   en: {
     reportPost: 'Report post',
@@ -208,6 +213,11 @@ export default {
     modTabQueue: 'Reports',
     modTabUsers: 'Users',
     modTabLog: 'Log',
+    moderation_queue: 'AI-flagged content',
+    approve: 'Approve',
+    remove: 'Remove',
+    flagged_reason: 'AI reason',
+    no_flagged_content: 'No flagged content awaiting review',
   },
   sv: {
     reportPost: 'Anmäl inlägg',

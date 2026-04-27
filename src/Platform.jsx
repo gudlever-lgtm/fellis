@@ -57,6 +57,8 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
   apiGetMyServices,
   apiGetCompanyProfile,
   apiCreateCompanyProfile,
+  apiGetAdminFlagged,
+  apiAdminModerateAction,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import CompanyProfileForm from './CompanyProfileForm.jsx'
@@ -20619,6 +20621,9 @@ function AdminPage({ lang, t }) {
   const [grpCatEditForm, setGrpCatEditForm] = useState({})
   const [grpCatError, setGrpCatError] = useState(null)
   const [grpActionLoading, setGrpActionLoading] = useState({}) // id → bool
+  // Flagged content (AI moderation queue)
+  const [flaggedContent, setFlaggedContent] = useState(null)
+  const [flaggedActionLoading, setFlaggedActionLoading] = useState({})
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -20695,6 +20700,7 @@ function AdminPage({ lang, t }) {
       apiGetModerationActions().then(data => { if (data) setModActions(data.actions) })
       apiGetModeratorCandidates().then(data => { if (data) setModCandidates(data.candidates) })
       apiGetModerators().then(data => { if (data) setModModerators(data.moderators) })
+      apiGetAdminFlagged().then(data => { if (data) setFlaggedContent(data.items) })
     }
     if (adminTab === 'moderators') {
       apiGetModerators().then(data => { if (data) setModModerators(data.moderators || []) })
@@ -21551,6 +21557,7 @@ function AdminPage({ lang, t }) {
           <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
             {[
               { key: 'queue', label: `🚩 ${t.adminModQueueTitle}` },
+              { key: 'flagged', label: `🤖 ${t.moderation_queue}` },
               { key: 'users', label: `👥 ${t.adminModUsersTitle}` },
               { key: 'keywords', label: `🔤 ${t.adminModKeywordsTitle}` },
               { key: 'log', label: `📋 ${t.adminModActionsTitle}` },
@@ -21562,6 +21569,68 @@ function AdminPage({ lang, t }) {
               </button>
             ))}
           </div>
+
+          {/* ── AI-flagged content queue ── */}
+          {modSubTab === 'flagged' && (
+            <div>
+              {!flaggedContent ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.loading2}</div>
+              ) : flaggedContent.length === 0 ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>
+                  ✅ {t.no_flagged_content}
+                </div>
+              ) : flaggedContent.map(item => {
+                const key = `${item.content_type}-${item.content_id}`
+                const isLoading = !!flaggedActionLoading[key]
+                const act = async (action) => {
+                  setFlaggedActionLoading(prev => ({ ...prev, [key]: true }))
+                  const res = await apiAdminModerateAction(item.content_type, item.content_id, action)
+                  if (res?.ok) {
+                    setFlaggedContent(prev => prev.filter(i => !(i.content_type === item.content_type && i.content_id === item.content_id)))
+                    showModToast(action === 'approve' ? t.approve : t.remove)
+                  }
+                  setFlaggedActionLoading(prev => ({ ...prev, [key]: false }))
+                }
+                return (
+                  <div key={key} className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ background: '#EEF2FF', color: '#3730A3', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                        {item.content_type.toUpperCase()}
+                      </span>
+                      <span style={{ background: item.confidence === 'high' ? '#FEE2E2' : item.confidence === 'medium' ? '#FEF3C7' : '#F3F4F6', color: item.confidence === 'high' ? '#991B1B' : item.confidence === 'medium' ? '#92400E' : '#374151', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>
+                        {item.confidence ?? '—'}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#888' }}>{item.author} (@{item.handle})</span>
+                    </div>
+                    <div style={{ background: '#f9f7f5', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#444', marginBottom: 8 }}>
+                      {(item.text || '').slice(0, 300)}
+                    </div>
+                    {item.reason && (
+                      <div style={{ fontSize: 12, color: '#666', marginBottom: 10 }}>
+                        <strong>{t.flagged_reason}:</strong> {item.reason}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        disabled={isLoading}
+                        onClick={() => act('approve')}
+                        style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #22C55E', background: '#F0FDF4', color: '#166534', fontSize: 13, cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: isLoading ? 0.6 : 1 }}
+                      >
+                        ✓ {t.approve}
+                      </button>
+                      <button
+                        disabled={isLoading}
+                        onClick={() => act('remove')}
+                        style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #EF4444', background: '#FEF2F2', color: '#991B1B', fontSize: 13, cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: isLoading ? 0.6 : 1 }}
+                      >
+                        🗑 {t.remove}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
           {/* ── Reports queue ── */}
           {modSubTab === 'queue' && (

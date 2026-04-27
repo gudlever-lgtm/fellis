@@ -1721,4 +1721,65 @@ router.post('/admin/verify-business/:userId', authenticate, requireAdmin, writeL
 })
 
 
+router.get('/admin/flagged', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [posts] = await pool.query(
+      `SELECT 'post' AS content_type, p.id AS content_id,
+        COALESCE(p.text_da, '') AS text,
+        u.name AS author, u.handle,
+        ml.reason, ml.confidence, p.created_at
+       FROM posts p
+       JOIN users u ON u.id = p.author_id
+       LEFT JOIN moderation_log ml
+         ON ml.content_type = 'post' AND ml.content_id = p.id AND ml.result = 'flagged'
+       WHERE p.flagged = 1
+       ORDER BY p.created_at DESC
+       LIMIT 200`
+    )
+    const [comments] = await pool.query(
+      `SELECT 'comment' AS content_type, c.id AS content_id,
+        COALESCE(c.text_da, '') AS text,
+        u.name AS author, u.handle,
+        ml.reason, ml.confidence, c.created_at
+       FROM comments c
+       JOIN users u ON u.id = c.author_id
+       LEFT JOIN moderation_log ml
+         ON ml.content_type = 'comment' AND ml.content_id = c.id AND ml.result = 'flagged'
+       WHERE c.flagged = 1
+       ORDER BY c.created_at DESC
+       LIMIT 200`
+    )
+    const items = [...posts, ...comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    res.json({ items })
+  } catch (err) {
+    console.error('GET /api/admin/flagged error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/admin/moderate-action', authenticate, requireAdmin, async (req, res) => {
+  const { contentType, contentId, action } = req.body || {}
+  if (!['post', 'comment'].includes(contentType)) return res.status(400).json({ error: 'Invalid contentType' })
+  const id = parseInt(contentId)
+  if (!id || isNaN(id)) return res.status(400).json({ error: 'Invalid contentId' })
+  if (!['approve', 'remove'].includes(action)) return res.status(400).json({ error: 'Invalid action' })
+
+  const table = contentType === 'post' ? 'posts' : 'comments'
+  try {
+    if (action === 'approve') {
+      await pool.query(`UPDATE \`${table}\` SET flagged = 0 WHERE id = ?`, [id])
+    } else {
+      await pool.query(`DELETE FROM \`${table}\` WHERE id = ?`, [id])
+    }
+    pool.query(
+      'INSERT INTO moderation_log (content_type, content_id, result, reason, confidence) VALUES (?, ?, ?, ?, ?)',
+      [contentType, id, action === 'approve' ? 'safe' : 'blocked', `Admin ${action}`, 'high']
+    ).catch(() => {})
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderate-action error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 export default router
