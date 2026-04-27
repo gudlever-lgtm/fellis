@@ -61,6 +61,8 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
   apiGetAdminFlagged,
   apiAdminModerateAction,
   apiTranslateText,
+  apiGetNavOrder,
+  apiSaveNavOrder,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import CompanyProfileForm from './CompanyProfileForm.jsx'
@@ -97,6 +99,24 @@ const GroupDetail = lazy(() => import('./GroupDetail.jsx'))
 const GroupSettings = lazy(() => import('./GroupSettings.jsx'))
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
+
+// ── Customizable navigation ───────────────────────────────────────────────────
+const _NAV_ALL_PRIVAT   = ['messages', 'events', 'friends', 'groups', 'explore', 'calendar', 'saved-posts', 'marketplace', 'jobs']
+const _NAV_ALL_BUSINESS = ['messages', 'events', 'business-hub', 'friends', 'groups', 'explore', 'calendar', 'saved-posts', 'marketplace']
+const _NAV_DEFAULT_MAIN_PRIVAT   = ['messages', 'events']
+const _NAV_DEFAULT_MAIN_BUSINESS = ['messages', 'events', 'business-hub']
+
+function buildNavItems(navOrder, mode) {
+  const allItems = mode === 'business' ? _NAV_ALL_BUSINESS : _NAV_ALL_PRIVAT
+  const defaultMain = mode === 'business' ? _NAV_DEFAULT_MAIN_BUSINESS : _NAV_DEFAULT_MAIN_PRIVAT
+  if (!navOrder) {
+    return { main: defaultMain, more: allItems.filter(id => !defaultMain.includes(id)) }
+  }
+  const storedMain = (navOrder.main || []).filter(id => allItems.includes(id))
+  const storedMore = (navOrder.more || []).filter(id => allItems.includes(id))
+  const mentioned = new Set([...storedMain, ...storedMore])
+  return { main: storedMain, more: [...storedMore, ...allItems.filter(id => !mentioned.has(id))] }
+}
 
 // Wrapper for raw csrfFetch() calls that adds the CSRF token and session cookie.
 // Use this anywhere api.js request() can't be used (e.g. non-JSON bodies).
@@ -249,6 +269,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
     return localStorage.getItem('fellis_dark') === '1' ? 'dark' : 'light'
   })
   const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
+  const [navOrder, setNavOrder] = useState(null) // null = use platform defaults
 
   // 🥚 All easter egg triggers — global so they work from any page
   const { triggerEgg: triggerGlobalEgg, syncFromServer: syncEggsFromServer } = useEasterEggs()
@@ -397,6 +418,10 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
     })
   }, [])
 
+  useEffect(() => {
+    apiGetNavOrder().then(res => { if (res?.navOrder) setNavOrder(res.navOrder) }).catch(() => {})
+  }, [])
+
   // Heartbeat: update last_active every 60s so friends see us as online
   useEffect(() => {
     apiHeartbeat().catch(() => {})
@@ -536,92 +561,104 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           {showMobileMenu ? '✕' : '☰'}
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
-          {/* Primary tabs — always visible */}
-          {['feed', ...(mode !== 'business' ? ['reels'] : []), 'messages', 'events'].map(p => (
+          {/* Feed — always pinned first */}
+          <button
+            className={`p-nav-tab${page === 'feed' ? ' active' : ''}`}
+            onClick={() => { savedFeedScroll.current = 0; window.scrollTo({ top: 0, behavior: 'smooth' }); navigateTo('feed'); setShowMobileMenu(false) }}
+          >
+            <span className="p-nav-tab-icon">🏠</span>
+            <span className="p-nav-tab-label">{t.feed}</span>
+          </button>
+          {/* Reels — always pinned second (privat only) */}
+          {mode !== 'business' && (
             <button
-              key={p}
-              className={`p-nav-tab${page === p ? ' active' : ''}`}
-              onClick={() => { if (p === 'feed') { savedFeedScroll.current = 0; window.scrollTo({ top: 0, behavior: 'smooth' }) } navigateTo(p); setShowMobileMenu(false) }}
+              className={`p-nav-tab${page === 'reels' ? ' active' : ''}`}
+              onClick={() => { navigateTo('reels'); setShowMobileMenu(false) }}
             >
-              <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'messages' ? '💬' : '📅'}
-              </span>
-              <span className="p-nav-tab-label">
-                {t[p] || p}
-              </span>
-            </button>
-          ))}
-          {/* Business-only primary tabs */}
-          {mode === 'business' && (
-            <button
-              className={`p-nav-tab${page === 'business-hub' ? ' active' : ''}`}
-              onClick={() => { navigateTo('business-hub'); setShowMobileMenu(false) }}
-            >
-              <span className="p-nav-tab-icon">🏢</span>
-              <span className="p-nav-tab-label">{t.businessHub}</span>
+              <span className="p-nav-tab-icon">🎬</span>
+              <span className="p-nav-tab-label">{t.reels}</span>
             </button>
           )}
-          {/* Secondary tabs — inline in mobile, dropdown on desktop */}
+          {/* User-ordered main bar tabs */}
           {(() => {
-            const moreItems = [
-              { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
-              { id: 'groups', icon: '🫂', label: t.navGroups },
-              { id: 'explore', icon: '🔭', label: t.explore },
-              { id: 'calendar', icon: '🗓️', label: t.calendar },
-              { id: 'saved-posts', icon: '🔖', label: t.savedPosts },
-              { id: 'marketplace', icon: '🛍️', label: t.marketplace },
-              ...(mode !== 'business' ? [{ id: 'jobs', icon: '💼', label: t.jobs }] : []),
-            ]
-            const secondaryPages = moreItems.map(i => i.id).concat(['group-detail', 'group-settings'])
-            if (showMobileMenu) {
-              return moreItems.map(item => (
-                <button key={item.id}
-                  className={`p-nav-tab${page === item.id ? ' active' : ''}`}
-                  onClick={() => { navigateTo(item.id); setShowMobileMenu(false) }}
-                >
-                  <span className="p-nav-tab-icon">{item.icon}</span>
-                  <span className="p-nav-tab-label">{item.label}</span>
-                </button>
-              ))
+            const navItemIcons = {
+              messages: '💬', events: '📅', friends: '👥', 'business-hub': '🏢',
+              groups: '🫂', explore: '🔭', calendar: '🗓️', 'saved-posts': '🔖',
+              marketplace: '🛍️', jobs: '💼',
             }
+            const navItemLabels = {
+              messages: t.messages, events: t.events,
+              friends: mode === 'business' ? t.connectionsLabel : t.friends,
+              'business-hub': t.businessHub, groups: t.navGroups, explore: t.explore,
+              calendar: t.calendar, 'saved-posts': t.savedPosts,
+              marketplace: t.marketplace, jobs: t.jobs,
+            }
+            const { main: mainIds, more: moreIds } = buildNavItems(navOrder, mode)
+            const moreItems = moreIds.map(id => ({ id, icon: navItemIcons[id], label: navItemLabels[id] }))
+            const secondaryPages = moreIds.concat(['group-detail', 'group-settings'])
             return (
-              <div ref={moreMenuRef} style={{ position: 'relative' }}>
-                <button
-                  className={`p-nav-tab${secondaryPages.includes(page) ? ' active' : ''}`}
-                  onClick={() => setShowMoreMenu(v => !v)}
-                >
-                  <span className="p-nav-tab-icon">{'⋯'}</span>
-                  <span className="p-nav-tab-label">{t.more}</span>
-                </button>
-                {showMoreMenu && (
-                  <div style={{
-                    position: 'absolute', top: '100%', left: 0, zIndex: 200,
-                    background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
-                    border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
-                  }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
-                      {moreItems.map(item => (
-                        <button key={item.id}
-                          onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 8,
-                            padding: '8px 10px', borderRadius: 8,
-                            background: page === item.id ? '#f0f7f4' : 'none',
-                            border: 'none', cursor: 'pointer', fontSize: 13,
-                            fontWeight: page === item.id ? 700 : 400,
-                            color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                            transition: 'background 0.12s',
-                          }}
-                          onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
-                          onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
+              <>
+                {mainIds.map(id => (
+                  <button key={id}
+                    className={`p-nav-tab${page === id ? ' active' : ''}`}
+                    onClick={() => { navigateTo(id); setShowMobileMenu(false) }}
+                  >
+                    <span className="p-nav-tab-icon">{navItemIcons[id]}</span>
+                    <span className="p-nav-tab-label">{navItemLabels[id]}</span>
+                  </button>
+                ))}
+                {/* More — inline on mobile, dropdown on desktop */}
+                {showMobileMenu
+                  ? moreItems.map(item => (
+                      <button key={item.id}
+                        className={`p-nav-tab${page === item.id ? ' active' : ''}`}
+                        onClick={() => { navigateTo(item.id); setShowMobileMenu(false) }}
+                      >
+                        <span className="p-nav-tab-icon">{item.icon}</span>
+                        <span className="p-nav-tab-label">{item.label}</span>
+                      </button>
+                    ))
+                  : (
+                      <div ref={moreMenuRef} style={{ position: 'relative' }}>
+                        <button
+                          className={`p-nav-tab${secondaryPages.includes(page) ? ' active' : ''}`}
+                          onClick={() => setShowMoreMenu(v => !v)}
                         >
-                          <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
+                          <span className="p-nav-tab-icon">{'⋯'}</span>
+                          <span className="p-nav-tab-label">{t.more}</span>
                         </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                        {showMoreMenu && (
+                          <div style={{
+                            position: 'absolute', top: '100%', left: 0, zIndex: 200,
+                            background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
+                            border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
+                          }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
+                              {moreItems.map(item => (
+                                <button key={item.id}
+                                  onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '8px 10px', borderRadius: 8,
+                                    background: page === item.id ? '#f0f7f4' : 'none',
+                                    border: 'none', cursor: 'pointer', fontSize: 13,
+                                    fontWeight: page === item.id ? 700 : 400,
+                                    color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                                    transition: 'background 0.12s',
+                                  }}
+                                  onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
+                                  onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
+                                >
+                                  <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                }
+              </>
             )
           })()}
         </div>
@@ -830,7 +867,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           </div>
         )}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} navOrder={navOrder} onNavOrderChange={setNavOrder} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} onBadgeCheck={checkBadges} />}
         {page === 'about' && <AboutPage lang={lang} />}
@@ -4419,6 +4456,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
               <div className="p-post-time">
                 {post.time?.[lang]}
                 {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
+                {post.groupId && post.groupSlug && (
+                  <span
+                    onClick={e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) }}
+                    style={{ marginLeft: 6, color: '#1877F2', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                    title={post.groupName}
+                  >🫂 {post.groupName}</span>
+                )}
               </div>
             }
             menuContent={
@@ -6238,14 +6282,14 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, theme, onThemeChange, initialTab }) {
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, theme, onThemeChange, initialTab, navOrder, onNavOrderChange }) {
   const [tab, setTab] = useState(initialTab || 'konto')
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
   const billingLabel = t.billing
   const sikkerhedLabel = t.adminSecurityTab
-  const tabLabels = { konto: t.settingsKonto, sikkerhed: sikkerhedLabel, billing: billingLabel, notifikationer: t.settingsNotifikationer, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
+  const tabLabels = { konto: t.settingsKonto, sikkerhed: sikkerhedLabel, billing: billingLabel, notifikationer: t.settingsNotifikationer, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer, nav: t.settingsNav }
 
   return (
     <div className="p-events" style={{ maxWidth: 800 }}>
@@ -6267,6 +6311,93 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
       {tab === 'sprog' && <SettingsSprog lang={lang} t={t} theme={theme} onThemeChange={onThemeChange} />}
       {tab === 'leverandoerer' && <SettingsLeverandoerer lang={lang} t={t} />}
+      {tab === 'nav' && <SettingsNav lang={lang} t={t} mode={mode} navOrder={navOrder} onNavOrderChange={onNavOrderChange} />}
+    </div>
+  )
+}
+
+function SettingsNav({ t, mode, navOrder, onNavOrderChange }) {
+  const [local, setLocal] = useState(() => buildNavItems(navOrder, mode))
+  const [saved, setSaved] = useState(false)
+
+  const navIcons = {
+    messages: '💬', events: '📅', friends: '👥', 'business-hub': '🏢',
+    groups: '🫂', explore: '🔭', calendar: '🗓️', 'saved-posts': '🔖',
+    marketplace: '🛍️', jobs: '💼',
+  }
+  const navLabels = {
+    messages: t.messages, events: t.events,
+    friends: mode === 'business' ? t.connectionsLabel : t.friends,
+    'business-hub': t.businessHub, groups: t.navGroups, explore: t.explore,
+    calendar: t.calendar, 'saved-posts': t.savedPosts,
+    marketplace: t.marketplace, jobs: t.jobs,
+  }
+
+  const moveToMain = (id) => setLocal(p => ({ main: [...p.main, id], more: p.more.filter(x => x !== id) }))
+  const moveToMore = (id) => setLocal(p => ({ main: p.main.filter(x => x !== id), more: [...p.more, id] }))
+  const moveUp   = (id) => setLocal(p => { const i = p.main.indexOf(id); if (i <= 0) return p; const m = [...p.main]; [m[i-1], m[i]] = [m[i], m[i-1]]; return { ...p, main: m } })
+  const moveDown = (id) => setLocal(p => { const i = p.main.indexOf(id); if (i < 0 || i >= p.main.length - 1) return p; const m = [...p.main]; [m[i], m[i+1]] = [m[i+1], m[i]]; return { ...p, main: m } })
+
+  const save = async () => {
+    const res = await apiSaveNavOrder(local).catch(() => null)
+    if (res?.ok) { onNavOrderChange?.(local); setSaved(true); setTimeout(() => setSaved(false), 2500) }
+  }
+  const reset = () => setLocal(buildNavItems(null, mode))
+
+  const colStyle = { flex: 1, background: '#f9f9f7', borderRadius: 12, padding: '12px 14px', minHeight: 160 }
+  const headerStyle = { fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 8 }
+  const pinnedStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: '#e8f4ee', color: '#666', fontSize: 13, marginBottom: 4 }
+  const itemStyle = (active) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: active ? '#f0f7f4' : '#fff', border: '1px solid #eee', marginBottom: 4, fontSize: 13 })
+  const btnStyle = { border: 'none', background: 'none', cursor: 'pointer', color: '#2D6A4F', fontSize: 16, padding: '0 2px', lineHeight: 1 }
+  const moveBtnStyle = { border: 'none', background: 'none', cursor: 'pointer', color: '#888', fontSize: 13, padding: '2px 5px', borderRadius: 6, marginLeft: 'auto' }
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>{t.navCustomizeDesc}</p>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
+        {/* Main bar column */}
+        <div style={colStyle}>
+          <div style={headerStyle}>📌 {t.navMainBar}</div>
+          {/* Pinned items */}
+          <div style={pinnedStyle}><span>🏠</span> {t.feed} <span style={{ marginLeft: 'auto', fontSize: 11, color: '#999' }}>🔒</span></div>
+          {mode !== 'business' && <div style={pinnedStyle}><span>🎬</span> {t.reels} <span style={{ marginLeft: 'auto', fontSize: 11, color: '#999' }}>🔒</span></div>}
+          {/* User-ordered main items */}
+          {local.main.map((id, i) => (
+            <div key={id} style={itemStyle(false)}>
+              <span>{navIcons[id]}</span>
+              <span style={{ flex: 1 }}>{navLabels[id]}</span>
+              <button style={btnStyle} onClick={() => moveUp(id)} disabled={i === 0} title="↑">↑</button>
+              <button style={btnStyle} onClick={() => moveDown(id)} disabled={i === local.main.length - 1} title="↓">↓</button>
+              <button style={{ ...moveBtnStyle, color: '#c0392b' }} onClick={() => moveToMore(id)} title="→ More">✕</button>
+            </div>
+          ))}
+        </div>
+        {/* More menu column */}
+        <div style={colStyle}>
+          <div style={headerStyle}>⋯ {t.navMoreMenu}</div>
+          {local.more.map(id => (
+            <div key={id} style={itemStyle(false)}>
+              <span>{navIcons[id]}</span>
+              <span style={{ flex: 1 }}>{navLabels[id]}</span>
+              <button style={{ ...moveBtnStyle, color: '#2D6A4F' }} onClick={() => moveToMain(id)} title="← Main">+ {t.navMainBar}</button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <button
+          onClick={save}
+          style={{ padding: '9px 20px', borderRadius: 8, background: '#2D6A4F', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+        >
+          {saved ? t.navSaved : t.navSave}
+        </button>
+        <button
+          onClick={reset}
+          style={{ padding: '9px 16px', borderRadius: 8, background: 'none', color: '#666', border: '1px solid #ddd', cursor: 'pointer', fontSize: 14 }}
+        >
+          {t.navReset}
+        </button>
+      </div>
     </div>
   )
 }

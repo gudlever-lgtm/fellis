@@ -723,6 +723,34 @@ router.patch('/settings/privacy', authenticate, async (req, res) => {
 })
 
 
+const NAV_VALID_IDS = new Set(['messages', 'events', 'friends', 'groups', 'explore', 'calendar', 'saved-posts', 'marketplace', 'jobs', 'business-hub'])
+
+router.get('/settings/nav', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT nav_order FROM users WHERE id = ?', [req.userId])
+    const raw = user?.nav_order
+    res.json({ navOrder: raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null })
+  } catch (err) {
+    console.error('GET /api/settings/nav error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.patch('/settings/nav', authenticate, writeLimit, async (req, res) => {
+  const { main, more } = req.body
+  if (!Array.isArray(main) || !Array.isArray(more)) return res.status(400).json({ error: 'Invalid nav order' })
+  if (![...main, ...more].every(id => NAV_VALID_IDS.has(id))) return res.status(400).json({ error: 'Invalid nav item' })
+  if (main.length > 5) return res.status(400).json({ error: 'Too many main tabs' })
+  try {
+    await pool.query('UPDATE users SET nav_order = ? WHERE id = ?', [JSON.stringify({ main, more }), req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/settings/nav error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
 router.get('/me/subscription', authenticate, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])

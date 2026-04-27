@@ -1504,6 +1504,17 @@ export async function apiSaveNotificationPreferences(prefs) {
   })
 }
 
+export async function apiGetNavOrder() {
+  return await request('/api/settings/nav')
+}
+
+export async function apiSaveNavOrder(navOrder) {
+  return await request('/api/settings/nav', {
+    method: 'PATCH',
+    body: JSON.stringify(navOrder),
+  })
+}
+
 export async function apiSuggestCategory(text) {
   const safe = text.replace(/\s+/g, ' ').trim().slice(0, 300)
   return await request(`/api/feed/suggest-category?text=${encodeURIComponent(safe)}`)
