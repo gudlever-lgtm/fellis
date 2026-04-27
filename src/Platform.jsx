@@ -5157,15 +5157,15 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             </span>
           </div>
           <div className="p-profile-stats">
-            <div className="p-profile-stat">
+            <div className="p-profile-stat" style={{ cursor: 'pointer' }} onClick={() => setProfileTab('posts')}>
               <strong>{profile.postCount}</strong>
               <span>{t.postsLabel}</span>
             </div>
-            <div className="p-profile-stat">
+            <div className="p-profile-stat" style={{ cursor: 'pointer' }} onClick={() => onNavigate('friends')}>
               <strong>{profile.friendCount}</strong>
               <span>{mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
             </div>
-            <div className="p-profile-stat">
+            <div className="p-profile-stat" style={{ cursor: 'pointer' }} onClick={() => setProfileTab('photos')}>
               <strong>{(profile.photoCount || 0).toLocaleString()}</strong>
               <span>{t.photosLabel}</span>
             </div>
