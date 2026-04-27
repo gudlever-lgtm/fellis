@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiGetMyAds, apiCreateAd, apiUpdateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost, apiFetchUserPosts, apiUploadFile, apiGetInterestCategories } from '../api.js'
+import { apiGetMyAds, apiCreateAd, apiUpdateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost, apiFetchUserPosts, apiUploadFile, apiGetInterestCategories, apiGetAdPrice } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
 import { PT } from '../data.js'
 
@@ -37,6 +37,7 @@ export default function AdManager({ lang, t, currentUser }) {
   const [interestSearch, setInterestSearch] = useState('')
   const [interestDropdownOpen, setInterestDropdownOpen] = useState(false)
   const interestWrapRef = useRef(null)
+  const [pricePerDay, setPricePerDay] = useState(null)
 
   const handleEditImageUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) return
@@ -101,6 +102,12 @@ export default function AdManager({ lang, t, currentUser }) {
   useEffect(() => {
     apiGetInterestCategories().then(data => {
       if (data?.categories) setInterestCategories(data.categories)
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    apiGetAdPrice().then(data => {
+      if (data?.ad_price_cpm != null) setPricePerDay(parseFloat(data.ad_price_cpm))
     }).catch(() => {})
   }, [])
 
@@ -493,6 +500,17 @@ export default function AdManager({ lang, t, currentUser }) {
                 <input style={s.input} type="date" value={form.end_date} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} />
               </div>
             </div>
+            {(() => {
+              if (!form.start_date || !form.end_date || !pricePerDay) return null
+              const days = Math.round((new Date(form.end_date) - new Date(form.start_date)) / 86400000) + 1
+              if (days < 1) return null
+              const total = days * pricePerDay
+              return (
+                <div style={{ background: '#EEF2FF', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#4338CA', fontWeight: 600 }}>
+                  {days} {lang === 'da' ? 'dage' : 'days'} × {formatPrice(pricePerDay)}/{lang === 'da' ? 'dag' : 'day'} = {formatPrice(total)}
+                </div>
+              )
+            })()}
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="submit" style={s.btnPrimary} disabled={saving}>
                 {saving ? '…' : t.createAd}
@@ -694,6 +712,17 @@ export default function AdManager({ lang, t, currentUser }) {
                         <input style={s.input} type="date" value={editForm.end_date} onChange={e => setEditForm(p => ({ ...p, end_date: e.target.value }))} />
                       </div>
                     </div>
+                    {(() => {
+                      if (!editForm.start_date || !editForm.end_date || !pricePerDay) return null
+                      const days = Math.round((new Date(editForm.end_date) - new Date(editForm.start_date)) / 86400000) + 1
+                      if (days < 1) return null
+                      const total = days * pricePerDay
+                      return (
+                        <div style={{ background: '#EEF2FF', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#4338CA', fontWeight: 600 }}>
+                          {days} {lang === 'da' ? 'dage' : 'days'} × {formatPrice(pricePerDay)}/{lang === 'da' ? 'dag' : 'day'} = {formatPrice(total)}
+                        </div>
+                      )
+                    })()}
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button type="submit" style={s.btnPrimary} disabled={editSaving}>
                         {editSaving ? '…' : t.adsSave}

@@ -19268,11 +19268,11 @@ function AdminPricingPanel({ lang }) {
 
         <div style={{ background: '#F6F4F1', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginBottom: 10 }}>📢 {da ? 'Annoncering' : 'Advertising'}</div>
-          <label style={lS}>{da ? 'Annonce pris (pr. aktivering)' : 'Ad price (per activation)'}</label>
+          <label style={lS}>{da ? 'Annonce pris pr. dag' : 'Ad price per day'}</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="number" step="0.01" min="0" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
             <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
-            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.ad_price_cpm) || 50)}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.ad_price_cpm) || 50)}/{da ? 'dag' : 'day'}</span>
           </div>
         </div>
 
