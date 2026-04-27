@@ -2501,6 +2501,10 @@ export const apiSendBusinessInquiry = (id, subject, preferred_date, message) =>
 export const apiSetLanguage = (lang) =>
   request('/api/set-language', { method: 'POST', body: JSON.stringify({ lang }) })
 
+// Content translation (DeepL-backed, cached server-side)
+export const apiTranslateText = (text, sourceLang, targetLang) =>
+  request('/api/translate', { method: 'POST', body: JSON.stringify({ text, sourceLang, targetLang }) })
+
 // User type selector
 export const apiUpdateUserType = (mode) =>
   request('/api/user/type', { method: 'PATCH', body: JSON.stringify({ mode }) })
