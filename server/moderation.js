@@ -26,7 +26,7 @@ export async function moderateContent(text, contentType) {
   }
 
   try {
-    const response = await client.chat.complete({
+    const callPromise = client.chat.complete({
       model: 'mistral-small-latest',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -36,6 +36,10 @@ export async function moderateContent(text, contentType) {
       temperature: 0.1,
       maxTokens: 200,
     })
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 1500)
+    )
+    const response = await Promise.race([callPromise, timeoutPromise])
 
     const raw = response.choices?.[0]?.message?.content?.trim()
     if (!raw) {
