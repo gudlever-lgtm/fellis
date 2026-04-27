@@ -1446,18 +1446,25 @@ router.post('/ads/:id/pay', authenticate, attachUserMode, requireBusiness, async
     if (ad.advertiser_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
 
     const [[settings]] = await pool.query('SELECT ad_price_cpm, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
-    const cpmRate = parseFloat(ad.cpm_rate || settings?.ad_price_cpm) || 50
-    const budget = parseFloat(ad.budget) || cpmRate // default to 1 CPM unit
+    const pricePerDay = parseFloat(settings?.ad_price_cpm) || 50
     const currency = settings?.currency || 'EUR'
-    const amount = budget.toFixed(2)
+
+    // Calculate duration in days from the ad's date range; fall back to 30 days
+    let days = 30
+    if (ad.start_date && ad.end_date) {
+      const diff = Math.round((new Date(ad.end_date) - new Date(ad.start_date)) / 86400000) + 1
+      if (diff >= 1) days = diff
+    }
+    const amount = (days * pricePerDay).toFixed(2)
+    const paidUntil = ad.end_date ? new Date(ad.end_date) : new Date(Date.now() + days * 86400000)
 
     const mollie = await getMollieClient()
     const origin = req.headers.origin || process.env.SITE_URL || 'https://fellis.eu'
     if (!mollie) {
       // Dev fallback: immediately activate without payment
       await pool.query(
-        "UPDATE ads SET status = 'active', payment_status = 'paid', paid_at = NOW(), paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id = ?",
-        [adId]
+        "UPDATE ads SET status = 'active', payment_status = 'paid', paid_at = NOW(), paid_until = ? WHERE id = ?",
+        [paidUntil, adId]
       )
       await pool.query(
         'INSERT INTO subscriptions (user_id, plan, status, ad_id) VALUES (?, ?, ?, ?)',
@@ -1469,7 +1476,7 @@ router.post('/ads/:id/pay', authenticate, attachUserMode, requireBusiness, async
     const siteUrl = process.env.SITE_URL || 'https://fellis.eu'
     const payment = await mollie.payments.create({
       amount: { currency, value: amount },
-      description: `fellis.eu — annonce aktivering #${adId}`,
+      description: `fellis.eu — annonce aktivering #${adId} (${days} dage)`,
       redirectUrl: `${origin}/?mollie_payment=success&plan=ad_activation&ad_id=${adId}`,
       webhookUrl: `${siteUrl}/api/mollie/payment/webhook`,
       metadata: { user_id: String(req.userId), plan: 'ad_activation', ad_id: String(adId) },

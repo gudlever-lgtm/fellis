@@ -7,7 +7,8 @@ import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddCom
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
   apiGetEurDkkRate, apiFetchFriendSuggestions,
   apiFetchNetworkFeed, apiFetchBusinessFeed,
-  apiDeleteMessage, apiEditMessage } from './api.js'
+  apiDeleteMessage, apiEditMessage,
+  apiTranslate } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -59,6 +60,7 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
   apiCreateCompanyProfile,
   apiGetAdminFlagged,
   apiAdminModerateAction,
+  apiTranslateText,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import CompanyProfileForm from './CompanyProfileForm.jsx'
@@ -1320,24 +1322,80 @@ function LinkWithMenu({ href, lang, onRemove }) {
   )
 }
 
+// Languages supported by DeepL as both source and target
+const DEEPL_SUPPORTED = new Set(['da', 'en', 'de', 'fr', 'nl', 'sv', 'fi', 'pl', 'es', 'it', 'pt'])
+const translationBtnStyle = {
+  fontSize: 11, color: '#aaa', background: 'none', border: 'none',
+  cursor: 'pointer', padding: '3px 0 0', display: 'block', textAlign: 'left',
+}
+
+// Returns [sourceLang, sourceText] — the first non-empty entry in a text object
+function getSourceEntry(textObj) {
+  const entry = Object.entries(textObj || {}).find(([, v]) => v)
+  return entry || [null, null]
+}
+
 function PostText({ text, lang }) {
   const [removedUrls, setRemovedUrls] = useState(new Set())
-  const str = text[lang] || text.da || ''
-  const parts = linkifyText(str)
+  const [translated, setTranslated] = useState(null)
+  const [translating, setTranslating] = useState(false)
+  const [showingTranslated, setShowingTranslated] = useState(false)
+
+  const effectiveLang = lang || navigator.language?.split('-')[0] || 'da'
+  const [origLang, origText] = getSourceEntry(text)
+  const enableTranslate = !!origLang && origLang !== effectiveLang
+    && DEEPL_SUPPORTED.has(origLang) && DEEPL_SUPPORTED.has(effectiveLang)
+
+  const displayStr = (showingTranslated && translated)
+    ? translated
+    : (text?.[effectiveLang] || origText || '')
+  const parts = linkifyText(displayStr)
   const firstUrl = parts.find(p => p.t === 'url' && !removedUrls.has(p.v))?.v
+
+  const handleTranslate = async () => {
+    if (translated) { setShowingTranslated(true); return }
+    setTranslating(true)
+    const result = await apiTranslate(origText, effectiveLang)
+    setTranslating(false)
+    if (result?.translatedText) {
+      setTranslated(result.translatedText)
+      setShowingTranslated(true)
+    }
+  }
+
+  const tLang = getTranslations(effectiveLang)
+
   return (
     <>
       <div className="p-post-body">
         {parts.map((p, i) => {
           if (p.t === 'url') {
             if (removedUrls.has(p.v)) return <span key={i}>{p.v}</span>
-            return <LinkWithMenu key={i} href={p.v} lang={lang} onRemove={() => setRemovedUrls(prev => new Set([...prev, p.v]))} />
+            return <LinkWithMenu key={i} href={p.v} lang={effectiveLang} onRemove={() => setRemovedUrls(prev => new Set([...prev, p.v]))} />
           }
           if (p.t === 'mention') return <span key={i} className="p-mention">{p.v}</span>
           return <span key={i}>{p.v}</span>
         })}
       </div>
       {firstUrl && <LinkPreview url={firstUrl} />}
+      {enableTranslate && (
+        showingTranslated ? (
+          <button
+            onClick={() => setShowingTranslated(false)}
+            style={{ marginTop: 6, display: 'block', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#1877F2', padding: 0, fontFamily: 'inherit' }}
+          >
+            {tLang.show_original}
+          </button>
+        ) : (
+          <button
+            onClick={handleTranslate}
+            disabled={translating}
+            style={{ marginTop: 6, display: 'block', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#1877F2', padding: 0, fontFamily: 'inherit', opacity: translating ? 0.6 : 1 }}
+          >
+            {translating ? tLang.translating : tLang.translate_post}
+          </button>
+        )
+      )}
     </>
   )
 }
@@ -1862,9 +1920,37 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
 }
 
 // Renders text with mentions and linkified URLs; supports right-click link removal
-function CommentText({ text, lang }) {
+// textObj: full {da, en, sv, …} object for feed comments — enables on-demand translation
+function CommentText({ text, textObj, lang }) {
   const [removedUrls, setRemovedUrls] = useState(new Set())
-  const parts = linkifyText(text || '')
+  const [fetchedTranslation, setFetchedTranslation] = useState(null)
+  const [showOriginal, setShowOriginal] = useState(false)
+
+  useEffect(() => {
+    if (!textObj) return
+    const [origLang, origText] = getSourceEntry(textObj)
+    if (!origLang || origLang === lang) return
+    if (!DEEPL_SUPPORTED.has(origLang) || !DEEPL_SUPPORTED.has(lang)) return
+    if (textObj[lang]) return
+    setFetchedTranslation(null)
+    let cancelled = false
+    apiTranslateText(origText, origLang, lang)
+      .then(res => { if (!cancelled && res?.translatedText) setFetchedTranslation(res.translatedText) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [textObj, lang])
+
+  const [originalLang, originalText] = getSourceEntry(textObj)
+  const storedTranslation = textObj?.[lang]
+  const canTranslate = !!originalLang && originalLang !== lang
+    && DEEPL_SUPPORTED.has(originalLang) && DEEPL_SUPPORTED.has(lang)
+  const displayText = showOriginal
+    ? (originalText || text || '')
+    : (storedTranslation || fetchedTranslation || text || '')
+  const isTranslated = canTranslate && !showOriginal && (storedTranslation || fetchedTranslation)
+
+  const uiT = canTranslate ? getTranslations(lang) : null
+  const parts = linkifyText(displayText)
   return (
     <>
       {parts.map((p, i) => {
@@ -1879,6 +1965,16 @@ function CommentText({ text, lang }) {
         )
         return <span key={i}>{p.v}</span>
       })}
+      {isTranslated && (
+        <button style={translationBtnStyle} onClick={() => setShowOriginal(true)}>
+          {uiT.translatedShowOriginal}
+        </button>
+      )}
+      {!isTranslated && canTranslate && showOriginal && (
+        <button style={translationBtnStyle} onClick={() => setShowOriginal(false)}>
+          {uiT.showTranslation}
+        </button>
+      )}
     </>
   )
 }
@@ -4589,7 +4685,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                     </div>
                     <div className="p-comment-bubble">
                       <span className="p-comment-author">{c.author}</span>
-                      <span><CommentText text={c.text?.[lang]} lang={lang} /></span>
+                      <span><CommentText text={c.text?.[lang] || c.text?.da || ''} textObj={c.text} lang={lang} /></span>
                       {c.media?.length > 0 && (
                         <div className="p-comment-media">
                           <PostMedia media={c.media} lang={lang} />
@@ -19270,11 +19366,11 @@ function AdminPricingPanel({ lang }) {
 
         <div style={{ background: '#F6F4F1', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginBottom: 10 }}>📢 {da ? 'Annoncering' : 'Advertising'}</div>
-          <label style={lS}>{da ? 'Annonce pris (pr. aktivering)' : 'Ad price (per activation)'}</label>
+          <label style={lS}>{da ? 'Annonce pris pr. dag' : 'Ad price per day'}</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="number" step="0.01" min="0" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
             <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
-            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.ad_price_cpm) || 50)}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.ad_price_cpm) || 50)}/{da ? 'dag' : 'day'}</span>
           </div>
         </div>
 
