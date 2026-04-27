@@ -76,6 +76,7 @@ import miscRouter from './routes/misc.js'
 import translationsRouter from './routes/translations.js'
 import { reloadKeywordFilters as reloadSharedKeywordFilters } from './helpers.js'
 import { ensureRuntimeColumns } from './ensure-columns.js'
+import { moderateContent } from './moderation.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
 // SECURITY: Validates table and column names to prevent SQL injection
@@ -3403,6 +3404,45 @@ async function initBusinessFeaturesV2() {
 // metadata locks are fully released before the server accepts any HTTP traffic.
 // Requests arriving while an ALTER TABLE holds a lock on e.g. `users` would
 // hang indefinitely — moving inits before listen() eliminates that window.
+
+// ── Internal API — server-to-server only, validated by X-Internal-Secret header ──
+function internalSecretMiddleware(req, res, next) {
+  const secret = process.env.INTERNAL_SECRET
+  if (!secret) {
+    console.error('[internal] INTERNAL_SECRET not configured')
+    return res.status(500).json({ error: 'Internal endpoint not configured' })
+  }
+  const provided = req.headers['x-internal-secret']
+  if (!provided || provided !== secret) return res.status(403).json({ error: 'Forbidden' })
+  next()
+}
+
+app.post('/api/internal/moderate', internalSecretMiddleware, async (req, res) => {
+  const { text, contentType, contentId } = req.body || {}
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({ error: 'text is required' })
+  }
+  if (!['post', 'comment', 'profile'].includes(contentType)) {
+    return res.status(400).json({ error: 'contentType must be post|comment|profile' })
+  }
+
+  try {
+    const result = await moderateContent(text, contentType)
+    const dbResult = result.safe ? 'safe' : 'flagged'
+    try {
+      await pool.query(
+        'INSERT INTO moderation_log (content_type, content_id, result, reason, confidence) VALUES (?, ?, ?, ?, ?)',
+        [contentType, contentId ?? null, dbResult, result.reason, result.confidence]
+      )
+    } catch (dbErr) {
+      console.error('[moderation] DB log error:', dbErr.message)
+    }
+    res.json(result)
+  } catch (err) {
+    console.error('[moderation] endpoint error:', err)
+    res.status(500).json({ error: 'Moderation failed' })
+  }
+})
 
 // ── API 404 catch-all (must be before SPA fallback) ──
 app.use('/api', (req, res) => {
