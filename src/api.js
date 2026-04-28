@@ -1299,6 +1299,8 @@ export const apiFollowGroup = (groupId) =>
 export const apiUnfollowGroup = (groupId) =>
   request(`/api/groups/${groupId}/follow`, { method: 'DELETE' })
 
+export const apiGetFollowedGroups = () => request('/api/groups/following')
+
 export async function apiUploadGroupCover(groupId, file) {
   const form = new FormData()
   form.append('cover', file)

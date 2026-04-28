@@ -52,7 +52,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
   apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
@@ -2626,6 +2626,22 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
     apiGetDiscovery().then(data => {
       if (data?.suggestions?.length) setDiscoveryCards(data.suggestions)
     })
+
+    // Hydrate follow-state for in-feed indicators
+    apiGetFollowing().then(data => {
+      if (data?.users?.length) {
+        const map = {}
+        data.users.forEach(u => { map[String(u.id)] = true })
+        setFollowedAuthorIds(map)
+      }
+    }).catch(() => {})
+    apiGetFollowedGroups().then(ids => {
+      if (Array.isArray(ids) && ids.length) {
+        const map = {}
+        ids.forEach(id => { map[String(id)] = true })
+        setFollowedGroupIds(map)
+      }
+    }).catch(() => {})
   }, [])
 
   // Bottom sentinel — infinite scroll: load next page when user reaches the end
@@ -4090,7 +4106,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 })()}
                 {!isOwn && post.authorId && (() => {
                   const key = String(post.authorId)
-                  const isFollowing = key in followedAuthorIds ? followedAuthorIds[key] : post.viewerFollowsAuthor
+                  const isFollowing = followedAuthorIds[key] === true
                   return isFollowing ? (
                     <span
                       title={lang === 'da' ? 'Du følger denne bruger' : 'You follow this user'}
@@ -4122,7 +4138,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 {post.groupId && post.groupName && (() => {
                   const gState = joinedGroupIds[post.groupId]
                   const gKey = String(post.groupId)
-                  const isFollowingGroup = gKey in followedGroupIds ? followedGroupIds[gKey] : post.viewerFollowsGroup
+                  const isFollowingGroup = followedGroupIds[gKey] === true
                   return (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 6, flexWrap: 'nowrap' }}>
                       <span
