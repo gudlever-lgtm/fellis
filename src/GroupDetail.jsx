@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import MediaPickerButton from './components/MediaPickerButton.jsx'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
 import {
   apiGetGroup, apiGetGroupPosts, apiCreateGroupPost, apiDeleteGroupPost,
@@ -66,7 +67,6 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [composerMedia, setComposerMedia] = useState(null)
   const [composerPreviews, setComposerPreviews] = useState([])
   const composerTextareaRef = useRef(null)
-  const composerFileRef = useRef(null)
   const [members, setMembers] = useState([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [pendingMembers, setPendingMembers] = useState([])
@@ -145,15 +145,15 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     if (res !== null) onNavigate?.('/groups')
   }
 
-  const handleMediaChange = (e) => {
-    const file = e.target.files?.[0] || null
+  const handleMediaFiles = (files) => {
+    const file = files[0]
     if (!file) return
     if (composerMedia) URL.revokeObjectURL(composerPreviews[0]?.url)
     const url = URL.createObjectURL(file)
     const type = file.type.startsWith('video/') ? 'video' : 'image'
     setComposerMedia(file)
     setComposerPreviews([{ url, type }])
-    if (e.target) e.target.value = ''
+    setComposerExpanded(true)
   }
 
   const handleRemoveMedia = () => {
@@ -579,10 +579,12 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                     >
                       {g.writePost || (lang === 'da' ? 'Skriv et opslag til gruppen...' : 'Write a post for the group...')}
                     </div>
-                    <label className="p-media-popup-wrap" style={{ cursor: 'pointer' }} onClick={() => setComposerExpanded(true)}>
-                      <span className="p-media-popup-btn">+</span>
-                      <input ref={composerFileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleMediaChange} />
-                    </label>
+                    <MediaPickerButton
+                      lang={lang}
+                      onFiles={files => { setComposerExpanded(true); handleMediaFiles(files) }}
+                      multiple={false}
+                      direction="down"
+                    />
                   </div>
                 ) : (
                   <>
@@ -620,10 +622,11 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                     )}
                     <div className="p-new-post-actions">
                       <div className="p-new-post-toolbar-left">
-                        <label className="p-media-popup-wrap" style={{ cursor: 'pointer' }}>
-                          <span className="p-media-popup-btn">+</span>
-                          <input ref={composerFileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleMediaChange} />
-                        </label>
+                        <MediaPickerButton
+                          lang={lang}
+                          onFiles={handleMediaFiles}
+                          multiple={false}
+                        />
                       </div>
                       <button
                         onClick={handleCreatePost}
