@@ -60,9 +60,20 @@ router.post('/users/:id/follow', authenticate, async (req, res) => {
   const targetId = parseInt(req.params.id)
   if (targetId === req.userId) return res.status(400).json({ error: 'Cannot follow yourself' })
   try {
-    const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId])
+    const [[target]] = await pool.query('SELECT id, name FROM users WHERE id = ?', [targetId])
     if (!target) return res.status(404).json({ error: 'User not found' })
-    await pool.query('INSERT IGNORE INTO user_follows (follower_id, followee_id) VALUES (?, ?)', [req.userId, targetId])
+    const [result] = await pool.query('INSERT IGNORE INTO user_follows (follower_id, followee_id) VALUES (?, ?)', [req.userId, targetId])
+    if (result.affectedRows > 0) {
+      pool.query('UPDATE users SET follower_count = follower_count + 1 WHERE id = ?', [targetId]).catch(() => {})
+      const [[actor]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+      const actorName = actor?.name || ''
+      createNotification(
+        targetId, 'new_follower',
+        `${actorName} følger nu din profil`,
+        `${actorName} is now following your profile`,
+        req.userId, actorName
+      ).catch(() => {})
+    }
     res.json({ following: true })
   } catch (err) {
     console.error('POST /api/users/:id/follow error:', err.message)
@@ -74,7 +85,10 @@ router.post('/users/:id/follow', authenticate, async (req, res) => {
 router.delete('/users/:id/follow', authenticate, async (req, res) => {
   const targetId = parseInt(req.params.id)
   try {
-    await pool.query('DELETE FROM user_follows WHERE follower_id = ? AND followee_id = ?', [req.userId, targetId])
+    const [result] = await pool.query('DELETE FROM user_follows WHERE follower_id = ? AND followee_id = ?', [req.userId, targetId])
+    if (result.affectedRows > 0) {
+      pool.query('UPDATE users SET follower_count = GREATEST(0, follower_count - 1) WHERE id = ?', [targetId]).catch(() => {})
+    }
     res.json({ following: false })
   } catch (err) {
     console.error('DELETE /api/users/:id/follow error:', err.message)
