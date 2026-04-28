@@ -1293,6 +1293,12 @@ export const apiGetGroupModerationReports = (groupId) => request(`/api/groups/${
 export const apiDismissGroupReport = (groupId, reportId) =>
   request(`/api/groups/${groupId}/moderation/${reportId}/dismiss`, { method: 'POST' })
 
+export const apiFollowGroup = (groupId) =>
+  request(`/api/groups/${groupId}/follow`, { method: 'POST' })
+
+export const apiUnfollowGroup = (groupId) =>
+  request(`/api/groups/${groupId}/follow`, { method: 'DELETE' })
+
 export async function apiUploadGroupCover(groupId, file) {
   const form = new FormData()
   form.append('cover', file)
