@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment, lazy, Suspense } from 'react'
+import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment, lazy, Suspense, useMemo } from 'react'
+import { useNavigate, useLocation, useMatch, useSearchParams } from 'react-router-dom'
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
 import { detectLanguage } from './utils/detectLanguage.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
@@ -219,32 +220,74 @@ function EggHintsContextMenu({ lang }) {
   )
 }
 
-export default function Platform({ onLogout, initialPostId, initialPage, initialProfileUserId, initialProfileSubpage }) {
+function buildPath(page, param) {
+  const tab = typeof param === 'string' ? param : param?.tab
+  switch (page) {
+    case 'feed': return '/'
+    case 'reels': return param?.reelId ? `/reels/${param.reelId}` : '/reels'
+    case 'messages': return param?.convId ? `/messages/${param.convId}` : '/messages'
+    case 'profile': return tab ? `/profile?tab=${encodeURIComponent(tab)}` : '/profile'
+    case 'view-profile': return param?.userId ? `/profile/${param.userId}` : '/profile'
+    case 'edit-profile': return tab ? `/edit-profile?tab=${encodeURIComponent(tab)}` : '/edit-profile'
+    case 'friends': return '/friends'
+    case 'settings': return tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'
+    case 'marketplace': return param?.listingId ? `/marketplace/${param.listingId}` : '/marketplace'
+    case 'events': return '/events'
+    case 'calendar': return '/calendar'
+    case 'jobs': return '/jobs'
+    case 'search': return '/search'
+    case 'explore': return '/explore'
+    case 'groups': return '/groups'
+    case 'group-detail': return param?.slug ? `/groups/${encodeURIComponent(param.slug)}` : '/groups'
+    case 'group-settings': return param?.slug ? `/groups/${encodeURIComponent(param.slug)}/settings` : '/groups'
+    case 'company': return param?.companyId ? `/companies/${param.companyId}` : '/companies'
+    case 'analytics': return '/analytics'
+    case 'notifications': return '/notifications'
+    case 'saved-posts': return '/saved-posts'
+    case 'admin': return '/admin'
+    case 'moderation': return '/moderation'
+    case 'business-hub': return '/business-hub'
+    case 'ads': return '/ads'
+    case 'visitors': return '/visitors'
+    case 'about': return '/about'
+    case 'privacy': return '/data-privacy'
+    case 'features': return '/features'
+    case 'payment-success': return '/payment-success'
+    case 'payment-failed': return '/payment-failed'
+    case 'company-profile-form': return '/company-profile-form'
+    case 'cv': return '/cv'
+    case 'stories': return '/stories'
+    case 'badges': return '/badges'
+    case 'referrals': return '/referrals'
+    case 'interest-graph': return '/interest-graph'
+    case 'business-directory': return '/business-directory'
+    default: return `/${page}`
+  }
+}
+
+export default function Platform({ onLogout, initialPostId }) {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { lang, setLanguage: setLang } = useLanguage()
-  const [page, setPage] = useState(initialPage || 'feed')
+  const page = useMemo(() => {
+    const p = location.pathname
+    if (!p || p === '/' || p === '/feed') return 'feed'
+    const segs = p.split('/').filter(Boolean)
+    const first = segs[0]
+    if (first === 'profile' && segs[1]) return 'view-profile'
+    if (first === 'groups' && segs[1]) return segs[2] === 'settings' ? 'group-settings' : 'group-detail'
+    if (first === 'data-privacy') return 'privacy'
+    return first || 'feed'
+  }, [location.pathname])
+
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
-  const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
 
-  // React to initialPostId/initialPage props (set async in App after URL parse)
   useEffect(() => {
     if (initialPostId) setHighlightPostId(initialPostId)
   }, [initialPostId])
-  useEffect(() => {
-    if (initialPage) setPage(initialPage)
-  }, [initialPage])
-  const [viewUserId, setViewUserId] = useState(null)
-  // Handle /@handle profile URL routing
-  useEffect(() => {
-    if (initialProfileUserId) {
-      setViewUserId(initialProfileUserId)
-      setPage('view-profile')
-      sessionStorage.removeItem('fellis_profile_userId')
-      sessionStorage.removeItem('fellis_profile_subpage')
-    }
-  }, [initialProfileUserId])
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
     if (stored === 'common' || stored === 'private') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
@@ -306,15 +349,15 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
   const [showQRCode, setShowQRCode] = useState(false)
   const [pollModalPostId, setPollModalPostId] = useState(null)
   const [makeOfferListing, setMakeOfferListing] = useState(null)
-  const [feedTypeFilter, setFeedTypeFilter] = useState('all') // all | posts | reels | events | media
+  const [feedTypeFilter, setFeedTypeFilter] = useState(() => localStorage.getItem('fellis_feed_type_filter') || 'all')
   const navSearchInputRef = useRef(null)
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
     enabled: !showKeyboardHelp,
-    onNavigate: (p) => setPage(p),
+    onNavigate: (p) => navigate(buildPath(p)),
     onToggleNotifs: () => setShowNotifPanel(v => !v),
-    onFocusSearch: () => { setPage('search'); setTimeout(() => navSearchInputRef.current?.focus(), 100) },
+    onFocusSearch: () => { navigate('/search'); setTimeout(() => navSearchInputRef.current?.focus(), 100) },
     onShowHelp: () => setShowKeyboardHelp(true),
   })
 
@@ -503,28 +546,25 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showAvatarMenu, showNotifPanel, showMoreMenu])
 
-  const [navParam, setNavParam] = useState(null)
   const savedFeedScroll = useRef(0)
 
   const navigateTo = useCallback((p, param = null) => {
     if (p !== 'feed') savedFeedScroll.current = window.scrollY
-    setPage(p)
-    setNavParam(param)
+    navigate(buildPath(p, param))
     setShowAvatarMenu(false)
     setShowMobileMenu(false)
-  }, [])
+  }, [navigate])
 
   const navigateGroups = useCallback((path) => {
-    if (path === '/groups') { navigateTo('groups'); return }
-    if (typeof path === 'string' && path.startsWith('/groups/')) {
-      const rest = path.slice('/groups/'.length)
-      const slug = rest.split('/')[0]
-      const sub = rest.split('/')[1]
-      if (slug && sub === 'settings') { navigateTo('group-settings', { slug }); return }
-      if (slug) { navigateTo('group-detail', { slug }); return }
+    if (typeof path === 'string') {
+      savedFeedScroll.current = window.scrollY
+      navigate(path.startsWith('/') ? path : `/${path}`)
+    } else {
+      navigateTo(path)
     }
-    navigateTo(path)
-  }, [navigateTo])
+    setShowAvatarMenu(false)
+    setShowMobileMenu(false)
+  }, [navigate, navigateTo])
 
   // Restore feed scroll position synchronously before paint (when returning to feed)
   useLayoutEffect(() => {
@@ -689,7 +729,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                 lang={lang}
                 titleRef={notifTitleRef}
                 onMarkAllRead={markAllRead}
-                onNavigate={(page, param) => { if (param?.convId) setOpenConvId(param.convId); navigateTo(page); setShowNotifPanel(false) }}
+                onNavigate={(page, param) => { navigateTo(page, param); setShowNotifPanel(false) }}
                 onMarkRead={(ids) => {
                   const idSet = new Set(Array.isArray(ids) ? ids : [ids])
                   setNotifs(prev => prev.map(n => idSet.has(n.id) ? { ...n, read: true } : n))
@@ -804,9 +844,9 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
               />
             )}
             <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
-              onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
-              onViewOwnProfile={() => navigateTo('profile')}
-              onViewBadges={(uid) => { if (!uid) { navigateTo('profile', { tab: 'badges' }) } else { setViewUserId(uid); navigateTo('view-profile') } }}
+              onViewProfile={(uid) => navigate('/profile/' + uid)}
+              onViewOwnProfile={() => navigate('/profile')}
+              onViewBadges={(uid) => { if (!uid) { navigateTo('profile', { tab: 'badges' }) } else { navigate('/profile/' + uid) } }}
               onNavigate={navigateTo}
               onBadgeCheck={checkBadges}
               feedEggRef={feedEggRef}
@@ -820,23 +860,23 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           </div>
           <FeedSidebar lang={lang} t={t} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} onNavigate={navigateTo} />
         </div>
-        {page === 'reels' && <Suspense fallback={null}><ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} /></Suspense>}
-        {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} onNavigate={navigateGroups} />}
+        {page === 'reels' && <Suspense fallback={null}><ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={decodeURIComponent(location.pathname.split('/')[2] || '')} onViewProfile={(userId) => navigate('/profile/' + userId)} /></Suspense>}
+        {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => navigate('/profile/' + userId)} onNavigate={navigateGroups} />}
         {page === 'groups' && <Suspense fallback={null}><GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
-        {page === 'group-detail' && navParam?.slug && <Suspense fallback={null}><GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
-        {page === 'group-settings' && navParam?.slug && <Suspense fallback={null}><GroupSettings slug={navParam.slug} lang={lang} onNavigate={navigateGroups} /></Suspense>}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
-        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id]).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
-        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} initialTab={navParam?.tab} />}
+        {page === 'group-detail' && <Suspense fallback={null}><GroupDetail slug={decodeURIComponent(location.pathname.split('/')[2] || '')} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
+        {page === 'group-settings' && <Suspense fallback={null}><GroupSettings slug={decodeURIComponent(location.pathname.split('/')[2] || '')} lang={lang} onNavigate={navigateGroups} /></Suspense>}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} />}
+        {page === 'view-profile' && <FriendProfilePage userId={parseInt(location.pathname.split('/')[2])} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id]).catch(() => null); navigate('/messages/' + (data?.id || '')); }} />}
+        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
             const data = await apiCreateConversation([friend.id]).catch(() => null)
-            if (data?.id) setOpenConvId(data.id)
+            if (data?.id) { navigate('/messages/' + data.id); return }
           }
-          navigateTo('messages')
+          navigate('/messages')
         }} />}
         <div style={{ display: page === 'messages' ? '' : 'none' }}>
-          <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} ssePayload={msgSsePayload} />
+          <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} ssePayload={msgSsePayload} />
         </div>
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'calendar' && <CalendarPage lang={lang} t={t} currentUser={currentUser} />}
@@ -844,30 +884,30 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           const numId = parseInt(sellerId)
           if (numId > 0 && !isNaN(numId) && numId !== currentUser.id) {
             const data = await apiCreateConversation([numId]).catch(() => null)
-            if (data?.id) setOpenConvId(data.id)
+            if (data?.id) { navigate('/messages/' + data.id); return }
           }
-          navigateTo('messages')
-        }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} onMakeOffer={(listing) => setMakeOfferListing(listing)} />}
-        {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
+          navigate('/messages')
+        }} onViewProfile={(uid) => navigate('/profile/' + uid)} onMakeOffer={(listing) => setMakeOfferListing(listing)} />}
+        {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigate('/companies/' + (param || '')); } else navigate(buildPath(target)) }} />}
         {page === 'ads' && mode === 'business' && <Suspense fallback={null}><AdManager lang={lang} t={t} currentUser={currentUser} /></Suspense>}
-        {page === 'business-hub' && mode === 'business' && <Suspense fallback={null}><BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} /></Suspense>}
-        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
+        {page === 'business-hub' && mode === 'business' && <Suspense fallback={null}><BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => navigate('/profile/' + id)} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} /></Suspense>}
+        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={location.pathname.split('/')[2] ? parseInt(location.pathname.split('/')[2]) : null} />}
         {page === 'company-profile-form' && mode === 'business' && (
           <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 8px' }}>
             <CompanyProfileForm
               lang={lang}
               currentUser={currentUser}
-              initialData={navParam?.initialData || null}
+              initialData={null}
               onSuccess={(profile) => {
                 setCurrentUser(prev => ({ ...prev, company_profile: profile }))
-                navigateTo('profile')
+                navigate('/profile')
               }}
-              onCancel={() => navigateTo('profile')}
+              onCancel={() => navigate('/profile')}
             />
           </div>
         )}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} navOrder={navOrder} onNavOrderChange={setNavOrder} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} navOrder={navOrder} onNavOrderChange={setNavOrder} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} onBadgeCheck={checkBadges} />}
         {page === 'about' && <AboutPage lang={lang} />}
@@ -875,7 +915,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'saved-posts' && (
           <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 4px' }}>
-            <SavedPosts lang={lang} onViewPost={(id) => { setHighlightPostId(id); navigateTo('feed') }} />
+            <SavedPosts lang={lang} onViewPost={(id) => { setHighlightPostId(id); navigate('/') }} />
           </div>
         )}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
@@ -886,9 +926,9 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
             lang={lang}
             t={t}
             mode={mode}
-            onNavigateToPost={(postId) => { setHighlightPostId(postId); navigateTo('feed') }}
-            onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
-            onNavigateToCompany={(id) => navigateTo('company', id ? { companyId: id } : null)}
+            onNavigateToPost={(postId) => { setHighlightPostId(postId); navigate('/') }}
+            onNavigateToConv={(convId) => navigate('/messages/' + convId)}
+            onNavigateToCompany={(id) => navigate(id ? `/companies/${id}` : '/companies')}
           />
         )}
       </div>
@@ -2615,9 +2655,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [feedMode, setFeedMode] = useState(mode || 'privat')
   const feedModeRef = useRef(mode || 'privat')
-  const [feedContext, setFeedContext] = useState(() => mode === 'business' ? 'network' : 'social')
+  const [feedContext, setFeedContext] = useState(() => {
+    const stored = localStorage.getItem('fellis_feed_context')
+    if (stored === 'network' || stored === 'business' || stored === 'social') return stored
+    return mode === 'business' ? 'network' : 'social'
+  })
   const [upsellDismissed, setUpsellDismissed] = useState(() => !!sessionStorage.getItem(UPSELL_KEY))
-  const feedContextRef = useRef(mode === 'business' ? 'network' : 'social')
+  const feedContextRef = useRef(feedContext)
   const [postContext, setPostContext] = useState(() => mode === 'business' ? 'professional' : 'social')
 
   // If mode syncs from server to a value incompatible with the network feed (e.g. localStorage
@@ -3528,7 +3572,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
         viewerMode={currentUser.mode}
         t={t}
         activeTab={feedContext === 'network' ? 'network' : feedContext === 'business' ? 'business' : 'private'}
-        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : tab === 'business' ? 'business' : 'social')}
+        onTabChange={(tab) => {
+          const ctx = tab === 'network' ? 'network' : tab === 'business' ? 'business' : 'social'
+          setFeedContext(ctx)
+          localStorage.setItem('fellis_feed_context', ctx)
+        }}
       />
 
       {/* New post */}
@@ -5012,14 +5060,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
 
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES, initialTab }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const profileTab = searchParams.get('tab') || 'about'
+  const setProfileTab = (tab) => setSearchParams(tab === 'about' ? {} : { tab })
   const [profile, setProfile] = useState({ ...currentUser })
   const [coverPhotoUrl, setCoverPhotoUrl] = useState(currentUser.cover_photo_url || currentUser.coverPhotoUrl || null)
   const [coverUploading, setCoverUploading] = useState(false)
   const coverInputRef = useRef(null)
   const [userPosts, setUserPosts] = useState([])
   const [familyFriends, setFamilyFriends] = useState([])
-  const [profileTab, setProfileTab] = useState(initialTab || 'about')
   const [myCompanies, setMyCompanies] = useState([])
   const [myCompanyProfile, setMyCompanyProfile] = useState(null)
   const [myCompanyProfileLoaded, setMyCompanyProfileLoaded] = useState(false)
@@ -5650,7 +5700,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
 }
 
 // ── Edit Profile ──
-function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, initialTab }) {
+function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
   // Interests state
@@ -5735,7 +5786,9 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
-  const [tab, setTab] = useState(initialTab || 'profile')
+  const tab = searchParams.get('tab') || 'profile'
+  const setTab = (t) => setSearchParams(t === 'profile' ? {} : { tab: t })
+
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 16 }
@@ -6282,8 +6335,10 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, theme, onThemeChange, initialTab, navOrder, onNavOrderChange }) {
-  const [tab, setTab] = useState(initialTab || 'konto')
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, theme, onThemeChange, navOrder, onNavOrderChange }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'konto'
+  const setTab = (t) => setSearchParams(t === 'konto' ? {} : { tab: t })
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
@@ -11049,7 +11104,9 @@ function MembersModal({ t, lang, conv, currentUser, onClose, onRemove, onMuteMem
 
 // ── Search ──
 function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavigateToCompany }) {
-  const [query, setQuery] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const query = searchParams.get('q') || ''
+  const setQuery = (q) => setSearchParams(q ? { q } : {})
   const [results, setResults] = useState(null) // { posts, messages } | null
   const [companyMatches, setCompanyMatches] = useState([])
   const [loading, setLoading] = useState(false)
@@ -11113,7 +11170,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
           onChange={e => setQuery(e.target.value)}
           autoComplete="off"
         />
-        {query && <button className="p-search-bar-clear" onClick={() => { setQuery(''); setResults(null) }}>✕</button>}
+        {query && <button className="p-search-bar-clear" onClick={() => { setQuery(''); setResults(null); setCompanyMatches([]) }}>✕</button>}
       </div>
 
       {/* States */}
@@ -11204,7 +11261,9 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
   )
 }
 
-function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ssePayload }) {
+function MessagesPage({ lang, t, currentUser, mode, ssePayload }) {
+  const convMatch = useMatch('/messages/:convId')
+  const openConvId = convMatch?.params?.convId ? parseInt(convMatch.params.convId, 10) : null
   const [activeConv, setActiveConv] = useState(0)
   const [conversations, setConversations] = useState([])
   const [friends, setFriends] = useState([])
@@ -11271,13 +11330,13 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
   useEffect(() => {
     if (!openConvId) return
     const idx = conversations.findIndex(c => c.id === openConvId)
-    if (idx >= 0) { setActiveConv(idx); onConvOpened?.(); return }
+    if (idx >= 0) { setActiveConv(idx); return }
     // Conversation not in list yet (e.g. just created) — refetch and retry
     apiFetchConversations().then(data => {
       if (!data) return
       setConversations(data)
       const i = data.findIndex(c => c.id === openConvId)
-      if (i >= 0) { setActiveConv(i); onConvOpened?.() }
+      if (i >= 0) setActiveConv(i)
     })
   }, [openConvId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -11943,7 +12002,9 @@ const MOCK_EVENTS = [
 ]
 
 function EventsPage({ lang, t, currentUser, mode }) {
-  const [tab, setTab] = useState('my')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'my'
+  const setTab = (t) => setSearchParams(t === 'my' ? {} : { tab: t })
   const [events, setEvents] = useState(MOCK_EVENTS)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -14857,16 +14918,21 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
 }
 
 function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'all'
+  const filterType = searchParams.get('type') || ''
+  const filterLocation = searchParams.get('location') || ''
+  const filterKeyword = searchParams.get('q') || ''
+  const setTab = (t) => setSearchParams(p => { const n = new URLSearchParams(p); t === 'all' ? n.delete('tab') : n.set('tab', t); return n })
+  const setFilterType = (v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set('type', v) : n.delete('type'); return n })
+  const setFilterLocation = (v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set('location', v) : n.delete('location'); return n })
+  const setFilterKeyword = (v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set('q', v) : n.delete('q'); return n })
   const [jobs, setJobs] = useState([])
   const [savedJobs, setSavedJobs] = useState([])
   const [trackedJobs, setTrackedJobs] = useState([])
   const [sharedJobs, setSharedJobs] = useState([])
   const [myJobs, setMyJobs] = useState([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('all')
-  const [filterType, setFilterType] = useState('')
-  const [filterLocation, setFilterLocation] = useState('')
-  const [filterKeyword, setFilterKeyword] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [editJob, setEditJob] = useState(null)
   const [myCompanies, setMyCompanies] = useState([])
@@ -15822,10 +15888,22 @@ function MarketplaceStatsPanel({ stats, loading, myListings, t, lang }) {
 }
 
 function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile, onMakeOffer }) {
-  const [tab, setTab] = useState('browse')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'browse'
+  const filters = { category: searchParams.get('category') || '', location: searchParams.get('location') || '', q: searchParams.get('q') || '' }
+  const setTab = (t) => setSearchParams(p => { const n = new URLSearchParams(p); t === 'browse' ? n.delete('tab') : n.set('tab', t); return n })
+  const setFilters = (updater) => {
+    const next = typeof updater === 'function' ? updater(filters) : updater
+    setSearchParams(p => {
+      const n = new URLSearchParams(p)
+      next.category ? n.set('category', next.category) : n.delete('category')
+      next.location ? n.set('location', next.location) : n.delete('location')
+      next.q ? n.set('q', next.q) : n.delete('q')
+      return n
+    })
+  }
   const [listings, setListings] = useState([])
   const [myListings, setMyListings] = useState([])
-  const [filters, setFilters] = useState({ category: '', location: '', q: '' })
   const [selectedListing, setSelectedListing] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editListing, setEditListing] = useState(null)
