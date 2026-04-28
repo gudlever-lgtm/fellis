@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getTranslations } from './data.js'
-import { apiJoinGroup } from './api.js'
+import { apiJoinGroup, apiFollowGroup, apiUnfollowGroup } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -16,6 +16,9 @@ export default function GroupCard({ group, lang, onNavigate }) {
   const [joined, setJoined] = useState(group.isMember || false)
   const [requested, setRequested] = useState(group.hasRequested || false)
   const [busy, setBusy] = useState(false)
+  const [following, setFollowing] = useState(group.isFollowing || false)
+  const [followerCount, setFollowerCount] = useState(Number(group.followerCount) || 0)
+  const [followBusy, setFollowBusy] = useState(false)
 
   const coverSrc = group.coverUrl
     ? (group.coverUrl.startsWith('http') ? group.coverUrl : `${API_BASE}${group.coverUrl}`)
@@ -36,6 +39,20 @@ export default function GroupCard({ group, lang, onNavigate }) {
       else setJoined(true)
     }
     setBusy(false)
+  }
+
+  const handleFollow = async (e) => {
+    e.stopPropagation()
+    if (followBusy) return
+    setFollowBusy(true)
+    if (following) {
+      const res = await apiUnfollowGroup(group.id)
+      if (res !== null) { setFollowing(false); setFollowerCount(c => Math.max(0, c - 1)) }
+    } else {
+      const res = await apiFollowGroup(group.id)
+      if (res !== null) { setFollowing(true); setFollowerCount(c => c + 1) }
+    }
+    setFollowBusy(false)
   }
 
   const s = {
@@ -148,9 +165,36 @@ export default function GroupCard({ group, lang, onNavigate }) {
         <div style={s.meta}>
           {group.category && <span style={s.categoryPill}>{group.category}</span>}
           <span>👥 {memberCount} {memberCount === 1 ? g.member : g.members}</span>
+          {followerCount > 0 && (
+            <span>· {followerCount} {g.followers || 'followers'}</span>
+          )}
         </div>
         {group.description && <p style={s.desc}>{group.description}</p>}
-        <div style={s.footer}>{actionButton()}</div>
+        <div style={s.footer}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {actionButton()}
+            {group.type !== 'hidden' && (
+              <button
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  padding: '7px 14px',
+                  borderRadius: 20,
+                  cursor: followBusy ? 'default' : 'pointer',
+                  border: following ? '1.5px solid #C7D2FE' : '1.5px solid #6366F1',
+                  background: following ? '#EEF2FF' : '#fff',
+                  color: following ? '#4338CA' : '#6366F1',
+                  opacity: followBusy ? 0.7 : 1,
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+                onClick={handleFollow}
+                disabled={followBusy}
+              >
+                {following ? `✓ ${g.unfollowGroup || g.followingGroup}` : `+ ${g.followGroup || 'Follow'}`}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -229,8 +229,10 @@ router.get('/profile/:id/posts', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT p.id, p.text_da, p.text_en, p.media, p.likes, p.created_at,
-              (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
+              (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
+              p.group_id, c.name AS group_name, c.slug AS group_slug
        FROM posts p
+       LEFT JOIN conversations c ON c.id = p.group_id AND c.is_group = 1
        WHERE p.author_id = ? AND p.scheduled_at IS NULL
        ORDER BY p.created_at DESC LIMIT 10`,
       [targetId]
@@ -238,7 +240,7 @@ router.get('/profile/:id/posts', authenticate, async (req, res) => {
     res.json(rows.map(p => {
       let media = []
       try { media = JSON.parse(p.media) || [] } catch { /* ignore */ }
-      return { id: p.id, text_da: p.text_da, text_en: p.text_en, media, likes: p.likes, comment_count: p.comment_count, created_at: p.created_at }
+      return { id: p.id, text_da: p.text_da, text_en: p.text_en, media, likes: p.likes, comment_count: p.comment_count, created_at: p.created_at, group_id: p.group_id || null, group_name: p.group_name || null, group_slug: p.group_slug || null }
     }))
   } catch (err) {
     console.error('GET /api/profile/:id/posts error:', err.message)
