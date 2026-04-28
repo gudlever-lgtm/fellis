@@ -148,7 +148,7 @@ router.get('/feed', authenticate, async (req, res) => {
                   NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                   NULL as professional_title, NULL as business_category,
                   0 as author_badge_count,
-                  p.group_id, grp.name AS group_name, NULL AS group_slug
+                  p.group_id, grp.name AS group_name, grp.slug AS group_slug
            FROM posts p JOIN users u ON p.author_id = u.id
            LEFT JOIN conversations grp ON grp.id = p.group_id
            WHERE (p.author_id = ?
@@ -171,7 +171,7 @@ router.get('/feed', authenticate, async (req, res) => {
                   NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                   NULL as professional_title, NULL as business_category,
                   0 as author_badge_count,
-                  p.group_id, grp.name AS group_name, NULL AS group_slug
+                  p.group_id, grp.name AS group_name, grp.slug AS group_slug
            FROM posts p JOIN users u ON p.author_id = u.id
            LEFT JOIN conversations grp ON grp.id = p.group_id
            WHERE (p.author_id = ?
