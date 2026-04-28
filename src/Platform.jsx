@@ -4140,16 +4140,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                   const gKey = String(post.groupId)
                   const isFollowingGroup = followedGroupIds[gKey] === true
                   return (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 6, flexWrap: 'nowrap' }}>
-                      <span
+                    <span style={{ display: 'block', marginTop: 4 }}>
+                      <button
                         onClick={post.groupSlug ? e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) } : undefined}
-                        style={{ color: '#1877F2', fontSize: 11, cursor: post.groupSlug ? 'pointer' : 'default', fontWeight: 600 }}
                         title={post.groupSlug ? t.groups?.goToGroup : post.groupName}
-                      >🫂 {post.groupName}</span>
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#e8f0fe', color: '#1877F2', border: '1px solid #c5d8ff', borderRadius: 14, padding: '3px 10px', fontSize: 12, fontWeight: 700, cursor: post.groupSlug ? 'pointer' : 'default', lineHeight: 1.4 }}
+                      >🫂 {post.groupName}</button>
                       {!isOwn && !gState && (
                         isFollowingGroup ? (
                           <span
-                            style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: '#e8f4ec', border: '1px solid #b7dfc9', cursor: 'pointer' }}
+                            style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: '#e8f4ec', border: '1px solid #b7dfc9', cursor: 'pointer', marginLeft: 6 }}
                             onClick={async e => {
                               e.stopPropagation()
                               const res = await apiUnfollowGroup(post.groupId)
@@ -4164,12 +4164,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                               const res = await apiFollowGroup(post.groupId)
                               if (res !== null) setFollowedGroupIds(prev => ({ ...prev, [gKey]: true }))
                             }}
-                            style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: '#e8f4ec', color: '#2D6A4F', border: '1px solid #b7dfc9', cursor: 'pointer', fontWeight: 700, lineHeight: 1.4 }}
+                            style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: '#e8f4ec', color: '#2D6A4F', border: '1px solid #b7dfc9', cursor: 'pointer', fontWeight: 700, lineHeight: 1.4, marginLeft: 6 }}
                           >{t.groups?.followGroup}</button>
                         )
                       )}
-                      {gState === 'joined' && <span style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700 }}>✓ {t.groups?.followingGroup}</span>}
-                      {gState === 'pending' && <span style={{ fontSize: 10, color: '#D97706', fontWeight: 600 }}>{t.groups?.pending}</span>}
+                      {gState === 'joined' && <span style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, marginLeft: 6 }}>✓ {t.groups?.followingGroup}</span>}
+                      {gState === 'pending' && <span style={{ fontSize: 10, color: '#D97706', fontWeight: 600, marginLeft: 6 }}>{t.groups?.pending}</span>}
                     </span>
                   )
                 })()}
