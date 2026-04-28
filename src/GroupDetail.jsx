@@ -535,6 +535,33 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                   {isMuted ? '🔔' : '🔕'}
                 </button>
               )}
+              {group.type !== 'hidden' && (
+                <button
+                  style={{
+                    fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 20,
+                    border: groupFollowing ? '1.5px solid #C7D2FE' : '1.5px solid #6366F1',
+                    background: groupFollowing ? '#EEF2FF' : '#fff',
+                    color: groupFollowing ? '#4338CA' : '#6366F1',
+                    cursor: groupFollowBusy ? 'default' : 'pointer',
+                    opacity: groupFollowBusy ? 0.7 : 1,
+                  }}
+                  disabled={groupFollowBusy}
+                  onClick={async () => {
+                    if (groupFollowBusy) return
+                    setGroupFollowBusy(true)
+                    if (groupFollowing) {
+                      const res = await apiUnfollowGroup(group.id)
+                      if (res !== null) { setGroupFollowing(false); setGroupFollowerCount(c => Math.max(0, c - 1)) }
+                    } else {
+                      const res = await apiFollowGroup(group.id)
+                      if (res !== null) { setGroupFollowing(true); setGroupFollowerCount(c => c + 1) }
+                    }
+                    setGroupFollowBusy(false)
+                  }}
+                >
+                  {groupFollowing ? `✓ ${g.unfollowGroup || g.followingGroup}` : `+ ${g.followGroup}`}
+                </button>
+              )}
               {membership.isMember ? (
                 <button style={s.leaveBtn} onClick={handleLeave}>{g.leave}</button>
               ) : membership.hasRequested ? (
