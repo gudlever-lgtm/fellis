@@ -11367,13 +11367,20 @@ function MessagesPage({ lang, t, currentUser, mode, ssePayload }) {
         setConversations(prev => prev.map((c, i) => {
           if (i !== activeConv) return c
           const combined = [...data.messages, ...c.messages]
-          return { ...c, messages: combined.length > 40 ? combined.slice(0, 40) : combined }
+          const messages = combined.length > 40 ? combined.slice(0, 40) : combined
+          const reachedStart = data.messages.length < MSG_PAGE_SIZE
+          return { ...c, messages, ...(reachedStart ? { totalMessages: messages.length } : {}) }
         }))
         requestAnimationFrame(() => {
           if (msgBodyRef.current) {
             msgBodyRef.current.scrollTop = msgBodyRef.current.scrollHeight - prevScrollHeight
           }
         })
+      } else {
+        // No older messages — clamp totalMessages so the guard stops future fetches
+        setConversations(prev => prev.map((c, i) =>
+          i !== activeConv ? c : { ...c, totalMessages: c.messages.length }
+        ))
       }
       setLoadingOlder(false)
     }, { threshold: 0.1 })
