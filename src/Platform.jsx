@@ -4131,13 +4131,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 })()}
               </>
             }
-            badgeExtra={post.groupId && post.groupName ? (
-              <button
-                onClick={e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) }}
-                title={t.groups?.goToGroup || post.groupName}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e8f0fe', color: '#1877F2', border: '1px solid #c5d8ff', borderRadius: 8, padding: '2px 8px', fontSize: 10, fontWeight: 700, cursor: 'pointer', lineHeight: 1.4, marginLeft: 6 }}
-              >🫂 {post.groupName}</button>
-            ) : null}
+            badgeExtra={post.groupId && post.groupName ? (() => {
+              const isPublicGroup = post.groupType === 'public'
+              return (
+                <button
+                  onClick={isPublicGroup ? e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) } : undefined}
+                  title={isPublicGroup ? (t.groups?.goToGroup || post.groupName) : post.groupName}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e8f0fe', color: '#1877F2', border: '1px solid #c5d8ff', borderRadius: 8, padding: '2px 8px', fontSize: 10, fontWeight: 700, cursor: isPublicGroup ? 'pointer' : 'default', lineHeight: 1.4, marginLeft: 6 }}
+                >🫂 {post.groupName}</button>
+              )
+            })() : null}
             timeContent={
               <div className="p-post-time">
                 {post.time?.[lang]}
