@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react'
-import PostComposer from './PostComposer.jsx'
+import { useState, useEffect, useRef } from 'react'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
 import {
   apiGetGroup, apiGetGroupPosts, apiCreateGroupPost, apiDeleteGroupPost,
@@ -63,8 +62,11 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [feedLoading, setFeedLoading] = useState(false)
   const [composerText, setComposerText] = useState('')
   const [composerSubmitting, setComposerSubmitting] = useState(false)
+  const [composerExpanded, setComposerExpanded] = useState(false)
   const [composerMedia, setComposerMedia] = useState(null)
-  const [composerPreview, setComposerPreview] = useState(null)
+  const [composerPreviews, setComposerPreviews] = useState([])
+  const composerTextareaRef = useRef(null)
+  const composerFileRef = useRef(null)
   const [members, setMembers] = useState([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [pendingMembers, setPendingMembers] = useState([])
@@ -145,14 +147,19 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
 
   const handleMediaChange = (e) => {
     const file = e.target.files?.[0] || null
-    if (composerPreview) URL.revokeObjectURL(composerPreview)
-    if (file) {
-      setComposerMedia(file)
-      setComposerPreview(URL.createObjectURL(file))
-    } else {
-      setComposerMedia(null)
-      setComposerPreview(null)
-    }
+    if (!file) return
+    if (composerMedia) URL.revokeObjectURL(composerPreviews[0]?.url)
+    const url = URL.createObjectURL(file)
+    const type = file.type.startsWith('video/') ? 'video' : 'image'
+    setComposerMedia(file)
+    setComposerPreviews([{ url, type }])
+    if (e.target) e.target.value = ''
+  }
+
+  const handleRemoveMedia = () => {
+    if (composerPreviews[0]?.url) URL.revokeObjectURL(composerPreviews[0].url)
+    setComposerMedia(null)
+    setComposerPreviews([])
   }
 
   const doCreatePost = async (text, media) => {
@@ -160,8 +167,10 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     if (res) {
       setPosts(prev => [res, ...prev])
       setComposerText('')
-      if (composerPreview) { URL.revokeObjectURL(composerPreview); setComposerPreview(null) }
+      if (composerPreviews[0]?.url) URL.revokeObjectURL(composerPreviews[0].url)
+      setComposerPreviews([])
       setComposerMedia(null)
+      setComposerExpanded(false)
     }
   }
 
@@ -428,14 +437,6 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     moderation: g.moderationTab,
   }
 
-  const composerT = {
-    composer: {
-      posting_in: { social: '' },
-      placeholder: g.writePost || '',
-      submit: g.post || '',
-    },
-  }
-
   return (
     <div style={s.page}>
       {keywordWarning && (
@@ -562,42 +563,85 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
         {tab === 'feed' && (
           <div>
             {membership.isMember && (
-              <PostComposer
-                activeContext="social"
-                t={composerT}
-                lang={lang}
-                value={composerText}
-                onChange={setComposerText}
-                onSubmit={handleCreatePost}
-                submitting={composerSubmitting}
-              >
-                <div style={s.mediaRow}>
-                  <label style={s.mediaLabel}>
-                    {'📎'}
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      style={{ display: 'none' }}
-                      onChange={handleMediaChange}
-                    />
-                  </label>
-                  {composerPreview && (
-                    <div style={s.previewWrap}>
-                      <img src={composerPreview} alt="" style={s.previewImg} />
+              <div className="p-card p-new-post" style={{ marginBottom: 16 }}>
+                {!composerExpanded && !composerText && !composerPreviews.length ? (
+                  <div className="p-new-post-row p-new-post-collapsed">
+                    <div
+                      className="p-avatar-sm"
+                      style={{ background: nameToColor(currentUser?.name || ''), cursor: 'pointer' }}
+                      onClick={() => { setComposerExpanded(true); setTimeout(() => composerTextareaRef.current?.focus(), 0) }}
+                    >
+                      {getInitials(currentUser?.name || '')}
+                    </div>
+                    <div
+                      className="p-new-post-prompt"
+                      onClick={() => { setComposerExpanded(true); setTimeout(() => composerTextareaRef.current?.focus(), 0) }}
+                    >
+                      {g.writePost || (lang === 'da' ? 'Skriv et opslag til gruppen...' : 'Write a post for the group...')}
+                    </div>
+                    <label className="p-media-popup-wrap" style={{ cursor: 'pointer' }} onClick={() => setComposerExpanded(true)}>
+                      <span className="p-media-popup-btn">+</span>
+                      <input ref={composerFileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleMediaChange} />
+                    </label>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-new-post-row" style={{ position: 'relative' }}>
+                      <div className="p-avatar-sm" style={{ background: nameToColor(currentUser?.name || '') }}>
+                        {getInitials(currentUser?.name || '')}
+                      </div>
                       <button
-                        style={s.removeMedia}
-                        onClick={() => {
-                          URL.revokeObjectURL(composerPreview)
-                          setComposerMedia(null)
-                          setComposerPreview(null)
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setComposerText(''); handleRemoveMedia(); setComposerExpanded(false) }}
+                        style={{ position: 'absolute', top: 0, right: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#aaa', lineHeight: 1, padding: '2px 4px', borderRadius: 4 }}
+                      >✕</button>
+                      <textarea
+                        ref={composerTextareaRef}
+                        className="p-new-post-textarea"
+                        placeholder={g.writePost || (lang === 'da' ? 'Skriv et opslag til gruppen...' : 'Write a post for the group...')}
+                        value={composerText}
+                        onChange={e => { setComposerText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+                        onBlur={e => { if (!composerText.trim() && !composerPreviews.length && !e.relatedTarget) setComposerExpanded(false) }}
+                        autoFocus={composerExpanded && !composerText}
+                        lang={lang}
+                      />
+                    </div>
+                    {composerPreviews.length > 0 && (
+                      <div className="p-media-previews">
+                        {composerPreviews.map((p, i) => (
+                          <div key={i} className="p-media-preview">
+                            {p.type === 'video'
+                              ? <video src={p.url} className="p-media-preview-thumb" />
+                              : <img src={p.url} alt="" className="p-media-preview-thumb" />}
+                            <button className="p-media-preview-remove" onClick={handleRemoveMedia}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="p-new-post-actions">
+                      <div className="p-new-post-toolbar-left">
+                        <label className="p-media-popup-wrap" style={{ cursor: 'pointer' }}>
+                          <span className="p-media-popup-btn">+</span>
+                          <input ref={composerFileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleMediaChange} />
+                        </label>
+                      </div>
+                      <button
+                        onClick={handleCreatePost}
+                        disabled={composerSubmitting || !composerText.trim()}
+                        style={{
+                          padding: '8px 22px', borderRadius: 8, border: 'none', color: '#fff',
+                          fontSize: 14, fontWeight: 700, background: '#2D6A4F',
+                          opacity: (composerSubmitting || !composerText.trim()) ? 0.6 : 1,
+                          cursor: (composerSubmitting || !composerText.trim()) ? 'not-allowed' : 'pointer',
+                          transition: 'opacity 0.15s',
                         }}
                       >
-                        {'×'}
+                        {g.post || (lang === 'da' ? 'Post' : 'Post')}
                       </button>
                     </div>
-                  )}
-                </div>
-              </PostComposer>
+                  </>
+                )}
+              </div>
             )}
 
             {membership.hasRequested && !membership.isMember && (
@@ -615,9 +659,15 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               const canPin = isMod
               let media = []
               if (post.media) {
-                try { media = JSON.parse(post.media) } catch {}
-                if (!Array.isArray(media)) media = []
-                media = media.map(m => (m && typeof m === 'object' ? m.url : m)).filter(Boolean)
+                try {
+                  const raw = typeof post.media === 'string' ? JSON.parse(post.media) : post.media
+                  if (Array.isArray(raw)) {
+                    media = raw
+                      .map(m => m && typeof m === 'object' ? m : (m ? { url: m } : null))
+                      .filter(m => m?.url)
+                      .map(m => ({ url: m.url, type: m.type || (/\.(mp4|webm|ogg|mov)$/i.test(m.url) ? 'video' : 'image') }))
+                  }
+                } catch {}
               }
               return (
                 <div key={post.id} style={{ ...s.postCard, ...(post.is_pinned ? s.pinnedCard : {}) }}>
@@ -659,14 +709,12 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                   <p style={s.postText}>{text}</p>
                   {media.length > 0 && (
                     <div style={s.mediaGrid}>
-                      {media.map((url, i) => (
-                        <img
-                          key={i}
-                          src={url.startsWith('http') ? url : `${API_BASE}${url}`}
-                          alt=""
-                          style={s.mediaImg}
-                        />
-                      ))}
+                      {media.map((m, i) => {
+                        const src = m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`
+                        return m.type === 'video'
+                          ? <video key={i} src={src} style={s.mediaImg} controls />
+                          : <img key={i} src={src} alt="" style={s.mediaImg} />
+                      })}
                     </div>
                   )}
                   <div style={s.reactRow}>
@@ -1174,17 +1222,6 @@ const s = {
   reactRow: { display: 'flex', gap: 6, flexWrap: 'wrap' },
   reactBtn: { fontSize: 13, padding: '4px 10px', borderRadius: 20, border: '1px solid #E8E4DF', background: '#fff', cursor: 'pointer', color: '#555' },
   reactActive: { background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#4338CA' },
-  mediaRow: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 4 },
-  mediaLabel: { fontSize: 18, cursor: 'pointer', padding: '4px 8px', borderRadius: 8, border: '1px solid #E8E4DF', background: '#F9F7F5', userSelect: 'none' },
-  previewWrap: { position: 'relative', display: 'inline-block' },
-  previewImg: { height: 60, borderRadius: 6, objectFit: 'cover' },
-  removeMedia: {
-    position: 'absolute', top: -5, right: -5,
-    width: 18, height: 18, borderRadius: '50%',
-    border: 'none', background: '#333', color: '#fff',
-    fontSize: 12, cursor: 'pointer', lineHeight: 1, padding: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
   // Members tab
   memberRow: {
     display: 'flex', alignItems: 'center', gap: 12,
