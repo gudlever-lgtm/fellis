@@ -13,6 +13,7 @@ export default function PostCard({
   nameSuffix,
   timeContent,
   menuContent,
+  badgeExtra,
   children,
   ...rest
 }) {
@@ -49,6 +50,7 @@ export default function PostCard({
         <span style={{ background: theme.badgeBg, color: theme.badgeText, ...s.badge }}>
           {contextLabel}
         </span>
+        {badgeExtra}
       </div>
       <div style={s.header}>
         <div style={{ position: 'relative', flexShrink: 0 }}>

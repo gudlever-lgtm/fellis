@@ -4131,6 +4131,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 })()}
               </>
             }
+            badgeExtra={post.groupId && post.groupName ? (
+              <button
+                onClick={e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) }}
+                title={t.groups?.goToGroup || post.groupName}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e8f0fe', color: '#1877F2', border: '1px solid #c5d8ff', borderRadius: 8, padding: '2px 8px', fontSize: 10, fontWeight: 700, cursor: 'pointer', lineHeight: 1.4, marginLeft: 6 }}
+              >🫂 {post.groupName}</button>
+            ) : null}
             timeContent={
               <div className="p-post-time">
                 {post.time?.[lang]}
@@ -4139,39 +4146,32 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                   const gState = joinedGroupIds[post.groupId]
                   const gKey = String(post.groupId)
                   const isFollowingGroup = followedGroupIds[gKey] === true
-                  return (
-                    <span style={{ display: 'block', marginTop: 4 }}>
+                  return !isOwn && !gState ? (
+                    isFollowingGroup ? (
+                      <span
+                        style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: '#e8f4ec', border: '1px solid #b7dfc9', cursor: 'pointer', marginLeft: 6 }}
+                        onClick={async e => {
+                          e.stopPropagation()
+                          const res = await apiUnfollowGroup(post.groupId)
+                          if (res !== null) setFollowedGroupIds(prev => ({ ...prev, [gKey]: false }))
+                        }}
+                      >✓ {t.groups?.followingGroup}</span>
+                    ) : (
                       <button
-                        onClick={post.groupSlug ? e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) } : undefined}
-                        title={post.groupSlug ? t.groups?.goToGroup : post.groupName}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#e8f0fe', color: '#1877F2', border: '1px solid #c5d8ff', borderRadius: 14, padding: '3px 10px', fontSize: 12, fontWeight: 700, cursor: post.groupSlug ? 'pointer' : 'default', lineHeight: 1.4 }}
-                      >🫂 {post.groupName}</button>
-                      {!isOwn && !gState && (
-                        isFollowingGroup ? (
-                          <span
-                            style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: '#e8f4ec', border: '1px solid #b7dfc9', cursor: 'pointer', marginLeft: 6 }}
-                            onClick={async e => {
-                              e.stopPropagation()
-                              const res = await apiUnfollowGroup(post.groupId)
-                              if (res !== null) setFollowedGroupIds(prev => ({ ...prev, [gKey]: false }))
-                            }}
-                          >✓ {t.groups?.followingGroup}</span>
-                        ) : (
-                          <button
-                            onMouseDown={e => e.stopPropagation()}
-                            onClick={async e => {
-                              e.stopPropagation()
-                              const res = await apiFollowGroup(post.groupId)
-                              if (res !== null) setFollowedGroupIds(prev => ({ ...prev, [gKey]: true }))
-                            }}
-                            style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: '#e8f4ec', color: '#2D6A4F', border: '1px solid #b7dfc9', cursor: 'pointer', fontWeight: 700, lineHeight: 1.4, marginLeft: 6 }}
-                          >{t.groups?.followGroup}</button>
-                        )
-                      )}
-                      {gState === 'joined' && <span style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, marginLeft: 6 }}>✓ {t.groups?.followingGroup}</span>}
-                      {gState === 'pending' && <span style={{ fontSize: 10, color: '#D97706', fontWeight: 600, marginLeft: 6 }}>{t.groups?.pending}</span>}
-                    </span>
-                  )
+                        onMouseDown={e => e.stopPropagation()}
+                        onClick={async e => {
+                          e.stopPropagation()
+                          const res = await apiFollowGroup(post.groupId)
+                          if (res !== null) setFollowedGroupIds(prev => ({ ...prev, [gKey]: true }))
+                        }}
+                        style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: '#e8f4ec', color: '#2D6A4F', border: '1px solid #b7dfc9', cursor: 'pointer', fontWeight: 700, lineHeight: 1.4, marginLeft: 6 }}
+                      >{t.groups?.followGroup}</button>
+                    )
+                  ) : gState === 'joined' ? (
+                    <span style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, marginLeft: 6 }}>✓ {t.groups?.followingGroup}</span>
+                  ) : gState === 'pending' ? (
+                    <span style={{ fontSize: 10, color: '#D97706', fontWeight: 600, marginLeft: 6 }}>{t.groups?.pending}</span>
+                  ) : null
                 })()}
               </div>
             }
