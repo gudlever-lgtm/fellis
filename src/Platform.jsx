@@ -8719,9 +8719,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
         setProfile(data)
         setRequestSent(!!data.requestSent)
         setIsBlocked(!!data.isBlocked)
+        setIsFollowing(!!data.isFollowing)
+        setFollowerCount(Number(data.followerCount || 0))
         if (data.mode === 'business') {
-          setIsFollowing(!!data.isFollowing)
-          setFollowerCount(Number(data.followerCount || 0))
           apiGetCompanyProfile(userId).then(d => { if (d) setCompanyProfile(d) })
           // Load business extras
           apiGetBusinessServices(userId).then(d => setBizServices(d?.services || []))
@@ -8841,8 +8841,8 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               </div>
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
-              {profile.mode === 'business' && (
-                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.business?.followers || t.followers}</span></div>
+              {followerCount > 0 && (
+                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.business?.followers || t.followers || (lang === 'da' ? 'Følgere' : 'Followers')}</span></div>
               )}
             </div>
 
@@ -8901,6 +8901,34 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+              {/* Follow/unfollow for personal profiles */}
+              {profile.mode !== 'business' && profile.id !== currentUser.id && !isBlocked && (
+                <button
+                  className="p-friend-msg-btn"
+                  disabled={followBusy}
+                  style={{
+                    background: isFollowing ? '#EEF2FF' : '#2D6A4F',
+                    color: isFollowing ? '#4338CA' : '#fff',
+                    border: `1px solid ${isFollowing ? '#C7D2FE' : '#2D6A4F'}`,
+                    opacity: followBusy ? 0.7 : 1,
+                  }}
+                  onClick={async () => {
+                    setFollowBusy(true)
+                    if (isFollowing) {
+                      const res = await apiUnfollowUser(profile.id)
+                      if (res !== null) { setIsFollowing(false); setFollowerCount(c => Math.max(0, c - 1)) }
+                    } else {
+                      const res = await apiFollowUser(profile.id)
+                      if (res !== null) { setIsFollowing(true); setFollowerCount(c => c + 1) }
+                    }
+                    setFollowBusy(false)
+                  }}
+                >
+                  {isFollowing
+                    ? `✓ ${t.business?.unfollowBusiness || (lang === 'da' ? 'Følger' : 'Following')}`
+                    : `+ ${t.business?.followBusiness || (lang === 'da' ? 'Følg' : 'Follow')}`}
+                </button>
+              )}
               {/* Follow/unfollow for business profiles */}
               {profile.mode === 'business' && profile.id !== currentUser.id && (
                 <button

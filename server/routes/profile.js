@@ -128,6 +128,23 @@ router.get('/profile/:id', authenticate, async (req, res) => {
         return { id: r.badge_id, icon: def.icon, name: def.name[lang] || def.name.da, tier: def.tier, awardedAt: r.awarded_at }
       }).filter(Boolean)
     } catch { /* badges table may not exist yet */ }
+    // Check if viewer is following this user (user_follows table)
+    let isFollowingUser = false
+    let userFollowerCount = Number(u.follower_count || 0)
+    if (targetId !== req.userId) {
+      try {
+        const [[fRow]] = await pool.query(
+          'SELECT 1 FROM user_follows WHERE follower_id = ? AND followee_id = ?',
+          [req.userId, targetId]
+        )
+        isFollowingUser = !!fRow
+        const [[cntRow]] = await pool.query(
+          'SELECT COUNT(*) as cnt FROM user_follows WHERE followee_id = ?',
+          [targetId]
+        )
+        userFollowerCount = Number(cntRow?.cnt || 0)
+      } catch { /* user_follows table may not exist yet */ }
+    }
     const profilePayload = {
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
@@ -146,26 +163,32 @@ router.get('/profile/:id', authenticate, async (req, res) => {
       requestSent: !!u.request_sent,
       isBlocked,
       badges,
+      followerCount: userFollowerCount,
+      isFollowing: isFollowingUser,
     }
     if (u.mode === 'business') {
       profilePayload.businessCategory = u.business_category || null
       profilePayload.businessWebsite = u.business_website || null
       profilePayload.businessHours = u.business_hours || null
       profilePayload.businessDescription = { da: u.business_description_da || '', en: u.business_description_en || '' }
-      profilePayload.followerCount = Number(u.follower_count || 0)
       profilePayload.communityScore = Number(u.community_score || 0)
       profilePayload.cvrNumber = u.cvr_number || null
       profilePayload.is_verified = !!u.is_verified
-      // Check if the requesting user is following this business
-      let isFollowing = false
+      // For business: override with business_follows count and isFollowing check
+      let bizFollowing = false
       try {
         const [[fRow]] = await pool.query(
           'SELECT 1 FROM business_follows WHERE follower_id = ? AND business_id = ?',
           [req.userId, targetId]
         )
-        isFollowing = !!fRow
+        bizFollowing = !!fRow
+        const [[cntRow]] = await pool.query(
+          'SELECT COUNT(*) as cnt FROM business_follows WHERE business_id = ?',
+          [targetId]
+        )
+        profilePayload.followerCount = Number(cntRow?.cnt || u.follower_count || 0)
       } catch {}
-      profilePayload.isFollowing = isFollowing
+      profilePayload.isFollowing = bizFollowing
     }
     res.json(profilePayload)
   } catch (err) {
