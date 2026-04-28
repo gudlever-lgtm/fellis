@@ -535,7 +535,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                   {isMuted ? '🔔' : '🔕'}
                 </button>
               )}
-              {group.type !== 'hidden' && (
+              {group.type !== 'hidden' && !membership.isMember && (
                 <button
                   style={{
                     fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 20,
@@ -566,9 +566,9 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 <button style={s.leaveBtn} onClick={handleLeave}>{g.leave}</button>
               ) : membership.hasRequested ? (
                 <button style={{ ...s.joinBtn, opacity: 0.6 }} disabled>{g.requestSent}</button>
-              ) : group.type === 'public' ? (
+              ) : !groupFollowing && group.type === 'public' ? (
                 <button style={s.joinBtn} onClick={handleJoin}>{g.join}</button>
-              ) : group.type === 'private' ? (
+              ) : !groupFollowing && group.type === 'private' ? (
                 <button style={s.joinBtn} onClick={handleRequestAccess}>{g.requestAccess}</button>
               ) : null}
             </div>
