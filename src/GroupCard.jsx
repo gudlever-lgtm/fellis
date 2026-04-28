@@ -173,7 +173,7 @@ export default function GroupCard({ group, lang, onNavigate }) {
         <div style={s.footer}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {actionButton()}
-            {group.type !== 'hidden' && (
+            {group.type !== 'hidden' && !joined && (
               <button
                 style={{
                   fontSize: 13,
