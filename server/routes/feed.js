@@ -140,35 +140,40 @@ router.get('/feed', authenticate, async (req, res) => {
         [req.userId, req.userId, req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
       )
     } catch {
-      // Second attempt: no extended columns (place_name etc.), but keep mode filter
+      // Second attempt: no extended columns (place_name etc.), but keep mode filter + group info
       try {
         ;[posts] = await pool.query(
           `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                   NULL as place_name, NULL as geo_lat, NULL as geo_lng,
                   NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                   NULL as professional_title, NULL as business_category,
-                  0 as author_badge_count
+                  0 as author_badge_count,
+                  p.group_id, grp.name AS group_name, NULL AS group_slug
            FROM posts p JOIN users u ON p.author_id = u.id
+           LEFT JOIN conversations grp ON grp.id = p.group_id
            WHERE (p.author_id = ?
              OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
-             OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+             OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?)
+             OR p.group_id IN (SELECT group_id FROM group_follows WHERE user_id = ?))
              AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
              ${modeClause}
              ${cursorFilter}
              ${rankedWindowClause}
            ORDER BY p.created_at DESC
            LIMIT ?`,
-          [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
+          [req.userId, req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
         )
       } catch {
-        // Third attempt: user_mode column not yet migrated — return unfiltered feed
+        // Third attempt: user_mode column not yet migrated — return unfiltered feed with group info
         ;[posts] = await pool.query(
           `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                   NULL as place_name, NULL as geo_lat, NULL as geo_lng,
                   NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                   NULL as professional_title, NULL as business_category,
-                  0 as author_badge_count
+                  0 as author_badge_count,
+                  p.group_id, grp.name AS group_name, NULL AS group_slug
            FROM posts p JOIN users u ON p.author_id = u.id
+           LEFT JOIN conversations grp ON grp.id = p.group_id
            WHERE (p.author_id = ?
              OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
              OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
