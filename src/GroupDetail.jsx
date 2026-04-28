@@ -11,6 +11,7 @@ import {
   apiMuteConversation,
   apiGetGroupModerationReports, apiDismissGroupReport,
   apiPreflightPost,
+  apiFollowGroup, apiUnfollowGroup,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 import { getLocale } from './utils/dateFormat.js'
@@ -58,6 +59,9 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
 
   const [group, setGroup] = useState(null)
   const [loadState, setLoadState] = useState('loading')
+  const [groupFollowing, setGroupFollowing] = useState(false)
+  const [groupFollowerCount, setGroupFollowerCount] = useState(0)
+  const [groupFollowBusy, setGroupFollowBusy] = useState(false)
   const [tab, setTab] = useState('feed')
   const [posts, setPosts] = useState([])
   const [feedLoading, setFeedLoading] = useState(false)
@@ -106,6 +110,8 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       if (data.error === 'forbidden') { setLoadState('forbidden'); return }
       if (data.error) { setLoadState('not_found'); return }
       setGroup(data)
+      setGroupFollowing(Boolean(data.is_following))
+      setGroupFollowerCount(Number(data.follower_count) || 0)
       setLoadState('ready')
     })
     return () => { cancelled = true }
@@ -508,6 +514,9 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 )}
                 <span style={s.metaText}>
                   {'👥 '}{group.member_count}{' '}{group.member_count === 1 ? g.member : g.members}
+                </span>
+                <span style={s.metaText}>
+                  {'· '}{groupFollowerCount}{' '}{g.followers || 'followers'}
                 </span>
               </div>
             </div>

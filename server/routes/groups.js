@@ -761,13 +761,15 @@ router.get('/groups/:slug', authenticate, async (req, res) => {
       `SELECT c.*,
               (SELECT COUNT(*) FROM conversation_participants
                WHERE conversation_id = c.id AND status = 'active') AS member_count,
+              (SELECT COUNT(*) FROM group_follows WHERE group_id = c.id) AS follower_count,
+              (SELECT COUNT(*) FROM group_follows WHERE group_id = c.id AND user_id = ?) AS is_following,
               cp.role AS my_role,
               cp.status AS my_status,
               cp.muted_until AS my_muted_until
        FROM conversations c
        LEFT JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
        WHERE c.slug = ? AND c.is_group = 1`,
-      [req.userId, req.params.slug]
+      [req.userId, req.userId, req.params.slug]
     )
     if (!group) return res.status(404).json({ error: 'not_found' })
 
@@ -790,6 +792,8 @@ router.get('/groups/:slug', authenticate, async (req, res) => {
       tags,
       cover_url: group.cover_url || null,
       member_count: Number(group.member_count) || 0,
+      follower_count: Number(group.follower_count) || 0,
+      is_following: Boolean(group.is_following),
       created_at: group.created_at,
       created_by: group.created_by,
       pinned_post_id: group.pinned_post_id || null,

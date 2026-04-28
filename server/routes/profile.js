@@ -125,7 +125,7 @@ router.get('/profile/:id', authenticate, async (req, res) => {
       badges = badgeRows.map(r => {
         const def = BADGE_BY_ID[r.badge_id]
         if (!def) return null
-        return { id: r.badge_id, icon: def.icon, name: def.name[lang] || def.name.da, tier: def.tier, awardedAt: r.awarded_at }
+        return { id: r.badge_id, icon: def.icon, name: def.name[lang] || def.name.da, description: def.description?.[lang] || def.description?.da || null, tier: def.tier, awardedAt: r.awarded_at }
       }).filter(Boolean)
     } catch { /* badges table may not exist yet */ }
     // Check if viewer is following this user (user_follows table)
