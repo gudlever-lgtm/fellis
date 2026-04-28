@@ -122,7 +122,8 @@ router.get('/feed', authenticate, async (req, res) => {
                 p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
                 p.post_context, u.professional_title, u.business_category,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count,
-                p.group_id, grp.name AS group_name, grp.slug AS group_slug, grp.type AS group_type
+                p.group_id, grp.name AS group_name, grp.slug AS group_slug, grp.type AS group_type,
+                (SELECT 1 FROM conversation_participants WHERE conversation_id = p.group_id AND user_id = ? AND status = 'active') AS group_is_member
          FROM posts p JOIN users u ON p.author_id = u.id
          LEFT JOIN conversations grp ON grp.id = p.group_id
          WHERE (p.author_id = ?
@@ -137,7 +138,7 @@ router.get('/feed', authenticate, async (req, res) => {
            ${rankedWindowClause}
          ORDER BY p.created_at DESC
          LIMIT ?`,
-        [req.userId, req.userId, req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
+        [req.userId, req.userId, req.userId, req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
       )
     } catch {
       // Second attempt: no extended columns (place_name etc.), but keep mode filter + group info
@@ -148,7 +149,8 @@ router.get('/feed', authenticate, async (req, res) => {
                   NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                   NULL as professional_title, NULL as business_category,
                   0 as author_badge_count,
-                  p.group_id, grp.name AS group_name, grp.slug AS group_slug, grp.type AS group_type
+                  p.group_id, grp.name AS group_name, grp.slug AS group_slug, grp.type AS group_type,
+                  (SELECT 1 FROM conversation_participants WHERE conversation_id = p.group_id AND user_id = ? AND status = 'active') AS group_is_member
            FROM posts p JOIN users u ON p.author_id = u.id
            LEFT JOIN conversations grp ON grp.id = p.group_id
            WHERE (p.author_id = ?
@@ -161,7 +163,7 @@ router.get('/feed', authenticate, async (req, res) => {
              ${rankedWindowClause}
            ORDER BY p.created_at DESC
            LIMIT ?`,
-          [req.userId, req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
+          [req.userId, req.userId, req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
         )
       } catch {
         // Third attempt: user_mode column not yet migrated — return unfiltered feed with group info
@@ -171,7 +173,8 @@ router.get('/feed', authenticate, async (req, res) => {
                   NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                   NULL as professional_title, NULL as business_category,
                   0 as author_badge_count,
-                  p.group_id, grp.name AS group_name, grp.slug AS group_slug, grp.type AS group_type
+                  p.group_id, grp.name AS group_name, grp.slug AS group_slug, grp.type AS group_type,
+                  (SELECT 1 FROM conversation_participants WHERE conversation_id = p.group_id AND user_id = ? AND status = 'active') AS group_is_member
            FROM posts p JOIN users u ON p.author_id = u.id
            LEFT JOIN conversations grp ON grp.id = p.group_id
            WHERE (p.author_id = ?
@@ -182,7 +185,7 @@ router.get('/feed', authenticate, async (req, res) => {
              ${rankedWindowClause}
            ORDER BY p.created_at DESC
            LIMIT ?`,
-          [req.userId, req.userId, req.userId, ...cursorParams, sqlLimit]
+          [req.userId, req.userId, req.userId, req.userId, ...cursorParams, sqlLimit]
         )
       }
     }
@@ -321,6 +324,7 @@ router.get('/feed', authenticate, async (req, res) => {
         groupName: p.group_name || null,
         groupSlug: p.group_slug || null,
         groupType: p.group_type || null,
+        groupIsMember: !!p.group_is_member,
       }
     })
     // Ranked mode: rerank the candidate window by family × friend + interest × overlap
