@@ -2240,6 +2240,7 @@ function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
 
 function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
+  const [joinedGroupIds, setJoinedGroupIds] = useState({})
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [feedMode, setFeedMode] = useState(mode || 'privat')
   const feedModeRef = useRef(mode || 'privat')
@@ -4092,13 +4093,31 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
               <div className="p-post-time">
                 {post.time?.[lang]}
                 {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
-                {post.groupId && post.groupSlug && (
-                  <span
-                    onClick={e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) }}
-                    style={{ marginLeft: 6, color: '#1877F2', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
-                    title={post.groupName}
-                  >🫂 {post.groupName}</span>
-                )}
+                {post.groupId && post.groupName && (() => {
+                  const gState = joinedGroupIds[post.groupId]
+                  return (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 6, flexWrap: 'nowrap' }}>
+                      <span
+                        onClick={post.groupSlug ? e => { e.stopPropagation(); onNavigate('group-detail', { slug: post.groupSlug }) } : undefined}
+                        style={{ color: '#1877F2', fontSize: 11, cursor: post.groupSlug ? 'pointer' : 'default', fontWeight: 600 }}
+                        title={post.groupSlug ? t.groups?.goToGroup : post.groupName}
+                      >🫂 {post.groupName}</span>
+                      {!isOwn && !gState && (
+                        <button
+                          onMouseDown={e => e.stopPropagation()}
+                          onClick={async e => {
+                            e.stopPropagation()
+                            const res = await apiJoinGroup(post.groupId)
+                            if (res?.ok) setJoinedGroupIds(prev => ({ ...prev, [post.groupId]: res.status }))
+                          }}
+                          style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: '#e8f4ec', color: '#2D6A4F', border: '1px solid #b7dfc9', cursor: 'pointer', fontWeight: 700, lineHeight: 1.4 }}
+                        >{t.groups?.followGroup}</button>
+                      )}
+                      {gState === 'joined' && <span style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700 }}>✓ {t.groups?.followingGroup}</span>}
+                      {gState === 'pending' && <span style={{ fontSize: 10, color: '#D97706', fontWeight: 600 }}>{t.groups?.pending}</span>}
+                    </span>
+                  )
+                })()}
               </div>
             }
             menuContent={
