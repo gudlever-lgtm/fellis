@@ -172,7 +172,8 @@ export default function GroupCard({ group, lang, onNavigate }) {
         {group.description && <p style={s.desc}>{group.description}</p>}
         <div style={s.footer}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {actionButton()}
+            {/* Member: only show member button; Following: only show unfollow; else: both */}
+            {!joined && !following && actionButton()}
             {group.type !== 'hidden' && !joined && (
               <button
                 style={{
@@ -193,6 +194,7 @@ export default function GroupCard({ group, lang, onNavigate }) {
                 {following ? `✓ ${g.unfollowGroup || g.followingGroup}` : `+ ${g.followGroup || 'Follow'}`}
               </button>
             )}
+            {joined && actionButton()}
           </div>
         </div>
       </div>
