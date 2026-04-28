@@ -128,7 +128,7 @@ export default function GroupCard({ group, lang, onNavigate }) {
     if (joined) {
       return (
         <button style={s.actionBtn} disabled>
-          {`✓ ${g.followingGroup || g.joined}`}
+          {`✓ ${g.joined}`}
         </button>
       )
     }
