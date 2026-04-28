@@ -516,6 +516,20 @@ router.get('/groups/suggestions', authenticate, async (req, res) => {
   }
 })
 
+// ── Group follow ──────────────────────────────────────────────────────────────
+
+router.get('/groups/following', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT group_id FROM group_follows WHERE user_id = ?', [req.userId]
+    )
+    res.json(rows.map(r => r.group_id))
+  } catch (err) {
+    console.error('GET /api/groups/following error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
 // ── Create group ──────────────────────────────────────────────────────────────
 
 router.post('/groups', authenticate, writeLimit, async (req, res) => {
@@ -1452,20 +1466,6 @@ router.post('/groups/:id/moderation/:reportId/dismiss', authenticate, async (req
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/groups/:id/moderation/:reportId/dismiss error:', err)
-    res.status(500).json({ error: 'server_error' })
-  }
-})
-
-// ── Group follow ──────────────────────────────────────────────────────────────
-
-router.get('/groups/following', authenticate, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      'SELECT group_id FROM group_follows WHERE user_id = ?', [req.userId]
-    )
-    res.json(rows.map(r => r.group_id))
-  } catch (err) {
-    console.error('GET /api/groups/following error:', err)
     res.status(500).json({ error: 'server_error' })
   }
 })

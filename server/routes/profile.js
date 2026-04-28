@@ -500,7 +500,6 @@ router.patch('/me/business-profile', authenticate, writeLimit, async (req, res) 
 
 router.get('/me/followers', authenticate, async (req, res) => {
   try {
-    await pool.query(CREATE_USER_FOLLOWS)
     // Union: explicit user_follows + existing business_follows (deduplicated by user id)
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
@@ -525,7 +524,6 @@ router.get('/me/followers', authenticate, async (req, res) => {
 
 router.get('/me/following', authenticate, async (req, res) => {
   try {
-    await pool.query(CREATE_USER_FOLLOWS)
     // Union user_follows and business_follows so existing BusinessDirectory follows appear
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
