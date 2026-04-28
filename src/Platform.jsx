@@ -2240,7 +2240,6 @@ function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
 
 function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
-  const [joinedGroupIds, setJoinedGroupIds] = useState({})
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [feedMode, setFeedMode] = useState(mode || 'privat')
   const feedModeRef = useRef(mode || 'privat')
@@ -2502,7 +2501,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const [editingPostId, setEditingPostId] = useState(null)
   const [editPostText, setEditPostText] = useState('')
   const [groupSuggestions, setGroupSuggestions] = useState([])
-  const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
+  const [joinedGroupIds, setJoinedGroupIds] = useState({})
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [suggestedPosts, setSuggestedPosts] = useState([])
   const [boostedFeedListings, setBoostedFeedListings] = useState([])
@@ -2518,7 +2517,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const [locationMapPost, setLocationMapPost] = useState(null) // post whose map is shown in modal
 
   const handleJoinGroup = async (groupId) => {
-    setJoinedGroupIds(prev => new Set([...prev, groupId]))
+    setJoinedGroupIds(prev => ({ ...prev, [groupId]: 'joined' }))
     await apiJoinGroup(groupId).catch(() => {})
   }
 
@@ -4519,7 +4518,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
 
       {/* Dynamic group suggestion card — shown when suggestions exist */}
       {(() => {
-        const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds.has(g.id))
+        const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds[g.id])
         if (!visible.length) return null
         return (
           <div className="p-card p-post" style={{ background: 'linear-gradient(135deg, #f0faf4 0%, #fff 100%)', border: '1.5px solid #d4edda' }}>
