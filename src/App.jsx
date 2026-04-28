@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import Landing from './Landing.jsx'
 const Platform = lazy(() => import('./Platform.jsx'))
 const PublicBlogPage = lazy(() => import('./BlogPage.jsx'))
@@ -342,6 +343,8 @@ function GeneralConsentDialog({ lang, onAccept }) {
 }
 
 function App() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [view, setView] = useState(() => {
     return localStorage.getItem('fellis_logged_in') ? 'platform' : 'landing'
   })
@@ -353,7 +356,6 @@ function App() {
   const [inviterName, setInviterName] = useState(null)
   const [inviterEmail, setInviterEmail] = useState(null)
   const [initialPostId, setInitialPostId] = useState(null)
-  const [initialPage, setInitialPage] = useState(null)
   const [resetToken, setResetToken] = useState(null)
   const [sessionExpired, setSessionExpired] = useState(false)
 
@@ -373,47 +375,40 @@ function App() {
     apiTrackVisit()
 
     // Check for /@handle URL pattern (public profile)
-    const handleMatch = window.location.pathname.match(/^\/@([^\/]+)(?:\/(.+))?$/)
+    const handleMatch = location.pathname.match(/^\/@([^/]+)(?:\/(.+))?$/)
     if (handleMatch) {
       const handle = handleMatch[1]
-      const subpage = handleMatch[2] // 'cv' or undefined
       ;(async () => {
         try {
           const userData = await apiGetUserByHandle(handle)
           if (userData?.id) {
-            // Store userId to show profile after auth check completes
-            sessionStorage.setItem('fellis_profile_userId', userData.id)
-            if (subpage) sessionStorage.setItem('fellis_profile_subpage', subpage)
-            // Replace URL to clean it up
-            window.history.replaceState({}, '', '/')
+            navigate('/profile/' + userData.id, { replace: true })
+          } else {
+            navigate('/', { replace: true })
           }
-        } catch (err) {
-          // Handle not found — just proceed normally
-          window.history.replaceState({}, '', '/')
+        } catch {
+          navigate('/', { replace: true })
         }
       })()
     }
 
-    const params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(location.search)
     const postId = params.get('post')
     if (postId) {
       setInitialPostId(parseInt(postId))
-      window.history.replaceState({}, '', window.location.pathname)
+      navigate(location.pathname, { replace: true })
     }
     const molliePayment = params.get('mollie_payment')
     if (molliePayment === 'success') {
-      setInitialPage('payment-success')
-      window.history.replaceState({}, '', window.location.pathname)
+      navigate('/payment-success', { replace: true })
     } else if (molliePayment === 'failed' || molliePayment === 'cancel') {
-      setInitialPage('payment-failed')
-      window.history.replaceState({}, '', window.location.pathname)
+      navigate('/payment-failed', { replace: true })
     }
     const pageParam = params.get('page')
     if (pageParam) {
-      setInitialPage(pageParam)
       params.delete('page')
       const remaining = params.toString()
-      window.history.replaceState({}, '', remaining ? `${window.location.pathname}?${remaining}` : window.location.pathname)
+      navigate(`/${pageParam}${remaining ? `?${remaining}` : ''}`, { replace: true })
     }
     // Returning from Google OAuth
     const googleSession = params.get('google_session')
@@ -429,12 +424,12 @@ function App() {
           localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
         }
         setView('platform')
-        window.history.replaceState({}, '', window.location.pathname)
+        navigate(location.pathname, { replace: true })
       })()
       return
     }
     if (googleConnected === '1') {
-      window.history.replaceState({}, '', window.location.pathname)
+      navigate(location.pathname, { replace: true })
     }
 
     // Returning from LinkedIn OAuth
@@ -450,12 +445,12 @@ function App() {
           localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
         }
         setView('platform')
-        window.history.replaceState({}, '', window.location.pathname)
+        navigate(location.pathname, { replace: true })
       })()
       return
     }
     if (linkedinConnected === '1') {
-      window.history.replaceState({}, '', window.location.pathname)
+      navigate(location.pathname, { replace: true })
     }
 
     // Check for invite token in URL
@@ -471,7 +466,7 @@ function App() {
         }
         if (data?.invitee_email) setInviterEmail(data.invitee_email)
       })
-      window.history.replaceState({}, '', window.location.pathname)
+      navigate(location.pathname, { replace: true })
     } else {
       const storedInvite = localStorage.getItem('fellis_invite_token')
       if (storedInvite) setInviteToken(storedInvite)
@@ -481,7 +476,7 @@ function App() {
     const resetTokenParam = params.get('reset_token')
     if (resetTokenParam) {
       setResetToken(resetTokenParam)
-      window.history.replaceState({}, '', window.location.pathname)
+      navigate(location.pathname, { replace: true })
     }
 
     apiCheckSession().then(async data => {
@@ -514,7 +509,7 @@ function App() {
         setView('landing')
       }
     })
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEnterPlatform = useCallback(async (selectedLang) => {
     setLang(selectedLang)
@@ -563,9 +558,6 @@ function App() {
             lang={lang}
             onLogout={handleLogout}
             initialPostId={initialPostId}
-            initialPage={initialPage}
-            initialProfileUserId={parseInt(sessionStorage.getItem('fellis_profile_userId') || '0') || null}
-            initialProfileSubpage={sessionStorage.getItem('fellis_profile_subpage')}
           />
         </Suspense>
         <InstallPrompt lang={lang} />
@@ -768,13 +760,16 @@ function PublicSalgsbetingelserPage() {
 }
 
 function AppRoot() {
-  const path = window.location.pathname.replace(/\/$/, '') || '/'
-  if (path === '/privacy') return <PublicPrivacyPage />
-  if (path === '/terms') return <PublicTermsPage />
-  if (path === '/salgsbetingelser') return <PublicSalgsbetingelserPage />
-  if (path === '/blog' || window.location.pathname.startsWith('/blog/')) return <Suspense fallback={null}><PublicBlogPage /></Suspense>
-  if (path === '/for-business') return <Suspense fallback={null}><ForBusiness /></Suspense>
-  return <App />
+  return (
+    <Routes>
+      <Route path="/privacy" element={<PublicPrivacyPage />} />
+      <Route path="/terms" element={<PublicTermsPage />} />
+      <Route path="/salgsbetingelser" element={<PublicSalgsbetingelserPage />} />
+      <Route path="/blog/*" element={<Suspense fallback={null}><PublicBlogPage /></Suspense>} />
+      <Route path="/for-business" element={<Suspense fallback={null}><ForBusiness /></Suspense>} />
+      <Route path="/*" element={<App />} />
+    </Routes>
+  )
 }
 
 export default AppRoot
