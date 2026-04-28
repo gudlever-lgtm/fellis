@@ -11,6 +11,23 @@ import { checkKeywords } from '../helpers.js'
 
 const router = express.Router()
 
+// ── Group follows table init ──────────────────────────────────────────────────
+
+;(async () => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS group_follows (
+      group_id INT NOT NULL,
+      user_id INT NOT NULL,
+      followed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (group_id, user_id),
+      KEY idx_gf_group (group_id),
+      KEY idx_gf_user (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('group_follows init error:', err.message)
+  }
+})()
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function getGroupById(id) {
@@ -56,14 +73,18 @@ router.get('/groups', authenticate, async (req, res) => {
               c.description_da, c.description_en,
               c.cover_url, c.member_count, c.type,
               (cp.user_id IS NOT NULL AND cp.status = 'active') AS is_member,
-              cp.status AS my_status
+              cp.status AS my_status,
+              (gf.user_id IS NOT NULL) AS is_following,
+              (SELECT COUNT(*) FROM group_follows gfc WHERE gfc.group_id = c.id) AS follower_count
        FROM conversations c
        LEFT JOIN conversation_participants cp
          ON cp.conversation_id = c.id AND cp.user_id = ?
+       LEFT JOIN group_follows gf
+         ON gf.group_id = c.id AND gf.user_id = ?
        WHERE ${conditions.join(' AND ')}
        ORDER BY ${orderBy}
        LIMIT 60`,
-      params
+      [req.userId, req.userId, ...params.slice(1)]
     )
     const groups = rows.map(r => ({
       id: r.id,
@@ -73,9 +94,11 @@ router.get('/groups', authenticate, async (req, res) => {
       description: r.description_da || r.description_en || '',
       coverUrl: r.cover_url || null,
       memberCount: Number(r.member_count) || 0,
+      followerCount: Number(r.follower_count) || 0,
       type: r.type || 'public',
       isMember: Boolean(r.is_member),
       hasRequested: r.my_status === 'pending',
+      isFollowing: Boolean(r.is_following),
     }))
     res.json({ groups })
   } catch (err) {
@@ -1425,6 +1448,46 @@ router.post('/groups/:id/moderation/:reportId/dismiss', authenticate, async (req
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/groups/:id/moderation/:reportId/dismiss error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// ── Group follow ──────────────────────────────────────────────────────────────
+
+router.post('/groups/:id/follow', authenticate, writeLimit, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  if (isNaN(groupId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const group = await getGroupById(groupId)
+    if (!group || group.type === 'hidden') return res.status(404).json({ error: 'not_found' })
+    await pool.query(
+      'INSERT IGNORE INTO group_follows (group_id, user_id) VALUES (?, ?)',
+      [groupId, req.userId]
+    )
+    const [[{ cnt }]] = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM group_follows WHERE group_id = ?', [groupId]
+    )
+    res.json({ ok: true, followerCount: Number(cnt) })
+  } catch (err) {
+    console.error('POST /api/groups/:id/follow error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.delete('/groups/:id/follow', authenticate, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  if (isNaN(groupId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    await pool.query(
+      'DELETE FROM group_follows WHERE group_id = ? AND user_id = ?',
+      [groupId, req.userId]
+    )
+    const [[{ cnt }]] = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM group_follows WHERE group_id = ?', [groupId]
+    )
+    res.json({ ok: true, followerCount: Number(cnt) })
+  } catch (err) {
+    console.error('DELETE /api/groups/:id/follow error:', err)
     res.status(500).json({ error: 'server_error' })
   }
 })

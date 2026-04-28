@@ -9189,9 +9189,47 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
       {/* Badges */}
       {profile?.badges?.length > 0 && (
         <div className="p-card" style={{ marginTop: 12 }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
-            🏅 {t.badges} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({profile.badges.length})</span>
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+              🏅 {t.badges} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({profile.badges.length})</span>
+            </h3>
+            {profile.id !== currentUser?.id && !isBlocked && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {followerCount > 0 && (
+                  <span style={{ fontSize: 12, color: '#888' }}>
+                    {followerCount} {t.business?.followers || (lang === 'da' ? 'følgere' : 'followers')}
+                  </span>
+                )}
+                <button
+                  className="p-friend-msg-btn"
+                  disabled={followBusy}
+                  style={{
+                    fontSize: 12,
+                    padding: '4px 12px',
+                    background: isFollowing ? '#EEF2FF' : '#2D6A4F',
+                    color: isFollowing ? '#4338CA' : '#fff',
+                    border: `1px solid ${isFollowing ? '#C7D2FE' : '#2D6A4F'}`,
+                    opacity: followBusy ? 0.7 : 1,
+                  }}
+                  onClick={async () => {
+                    setFollowBusy(true)
+                    if (isFollowing) {
+                      const res = profile.mode === 'business' ? await apiUnfollowBusiness(profile.id) : await apiUnfollowUser(profile.id)
+                      if (res !== null) { setIsFollowing(false); setFollowerCount(c => Math.max(0, c - 1)) }
+                    } else {
+                      const res = profile.mode === 'business' ? await apiFollowBusiness(profile.id) : await apiFollowUser(profile.id)
+                      if (res !== null) { setIsFollowing(true); setFollowerCount(c => c + 1) }
+                    }
+                    setFollowBusy(false)
+                  }}
+                >
+                  {isFollowing
+                    ? `✓ ${lang === 'da' ? 'Følger' : 'Following'}`
+                    : `+ ${lang === 'da' ? 'Følg' : 'Follow'}`}
+                </button>
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {profile.badges.map(b => (
               <div key={b.id} title={b.description || b.name} style={{ display: 'flex', alignItems: 'center', gap: 8, background: b.tier === 3 ? '#FFF8E1' : b.tier === 2 ? '#F5F5F5' : '#F0FAF4', borderRadius: 12, padding: '6px 14px', fontSize: 13, border: `1px solid ${b.tier === 3 ? '#FFD54F' : b.tier === 2 ? '#E0E0E0' : '#B7DFC9'}` }}>
@@ -9250,10 +9288,18 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     {text && <p style={{ margin: '0 0 4px', fontSize: 13, color: '#333', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{text}</p>}
-                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#999' }}>
+                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#999', flexWrap: 'wrap', alignItems: 'center' }}>
                       <span>{date}</span>
                       <span>❤️ {p.likes || 0}</span>
                       <span>💬 {p.comment_count || 0}</span>
+                      {p.group_id && p.group_name && (
+                        <button
+                          onClick={() => p.group_slug && onNavigate?.(`/groups/${p.group_slug}`)}
+                          style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: '#EEF2FF', color: '#4338CA', border: '1px solid #C7D2FE', cursor: p.group_slug ? 'pointer' : 'default' }}
+                        >
+                          🫂 {p.group_name}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
