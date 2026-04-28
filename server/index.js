@@ -1816,6 +1816,21 @@ async function initUserFollows() {
   }
 }
 
+async function initGroupFollows() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS group_follows (
+      group_id INT NOT NULL,
+      user_id INT NOT NULL,
+      followed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (group_id, user_id),
+      KEY idx_gf_group (group_id),
+      KEY idx_gf_user (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initGroupFollows error:', err.message)
+  }
+}
+
 // ── Companies & Jobs ──────────────────────────────────────────────────────────
 
 async function initCompanies() {
@@ -3478,6 +3493,8 @@ const PORT = process.env.PORT || 3001
   await initStoriesHashtags()
   await initSignalEngine()
   await initPersonalBirthdays()
+  await initUserFollows()
+  await initGroupFollows()
   // RTMP is handled by mediamtx (external service on port 1935).
   // node-media-server startup is intentionally disabled to avoid port conflicts.
   console.log('fellis.eu startup init complete')

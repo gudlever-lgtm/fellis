@@ -122,14 +122,14 @@ router.get('/feed', authenticate, async (req, res) => {
                 p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
                 p.post_context, u.professional_title, u.business_category,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count,
-                p.group_id, grp.name AS group_name, grp.slug AS group_slug,
-                (SELECT COUNT(*) FROM user_follows WHERE follower_id = ? AND followee_id = p.author_id) AS viewer_follows_author,
-                (SELECT COUNT(*) FROM group_follows WHERE user_id = ? AND group_id = p.group_id) AS viewer_follows_group
+                p.group_id, grp.name AS group_name, grp.slug AS group_slug
          FROM posts p JOIN users u ON p.author_id = u.id
          LEFT JOIN conversations grp ON grp.id = p.group_id
          WHERE (p.author_id = ?
            OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
-           OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+           OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?)
+           OR p.author_id IN (SELECT followee_id FROM user_follows WHERE follower_id = ?)
+           OR p.group_id IN (SELECT group_id FROM group_follows WHERE user_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
            AND (p.post_context IS NULL OR p.post_context = 'social')
            ${modeClause}
@@ -315,8 +315,6 @@ router.get('/feed', authenticate, async (req, res) => {
         groupId: p.group_id || null,
         groupName: p.group_name || null,
         groupSlug: p.group_slug || null,
-        viewerFollowsAuthor: Boolean(p.viewer_follows_author),
-        viewerFollowsGroup: Boolean(p.viewer_follows_group),
       }
     })
     // Ranked mode: rerank the candidate window by family × friend + interest × overlap

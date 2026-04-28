@@ -1458,6 +1458,18 @@ router.post('/groups/:id/moderation/:reportId/dismiss', authenticate, async (req
 
 // ── Group follow ──────────────────────────────────────────────────────────────
 
+router.get('/groups/following', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT group_id FROM group_follows WHERE user_id = ?', [req.userId]
+    )
+    res.json(rows.map(r => r.group_id))
+  } catch (err) {
+    console.error('GET /api/groups/following error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
 router.post('/groups/:id/follow', authenticate, writeLimit, async (req, res) => {
   const groupId = parseInt(req.params.id)
   if (isNaN(groupId)) return res.status(400).json({ error: 'invalid_id' })
