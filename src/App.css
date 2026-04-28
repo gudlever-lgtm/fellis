@@ -2252,12 +2252,12 @@
 .p-friend-msg-btn {
   background: #F0FAF4;
   color: #2D6A4F;
-  width: 100%;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 7px 16px;
+  border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
   transition: background 0.2s;
+  white-space: nowrap;
 }
 .p-friend-msg-btn:hover {
   background: #d6f0e0;

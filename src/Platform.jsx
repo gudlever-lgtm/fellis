@@ -4,7 +4,7 @@ import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToCol
 import { detectLanguage } from './utils/detectLanguage.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
 import { getLocale } from './utils/dateFormat.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiFetchPersonalBirthdays, apiAddPersonalBirthday, apiUpdatePersonalBirthday, apiDeletePersonalBirthday, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFollowGroup, apiUnfollowGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiFetchPersonalBirthdays, apiAddPersonalBirthday, apiUpdatePersonalBirthday, apiDeletePersonalBirthday, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
   apiGetEurDkkRate, apiFetchFriendSuggestions,
   apiFetchNetworkFeed, apiFetchBusinessFeed,
@@ -2502,6 +2502,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const [editPostText, setEditPostText] = useState('')
   const [groupSuggestions, setGroupSuggestions] = useState([])
   const [joinedGroupIds, setJoinedGroupIds] = useState({})
+  const [followedGroupIds, setFollowedGroupIds] = useState({})
+  const [followedAuthorIds, setFollowedAuthorIds] = useState({})
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [suggestedPosts, setSuggestedPosts] = useState([])
   const [boostedFeedListings, setBoostedFeedListings] = useState([])
@@ -4086,6 +4088,31 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                     : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
                   return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
                 })()}
+                {!isOwn && post.authorId && (() => {
+                  const key = String(post.authorId)
+                  const isFollowing = key in followedAuthorIds ? followedAuthorIds[key] : post.viewerFollowsAuthor
+                  return isFollowing ? (
+                    <span
+                      title={lang === 'da' ? 'Du følger denne bruger' : 'You follow this user'}
+                      style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: '#e8f4ec', border: '1px solid #b7dfc9', cursor: 'pointer', flexShrink: 0 }}
+                      onClick={async e => {
+                        e.stopPropagation()
+                        const res = await apiUnfollowUser(post.authorId)
+                        if (res !== null) setFollowedAuthorIds(prev => ({ ...prev, [key]: false }))
+                      }}
+                    >✓ {lang === 'da' ? 'Følger' : 'Following'}</span>
+                  ) : (
+                    <span
+                      title={lang === 'da' ? 'Følg denne bruger' : 'Follow this user'}
+                      style={{ fontSize: 10, color: '#6366F1', fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: '#f0f0ff', border: '1px solid #c7d2fe', cursor: 'pointer', flexShrink: 0 }}
+                      onClick={async e => {
+                        e.stopPropagation()
+                        const res = await apiFollowUser(post.authorId)
+                        if (res !== null) setFollowedAuthorIds(prev => ({ ...prev, [key]: true }))
+                      }}
+                    >+ {lang === 'da' ? 'Følg' : 'Follow'}</span>
+                  )
+                })()}
               </>
             }
             timeContent={
@@ -4094,6 +4121,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
                 {post.groupId && post.groupName && (() => {
                   const gState = joinedGroupIds[post.groupId]
+                  const gKey = String(post.groupId)
+                  const isFollowingGroup = gKey in followedGroupIds ? followedGroupIds[gKey] : post.viewerFollowsGroup
                   return (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 6, flexWrap: 'nowrap' }}>
                       <span
@@ -4102,15 +4131,26 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                         title={post.groupSlug ? t.groups?.goToGroup : post.groupName}
                       >🫂 {post.groupName}</span>
                       {!isOwn && !gState && (
-                        <button
-                          onMouseDown={e => e.stopPropagation()}
-                          onClick={async e => {
-                            e.stopPropagation()
-                            const res = await apiJoinGroup(post.groupId)
-                            if (res?.ok) setJoinedGroupIds(prev => ({ ...prev, [post.groupId]: res.status }))
-                          }}
-                          style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: '#e8f4ec', color: '#2D6A4F', border: '1px solid #b7dfc9', cursor: 'pointer', fontWeight: 700, lineHeight: 1.4 }}
-                        >{t.groups?.followGroup}</button>
+                        isFollowingGroup ? (
+                          <span
+                            style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: '#e8f4ec', border: '1px solid #b7dfc9', cursor: 'pointer' }}
+                            onClick={async e => {
+                              e.stopPropagation()
+                              const res = await apiUnfollowGroup(post.groupId)
+                              if (res !== null) setFollowedGroupIds(prev => ({ ...prev, [gKey]: false }))
+                            }}
+                          >✓ {t.groups?.followingGroup}</span>
+                        ) : (
+                          <button
+                            onMouseDown={e => e.stopPropagation()}
+                            onClick={async e => {
+                              e.stopPropagation()
+                              const res = await apiFollowGroup(post.groupId)
+                              if (res !== null) setFollowedGroupIds(prev => ({ ...prev, [gKey]: true }))
+                            }}
+                            style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: '#e8f4ec', color: '#2D6A4F', border: '1px solid #b7dfc9', cursor: 'pointer', fontWeight: 700, lineHeight: 1.4 }}
+                          >{t.groups?.followGroup}</button>
+                        )
                       )}
                       {gState === 'joined' && <span style={{ fontSize: 10, color: '#2D6A4F', fontWeight: 700 }}>✓ {t.groups?.followingGroup}</span>}
                       {gState === 'pending' && <span style={{ fontSize: 10, color: '#D97706', fontWeight: 600 }}>{t.groups?.pending}</span>}
@@ -8841,9 +8881,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               </div>
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
-              {followerCount > 0 && (
-                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.business?.followers || t.followers || (lang === 'da' ? 'Følgere' : 'Followers')}</span></div>
-              )}
+              <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.business?.followers || t.followers || (lang === 'da' ? 'Følgere' : 'Followers')}</span></div>
             </div>
 
             {/* Company profile card (new business mode) */}
@@ -9189,57 +9227,24 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
       {/* Badges */}
       {profile?.badges?.length > 0 && (
         <div className="p-card" style={{ marginTop: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
-              🏅 {t.badges} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({profile.badges.length})</span>
-            </h3>
-            {profile.id !== currentUser?.id && !isBlocked && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {followerCount > 0 && (
-                  <span style={{ fontSize: 12, color: '#888' }}>
-                    {followerCount} {t.business?.followers || (lang === 'da' ? 'følgere' : 'followers')}
-                  </span>
-                )}
-                <button
-                  className="p-friend-msg-btn"
-                  disabled={followBusy}
-                  style={{
-                    fontSize: 12,
-                    padding: '4px 12px',
-                    background: isFollowing ? '#EEF2FF' : '#2D6A4F',
-                    color: isFollowing ? '#4338CA' : '#fff',
-                    border: `1px solid ${isFollowing ? '#C7D2FE' : '#2D6A4F'}`,
-                    opacity: followBusy ? 0.7 : 1,
-                  }}
-                  onClick={async () => {
-                    setFollowBusy(true)
-                    if (isFollowing) {
-                      const res = profile.mode === 'business' ? await apiUnfollowBusiness(profile.id) : await apiUnfollowUser(profile.id)
-                      if (res !== null) { setIsFollowing(false); setFollowerCount(c => Math.max(0, c - 1)) }
-                    } else {
-                      const res = profile.mode === 'business' ? await apiFollowBusiness(profile.id) : await apiFollowUser(profile.id)
-                      if (res !== null) { setIsFollowing(true); setFollowerCount(c => c + 1) }
-                    }
-                    setFollowBusy(false)
-                  }}
-                >
-                  {isFollowing
-                    ? `✓ ${lang === 'da' ? 'Følger' : 'Following'}`
-                    : `+ ${lang === 'da' ? 'Følg' : 'Follow'}`}
-                </button>
-              </div>
-            )}
-          </div>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
+            🏅 {t.badges} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({profile.badges.length})</span>
+          </h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {profile.badges.map(b => (
-              <div key={b.id} title={b.description || b.name} style={{ display: 'flex', alignItems: 'center', gap: 8, background: b.tier === 3 ? '#FFF8E1' : b.tier === 2 ? '#F5F5F5' : '#F0FAF4', borderRadius: 12, padding: '6px 14px', fontSize: 13, border: `1px solid ${b.tier === 3 ? '#FFD54F' : b.tier === 2 ? '#E0E0E0' : '#B7DFC9'}` }}>
-                <span style={{ fontSize: 20 }}>{b.icon}</span>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 600, color: '#333', lineHeight: 1.3 }}>{b.name}</span>
-                  {b.description && <span style={{ fontSize: 11, color: '#888', lineHeight: 1.3 }}>{b.description}</span>}
+            {profile.badges.map(b => {
+              const tierLabel = b.tier === 3 ? (lang === 'da' ? 'Guld' : 'Gold') : b.tier === 2 ? (lang === 'da' ? 'Sølv' : 'Silver') : b.tier === 0 ? (lang === 'da' ? 'Påskeæg' : 'Easter egg') : (lang === 'da' ? 'Bronze' : 'Bronze')
+              const earnedDate = b.awardedAt ? new Date(b.awardedAt).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' }) : null
+              const tooltipParts = [b.name, b.description, tierLabel, earnedDate ? (lang === 'da' ? `Optjent ${earnedDate}` : `Earned ${earnedDate}`) : null].filter(Boolean)
+              return (
+                <div key={b.id} title={tooltipParts.join('\n')} style={{ display: 'flex', alignItems: 'center', gap: 8, background: b.tier === 3 ? '#FFF8E1' : b.tier === 2 ? '#F5F5F5' : '#F0FAF4', borderRadius: 12, padding: '6px 14px', fontSize: 13, border: `1px solid ${b.tier === 3 ? '#FFD54F' : b.tier === 2 ? '#E0E0E0' : '#B7DFC9'}` }}>
+                  <span style={{ fontSize: 20 }}>{b.icon}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 600, color: '#333', lineHeight: 1.3 }}>{b.name}</span>
+                    {b.description && <span style={{ fontSize: 11, color: '#888', lineHeight: 1.3 }}>{b.description}</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
