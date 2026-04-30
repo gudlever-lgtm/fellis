@@ -9,6 +9,7 @@ import {
 } from '../middleware.js'
 import { checkKeywords } from '../helpers.js'
 import { moderateGroupContent } from '../group-moderation.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -647,6 +648,7 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
     // Background moderation — never blocks the response
     const groupName = String(name).trim()
     const groupDesc = description ? String(description).trim() : ''
+    moderateContent({ table: 'conversations', id: newGroupId, text: `${groupName}\n${groupDesc}`, userId: req.userId }).catch(err => console.error('moderation error:', err))
     moderateGroupContent(groupName, groupDesc).then(async ({ flagged, categories }) => {
       if (!flagged) return
       try {
@@ -1022,6 +1024,7 @@ router.post('/groups/:id/posts', authenticate, writeLimit, upload.single('media'
       [result.insertId]
     )
     res.status(201).json({ ...post, reactions: {}, my_reaction: null, flagged: autoFlagKeyword ? true : undefined })
+    moderateContent({ table: 'posts', id: result.insertId, text: clean, userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     console.error('POST /api/groups/:id/posts error:', err)
     if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})

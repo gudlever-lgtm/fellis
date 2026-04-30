@@ -26,6 +26,7 @@ import path from 'path'
 import multer from 'multer'
 import bcrypt from 'bcrypt'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -35,7 +36,8 @@ router.get('/jobs', authenticate, async (req, res) => {
     let sql = `SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color, c.logo_url AS company_logo,
                  (SELECT COUNT(*) > 0 FROM job_saves WHERE job_id = j.id AND user_id = ?) AS saved
                FROM jobs j JOIN companies c ON c.id = j.company_id
-               WHERE j.active = 1`
+               WHERE j.active = 1
+                 AND (j.mod_status IS NULL OR j.mod_status != 'removed')`
     const params = [req.userId]
     if (q) { sql += ' AND (j.title LIKE ? OR j.description LIKE ?)'; params.push(`%${q}%`, `%${q}%`) }
     if (type) { sql += ' AND j.type = ?'; params.push(type) }
@@ -135,6 +137,7 @@ router.post('/jobs', authenticate, async (req, res) => {
       [result.insertId]
     )
     res.json(job)
+    moderateContent({ table: 'jobs', id: result.insertId, text: `${title}\n${description || ''}`, userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     console.error('POST /api/jobs error:', err.message)
     res.status(500).json({ error: 'Server error' })

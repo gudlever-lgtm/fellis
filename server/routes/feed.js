@@ -30,7 +30,7 @@ import {
   getMollieClient, checkKeywords, getMediaMaxFiles,
   isSafeExternalUrl, extractOgMeta, decodeHTMLEntities,
 } from '../helpers.js'
-import { moderateContent } from '../moderation.js'
+import { checkContentSafety, moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -134,6 +134,7 @@ router.get('/feed', authenticate, async (req, res) => {
            AND p.deleted_at IS NULL
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
            AND (p.post_context IS NULL OR p.post_context = 'social')
+           AND (p.mod_status IS NULL OR p.mod_status != 'removed')
            ${modeClause}
            ${cursorFilter}
            ${rankedWindowClause}
@@ -669,7 +670,7 @@ router.post('/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILE
   // AI content moderation
   let postModResult = { safe: true, reason: null, confidence: 'low' }
   if (text) {
-    postModResult = await moderateContent(text, 'post')
+    postModResult = await checkContentSafety(text, 'post')
     if (!postModResult.safe && postModResult.confidence === 'high') {
       pool.query(
         'INSERT INTO moderation_log (content_type, content_id, result, reason, confidence) VALUES (?, ?, ?, ?, ?)',
@@ -765,7 +766,9 @@ router.post('/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILE
     // Business community score: increment when a business user publishes a post
     pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [req.userId]).catch(() => {})
     if (scheduledDate) {
-      return res.json({ id: postId, scheduled: true, scheduledAt: scheduledDate })
+      res.json({ id: postId, scheduled: true, scheduledAt: scheduledDate })
+      moderateContent({ table: 'posts', id: postId, text: text || '', userId: req.userId }).catch(err => console.error('moderation error:', err))
+      return
     }
     res.json({
       id: postId,
@@ -793,6 +796,7 @@ router.post('/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILE
         [linkedServiceId, req.userId]
       ).then(([rows]) => rows[0] || null).catch(() => null) : null,
     })
+    moderateContent({ table: 'posts', id: postId, text: text || '', userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
   }
@@ -908,7 +912,7 @@ router.post('/feed/:id/comment', authenticate, writeLimit, upload.single('media'
   // AI content moderation
   let commentModResult = { safe: true, reason: null, confidence: 'low' }
   if (text) {
-    commentModResult = await moderateContent(text, 'comment')
+    commentModResult = await checkContentSafety(text, 'comment')
     if (!commentModResult.safe && commentModResult.confidence === 'high') {
       pool.query(
         'INSERT INTO moderation_log (content_type, content_id, result, reason, confidence) VALUES (?, ?, ?, ?, ?)',
@@ -976,6 +980,7 @@ router.post('/feed/:id/comment', authenticate, writeLimit, upload.single('media'
     // Business community score: increment when a business user adds a comment
     pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [req.userId]).catch(() => {})
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
+    moderateContent({ table: 'comments', id: commentId, text: text || '', userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
   }

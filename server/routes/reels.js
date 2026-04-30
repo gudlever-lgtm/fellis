@@ -27,6 +27,7 @@ import multer from 'multer'
 import bcrypt from 'bcrypt'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
 import { checkKeywords } from '../helpers.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -61,6 +62,7 @@ router.get('/reels', authenticate, async (req, res) => {
        JOIN users u ON r.user_id = u.id
        LEFT JOIN reel_likes rl ON rl.reel_id = r.id
        LEFT JOIN reel_comments rc ON rc.reel_id = r.id
+       WHERE (r.mod_status IS NULL OR r.mod_status != 'removed')
        GROUP BY r.id
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`,
@@ -103,6 +105,7 @@ router.post('/reels', authenticate, fileUploadLimit, reelUpload.single('video'),
     let tagged = null
     try { tagged = reel.tagged_users ? (typeof reel.tagged_users === 'string' ? JSON.parse(reel.tagged_users) : reel.tagged_users) : null } catch {}
     res.status(201).json({ reel: { ...reel, tagged_users: tagged } })
+    moderateContent({ table: 'reels', id: result.insertId, text: caption || '', userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     console.error('POST /api/reels error:', err.message)
     res.status(500).json({ error: 'Server error' })
