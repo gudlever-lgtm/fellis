@@ -1178,4 +1178,93 @@ if (translationSystemErrors.length > 0) {
   console.log(`${GREEN}✓ Translation system routes (set-language, content/:id, translate) are registered; translate.js has cache + DeepL wiring; VALID_LANGS includes 'fi'; POST /api/translate validates text and lang.${RESET}\n`)
 }
 
+// ── 21. Group creation moderation routes ─────────────────────────────────────
+//
+// Hybrid auto-approve + AI moderation pipeline for group creation:
+//
+//   POST  /api/groups                   → 201 (created, always immediate)
+//   GET   /api/groups/admin/flagged     → 200 (admin) | 401/403 (non-admin)
+//   PATCH /api/groups/admin/:id/status  → 200 (valid status: active|removed)
+//                                         400 (invalid status value)
+//
+// Static invariants:
+//   (a) All three routes are registered on the server
+//   (b) api.js exports apiGetFlaggedGroups and apiUpdateGroupModerationStatus
+//   (c) server/group-moderation.js exists and references MISTRAL_API_KEY
+//   (d) The migration file exists and extends group_status ENUM
+
+const REQUIRED_GROUP_MOD_ROUTES = [
+  'POST /api/groups',
+  'GET /api/groups/admin/flagged',
+  'PATCH /api/groups/admin/:id/status',
+]
+
+const missingGroupModRoutes = REQUIRED_GROUP_MOD_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingGroupModRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required group moderation server routes:${RESET}`)
+  for (const r of missingGroupModRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Group moderation routes (POST /api/groups, GET /api/groups/admin/flagged, PATCH /api/groups/admin/:id/status) are registered.${RESET}\n`)
+}
+
+// (b) api.js exports the moderation functions
+const REQUIRED_GROUP_MOD_API_FNS = ['apiGetFlaggedGroups', 'apiUpdateGroupModerationStatus']
+const missingGroupModApiFns = REQUIRED_GROUP_MOD_API_FNS.filter(fn => !apiSrc.includes(fn))
+if (missingGroupModApiFns.length > 0) {
+  console.log(`${RED}✗ src/api.js is missing group moderation API functions: ${missingGroupModApiFns.join(', ')}${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ src/api.js exports ${REQUIRED_GROUP_MOD_API_FNS.join(' and ')}.${RESET}\n`)
+}
+
+// (c) server/group-moderation.js exists and references MISTRAL_API_KEY
+const groupModerationPath = resolve(root, 'server/group-moderation.js')
+if (!existsSync(groupModerationPath)) {
+  console.log(`${RED}✗ server/group-moderation.js is missing — AI moderation for groups is not implemented.${RESET}\n`)
+  process.exit(1)
+}
+const groupModerationSrc = readFileSync(groupModerationPath, 'utf8')
+if (!groupModerationSrc.includes('MISTRAL_API_KEY')) {
+  console.log(`${RED}✗ server/group-moderation.js does not reference MISTRAL_API_KEY.${RESET}\n`)
+  process.exit(1)
+}
+if (!groupModerationSrc.includes('flagged: false')) {
+  console.log(`${RED}✗ server/group-moderation.js is missing fail-safe { flagged: false } fallback — group creation would be blocked on moderation failure.${RESET}\n`)
+  process.exit(1)
+}
+console.log(`${GREEN}✓ server/group-moderation.js exists, references MISTRAL_API_KEY, and has fail-safe fallback.${RESET}\n`)
+
+// (d) migration file exists and extends group_status ENUM
+const groupModMigrationPath = resolve(root, 'server/migrate-group-moderation.sql')
+if (!existsSync(groupModMigrationPath)) {
+  console.log(`${RED}✗ server/migrate-group-moderation.sql is missing — group moderation columns are never added.${RESET}\n`)
+  process.exit(1)
+}
+const groupModMigrationSrc = readFileSync(groupModMigrationPath, 'utf8')
+const migrationErrors = []
+if (!groupModMigrationSrc.includes('flagged')) {
+  migrationErrors.push("group_status ENUM does not include 'flagged'")
+}
+if (!groupModMigrationSrc.includes('removed')) {
+  migrationErrors.push("group_status ENUM does not include 'removed'")
+}
+if (!groupModMigrationSrc.includes('group_moderation_note')) {
+  migrationErrors.push('group_moderation_note column is not defined')
+}
+if (migrationErrors.length > 0) {
+  console.log(`${RED}✗ server/migrate-group-moderation.sql is incomplete:${RESET}`)
+  for (const e of migrationErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ server/migrate-group-moderation.sql defines flagged/removed statuses and group_moderation_note.${RESET}`)
+  console.log(`${GREEN}  Remember to run 'cd server && npm run migrate' on the production server after deploy.${RESET}\n`)
+}
+
 process.exit(0)
