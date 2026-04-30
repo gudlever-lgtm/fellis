@@ -55,6 +55,7 @@ import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
   apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
+  apiGetFlaggedGroups, apiUpdateGroupModerationStatus,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
   apiGetMyServices,
   apiGetCompanyProfile,
@@ -2950,7 +2951,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
     const data = await apiEditPost(postId, text).catch(() => null)
     if (data?.ok) {
       setPosts(prev => prev.map(p => p.id === postId
-        ? { ...p, text: { da: data.text, en: data.text }, edited: true }
+        ? { ...p, text: { da: data.text, en: data.text }, edited: true, editedAt: new Date().toISOString() }
         : p))
       setEditingPostId(null)
       setEditPostText('')
@@ -4245,7 +4246,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                             🙈 {t.hidePost}
                           </button>
                           <button className="p-post-menu-item" onClick={() => { setPostMenu(null); setReportModal({ targetType: 'post', targetId: post.id }) }}>
-                            🚩 {t.reportPost}
+                            {t.redFlag}
                           </button>
                           {post.authorId && (
                             <>
@@ -4302,7 +4303,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
             ) : (
               <>
                 <PostText text={post.text} lang={lang} />
-                {post.edited && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.edited}</div>}
+                {post.editedAt && (() => {
+                  const editedDate = new Date(post.editedAt)
+                  const now = new Date()
+                  const isToday = editedDate.toDateString() === now.toDateString()
+                  const timeStr = isToday
+                    ? editedDate.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
+                    : editedDate.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })
+                  return <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.editedPrefix} {timeStr}</div>
+                })()}
               </>
             )}
             {post.media && <PostMedia media={post.media} lang={lang} />}
@@ -9654,6 +9663,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
     if (platform === 'twitter') shareUrl = `https://twitter.com/intent/tweet?url=${encoded}&text=${encodedText}`
     else if (platform === 'linkedin') shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}`
     else if (platform === 'whatsapp') shareUrl = `https://wa.me/?text=${encodedText}%20${encoded}`
+    else if (platform === 'facebook') shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encoded}`
     if (shareUrl) window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer')
     apiTrackShare('invite', null, platform).catch(() => {})
   }
@@ -9968,6 +9978,12 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     apiTrackShare('invite', null, 'whatsapp').catch(() => {})
   }, [inviteLink, lang])
 
+  const handleFacebookShare = useCallback(() => {
+    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=600,height=400')
+    apiTrackShare('invite', null, 'facebook').catch(() => {})
+  }, [inviteLink])
+
   const handleSendEmailInvite = useCallback(async (e) => {
     e.preventDefault()
     if (!inviteEmail.trim()) return
@@ -10160,6 +10176,10 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
           <button className="p-fb-share-btn" onClick={handleWhatsAppShare} style={{ background: '#25D366' }}>
             <span className="fb-icon">💬</span>
             {t.referralDashShareWhatsApp}
+          </button>
+          <button className="p-fb-share-btn" onClick={handleFacebookShare} style={{ background: '#1877F2' }}>
+            <span className="fb-icon" style={{ fontWeight: 900, fontSize: 16 }}>f</span>
+            {t.referralDashShareFacebook}
           </button>
         </div>
       </div>
@@ -19169,7 +19189,7 @@ function ReportModal({ t, targetType, targetId, onClose }) {
   return (
     <div style={s.backdrop} onClick={onClose}>
       <div style={s.modal} onClick={e => e.stopPropagation()}>
-        <h3 style={s.title}>🚩 {t.reportTitle}</h3>
+        <h3 style={s.title}>{targetType === 'group' ? t.redFlagTitleGroup : t.redFlagTitlePost}</h3>
         {status === 'done' && <div style={{ color: '#2D6A4F', fontWeight: 600, marginBottom: 12 }}>✓ {t.reportDone}</div>}
         {status === 'duplicate' && <div style={{ color: '#888', marginBottom: 12 }}>{t.reportDuplicate}</div>}
         {status !== 'done' && (
@@ -20640,6 +20660,10 @@ function AdminPage({ lang, t }) {
   // Flagged content (AI moderation queue)
   const [flaggedContent, setFlaggedContent] = useState(null)
   const [flaggedActionLoading, setFlaggedActionLoading] = useState({})
+  // Groups AI moderation queue
+  const [grpFlaggedQueue, setGrpFlaggedQueue] = useState(null)
+  const [grpFlaggedLoading, setGrpFlaggedLoading] = useState({})
+  const [grpFlaggedNotes, setGrpFlaggedNotes] = useState({})
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -20761,6 +20785,10 @@ function AdminPage({ lang, t }) {
     if (adminTab === 'groups-categories') {
       apiAdminGetGroupCategories().then(data => { if (data) setGrpCategories(data.categories || []) })
     }
+    if (adminTab === 'groups-ai-queue') {
+      setGrpFlaggedQueue(null)
+      apiGetFlaggedGroups().then(data => { if (data) setGrpFlaggedQueue(data.groups || []) })
+    }
   }, [adminTab, viralDays, auditLogOffset, auditLogFilter, feedbackFilter])
 
   const handleSave = async (e) => {
@@ -20847,6 +20875,7 @@ function AdminPage({ lang, t }) {
             tabs: [
               { id: 'groups-overview',    icon: '📊', label: t.adminGroupsOverview },
               { id: 'groups-approval',    icon: '✅', label: t.adminGroupsApproval },
+              { id: 'groups-ai-queue',    icon: '🤖', label: t.groups?.adminAiQueueTitle || 'AI Queue' },
               { id: 'groups-manage',      icon: '🔧', label: t.adminGroupsManage },
               { id: 'groups-reports',     icon: '🚨', label: t.adminGroupsReportsTab },
               { id: 'groups-settings',    icon: '⚙️', label: t.adminGroupsSettings },
@@ -22401,6 +22430,76 @@ function AdminPage({ lang, t }) {
                 </div>
               </div>
             ))}
+          </div>
+        )
+      })()}
+
+      {adminTab === 'groups-ai-queue' && (() => {
+        const tg = t.groups || {}
+        const sRow = { background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '14px 18px', marginBottom: 12 }
+        const actOnGroup = async (g, action) => {
+          const note = grpFlaggedNotes[g.id] || ''
+          setGrpFlaggedLoading(prev => ({ ...prev, [g.id]: action }))
+          const res = await apiUpdateGroupModerationStatus(g.id, action, note)
+          if (res?.group) {
+            setGrpFlaggedQueue(prev => prev.filter(x => x.id !== g.id))
+            setGrpFlaggedNotes(prev => { const n = { ...prev }; delete n[g.id]; return n })
+          }
+          setGrpFlaggedLoading(prev => { const n = { ...prev }; delete n[g.id]; return n })
+        }
+        return (
+          <div>
+            {!grpFlaggedQueue ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+            ) : grpFlaggedQueue.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>✅ {tg.adminAiQueueEmpty}</div>
+            ) : grpFlaggedQueue.map(g => {
+              const cats = (() => { try { return JSON.parse(g.group_moderation_note || '{}') } catch { return {} } })()
+              const flaggedCats = Object.entries(cats).filter(([, v]) => v).map(([k]) => k)
+              const loading = grpFlaggedLoading[g.id]
+              return (
+                <div key={g.id} style={sRow}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    {g.cover_url && <img src={g.cover_url} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{g.name}</div>
+                      <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
+                        {tg.adminAiQueueCreator}: {g.creator_name} ({g.creator_email}) · {g.category} · {g.type}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>
+                        {(g.description_da || g.description_en || '').slice(0, 160)}
+                      </div>
+                      {flaggedCats.length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, color: '#666', fontWeight: 600 }}>{tg.adminAiQueueFlaggedCategories}: </span>
+                          {flaggedCats.map(c => (
+                            <span key={c} style={{ background: '#FEE2E2', color: '#991B1B', borderRadius: 4, padding: '1px 7px', fontSize: 11, fontWeight: 700, marginRight: 4 }}>{c}</span>
+                          ))}
+                        </div>
+                      )}
+                      <input
+                        value={grpFlaggedNotes[g.id] || ''}
+                        onChange={e => setGrpFlaggedNotes(prev => ({ ...prev, [g.id]: e.target.value }))}
+                        placeholder={tg.adminAiQueueNoteHint}
+                        style={{ width: '100%', padding: '6px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, boxSizing: 'border-box', marginBottom: 8 }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          disabled={!!loading}
+                          onClick={() => actOnGroup(g, 'active')}
+                          style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #22C55E', background: '#F0FDF4', color: '#166534', fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: loading ? 0.6 : 1 }}
+                        >✓ {tg.adminAiQueueApprove}</button>
+                        <button
+                          disabled={!!loading}
+                          onClick={() => actOnGroup(g, 'removed')}
+                          style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #e03131', background: '#fff', color: '#e03131', fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: loading ? 0.6 : 1 }}
+                        >✕ {tg.adminAiQueueRemove}</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )
       })()}

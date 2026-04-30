@@ -154,6 +154,14 @@ export default {
       deleteGroup: 'Slet gruppe',
       deleteGroupConfirm: 'Er du sikker på, at du vil slette denne gruppe? Alt indhold og alle medlemmer fjernes permanent.',
       groupDeleted: 'Gruppen er slettet',
+      // Admin AI moderation queue
+      adminAiQueueTitle: 'AI-markerede grupper',
+      adminAiQueueEmpty: 'Ingen grupper afventer AI-gennemgang',
+      adminAiQueueApprove: 'Godkend',
+      adminAiQueueRemove: 'Fjern',
+      adminAiQueueCreator: 'Oprettet af',
+      adminAiQueueFlaggedCategories: 'Markerede kategorier',
+      adminAiQueueNoteHint: 'Bemærkning (valgfri)...',
     },
   },
   en: {
@@ -311,6 +319,14 @@ export default {
       deleteGroup: 'Delete group',
       deleteGroupConfirm: 'Are you sure you want to delete this group? All content and members will be permanently removed.',
       groupDeleted: 'Group deleted',
+      // Admin AI moderation queue
+      adminAiQueueTitle: 'AI-flagged groups',
+      adminAiQueueEmpty: 'No groups pending AI review',
+      adminAiQueueApprove: 'Approve',
+      adminAiQueueRemove: 'Remove',
+      adminAiQueueCreator: 'Created by',
+      adminAiQueueFlaggedCategories: 'Flagged categories',
+      adminAiQueueNoteHint: 'Note (optional)...',
     },
   },
   de: { groups: {
@@ -427,7 +443,14 @@ export default {
       "modReason": "Grund",
       "modDismiss": "Verwerfen",
       "modRemovePost": "Beitrag entfernen",
-      "modConfirmRemove": "Diesen gemeldeten Beitrag entfernen?"
+      "modConfirmRemove": "Diesen gemeldeten Beitrag entfernen?",
+      "adminAiQueueTitle": "KI-markierte Gruppen",
+      "adminAiQueueEmpty": "Keine Gruppen in der KI-Warteschlange",
+      "adminAiQueueApprove": "Genehmigen",
+      "adminAiQueueRemove": "Entfernen",
+      "adminAiQueueCreator": "Erstellt von",
+      "adminAiQueueFlaggedCategories": "Markierte Kategorien",
+      "adminAiQueueNoteHint": "Anmerkung (optional)..."
     } },
   fr: { groups: {
       "pageTitle": "Groupes",
@@ -543,7 +566,14 @@ export default {
       "modReason": "Raison",
       "modDismiss": "Ignorer",
       "modRemovePost": "Supprimer la publication",
-      "modConfirmRemove": "Supprimer cette publication signalée ?"
+      "modConfirmRemove": "Supprimer cette publication signalée ?",
+      "adminAiQueueTitle": "Groupes signalés par l'IA",
+      "adminAiQueueEmpty": "Aucun groupe en attente de révision IA",
+      "adminAiQueueApprove": "Approuver",
+      "adminAiQueueRemove": "Supprimer",
+      "adminAiQueueCreator": "Créé par",
+      "adminAiQueueFlaggedCategories": "Catégories signalées",
+      "adminAiQueueNoteHint": "Note (facultatif)..."
     } },
   nl: { groups: {
       "pageTitle": "Groepen",
@@ -659,7 +689,14 @@ export default {
       "modReason": "Reden",
       "modDismiss": "Afwijzen",
       "modRemovePost": "Bericht verwijderen",
-      "modConfirmRemove": "Dit gemelde bericht verwijderen?"
+      "modConfirmRemove": "Dit gemelde bericht verwijderen?",
+      "adminAiQueueTitle": "AI-gemarkeerde groepen",
+      "adminAiQueueEmpty": "Geen groepen in de AI-wachtrij",
+      "adminAiQueueApprove": "Goedkeuren",
+      "adminAiQueueRemove": "Verwijderen",
+      "adminAiQueueCreator": "Aangemaakt door",
+      "adminAiQueueFlaggedCategories": "Gemarkeerde categorieën",
+      "adminAiQueueNoteHint": "Opmerking (optioneel)..."
     } },
   sv: { groups: {
       "pageTitle": "Grupper",
@@ -775,7 +812,14 @@ export default {
       "modReason": "Anledning",
       "modDismiss": "Avfärda",
       "modRemovePost": "Ta bort inlägg",
-      "modConfirmRemove": "Ta bort detta anmälda inlägg?"
+      "modConfirmRemove": "Ta bort detta anmälda inlägg?",
+      "adminAiQueueTitle": "AI-flaggade grupper",
+      "adminAiQueueEmpty": "Inga grupper i AI-kön",
+      "adminAiQueueApprove": "Godkänn",
+      "adminAiQueueRemove": "Ta bort",
+      "adminAiQueueCreator": "Skapad av",
+      "adminAiQueueFlaggedCategories": "Flaggade kategorier",
+      "adminAiQueueNoteHint": "Anteckning (valfri)..."
     } },
   fi: { groups: {
       "pageTitle": "Ryhmät",
@@ -891,7 +935,14 @@ export default {
       "modReason": "Syy",
       "modDismiss": "Hylkää",
       "modRemovePost": "Poista julkaisu",
-      "modConfirmRemove": "Poistetaanko tämä ilmoitettu julkaisu?"
+      "modConfirmRemove": "Poistetaanko tämä ilmoitettu julkaisu?",
+      "adminAiQueueTitle": "Tekoälyn merkitsemät ryhmät",
+      "adminAiQueueEmpty": "Ei ryhmiä tekoälytarkistuksessa",
+      "adminAiQueueApprove": "Hyväksy",
+      "adminAiQueueRemove": "Poista",
+      "adminAiQueueCreator": "Luonut",
+      "adminAiQueueFlaggedCategories": "Merkityt kategoriat",
+      "adminAiQueueNoteHint": "Huomio (valinnainen)..."
     } },
   no: { groups: {
       "pageTitle": "Grupper",
@@ -1007,7 +1058,14 @@ export default {
       "modReason": "Årsak",
       "modDismiss": "Avvis",
       "modRemovePost": "Fjern innlegg",
-      "modConfirmRemove": "Fjerne dette anmeldte innlegget?"
+      "modConfirmRemove": "Fjerne dette anmeldte innlegget?",
+      "adminAiQueueTitle": "AI-flaggede grupper",
+      "adminAiQueueEmpty": "Ingen grupper i AI-køen",
+      "adminAiQueueApprove": "Godkjenn",
+      "adminAiQueueRemove": "Fjern",
+      "adminAiQueueCreator": "Opprettet av",
+      "adminAiQueueFlaggedCategories": "Flaggede kategorier",
+      "adminAiQueueNoteHint": "Merknad (valgfritt)..."
     } },
   pl: { groups: {
       "pageTitle": "Grupy",
@@ -1123,7 +1181,14 @@ export default {
       "modReason": "Powód",
       "modDismiss": "Odrzuć",
       "modRemovePost": "Usuń post",
-      "modConfirmRemove": "Usunąć ten zgłoszony post?"
+      "modConfirmRemove": "Usunąć ten zgłoszony post?",
+      "adminAiQueueTitle": "Grupy oznaczone przez AI",
+      "adminAiQueueEmpty": "Brak grup w kolejce AI",
+      "adminAiQueueApprove": "Zatwierdź",
+      "adminAiQueueRemove": "Usuń",
+      "adminAiQueueCreator": "Utworzone przez",
+      "adminAiQueueFlaggedCategories": "Oznaczone kategorie",
+      "adminAiQueueNoteHint": "Uwaga (opcjonalnie)..."
     } },
   es: { groups: {
       "pageTitle": "Grupos",
@@ -1237,6 +1302,13 @@ export default {
       "modDismiss": "Desestimar",
       "modRemovePost": "Eliminar publicación",
       "modConfirmRemove": "¿Eliminar esta publicación denunciada?",
+      "adminAiQueueTitle": "Grupos marcados por IA",
+      "adminAiQueueEmpty": "No hay grupos en la cola de revisión IA",
+      "adminAiQueueApprove": "Aprobar",
+      "adminAiQueueRemove": "Eliminar",
+      "adminAiQueueCreator": "Creado por",
+      "adminAiQueueFlaggedCategories": "Categorías marcadas",
+      "adminAiQueueNoteHint": "Nota (opcional)...",
       "mute1w": "1 semana",
       "muteOff": "Desactivar",
       "mutedLabel": "Silenciado"
@@ -1355,7 +1427,14 @@ export default {
       "modReason": "Motivo",
       "modDismiss": "Ignora",
       "modRemovePost": "Rimuovi post",
-      "modConfirmRemove": "Rimuovere questo post segnalato?"
+      "modConfirmRemove": "Rimuovere questo post segnalato?",
+      "adminAiQueueTitle": "Gruppi segnalati dall'IA",
+      "adminAiQueueEmpty": "Nessun gruppo nella coda di revisione IA",
+      "adminAiQueueApprove": "Approva",
+      "adminAiQueueRemove": "Rimuovi",
+      "adminAiQueueCreator": "Creato da",
+      "adminAiQueueFlaggedCategories": "Categorie segnalate",
+      "adminAiQueueNoteHint": "Nota (opzionale)..."
     } },
   pt: { groups: {
       "pageTitle": "Grupos",
@@ -1465,6 +1544,13 @@ export default {
       "modDismiss": "Ignorar",
       "modRemovePost": "Remover publicação",
       "modConfirmRemove": "Remover esta publicação denunciada?",
+      "adminAiQueueTitle": "Grupos sinalizados pela IA",
+      "adminAiQueueEmpty": "Nenhum grupo na fila de revisão IA",
+      "adminAiQueueApprove": "Aprovar",
+      "adminAiQueueRemove": "Remover",
+      "adminAiQueueCreator": "Criado por",
+      "adminAiQueueFlaggedCategories": "Categorias sinalizadas",
+      "adminAiQueueNoteHint": "Nota (opcional)...",
       "muteTitle": "Silenciar notificações por...",
       "mute1h": "1 hora",
       "mute8h": "8 horas",
