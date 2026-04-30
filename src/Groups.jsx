@@ -154,7 +154,15 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
             {myGroupsLoading ? (
               <div style={s.empty}>{g.loading}</div>
             ) : myGroups.length === 0 ? (
-              <div style={s.empty}>{g.noMyGroups}</div>
+              <div style={s.empty}>
+                <div>{g.noMyGroups}</div>
+                <button
+                  style={s.discoverCta}
+                  onClick={() => setTab('discover')}
+                >
+                  {g.discoverCta || 'Opdag grupper →'}
+                </button>
+              </div>
             ) : myGroups.map(group => {
               const roleMeta = ROLE_STYLE[group.my_role] || ROLE_STYLE.member
               const roleLabel = g.role?.[group.my_role] || group.my_role
@@ -266,7 +274,12 @@ const s = {
   },
   tabActive: { color: '#4338CA', borderBottom: '2px solid #4338CA' },
   content: { padding: '16px 20px' },
-  empty: { textAlign: 'center', color: '#bbb', fontSize: 14, padding: '48px 0' },
+  empty: { textAlign: 'center', color: '#bbb', fontSize: 14, padding: '48px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 },
+  discoverCta: {
+    fontSize: 13, fontWeight: 700, padding: '8px 20px', borderRadius: 20,
+    border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff',
+    cursor: 'pointer',
+  },
   filters: {
     display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center',
   },
