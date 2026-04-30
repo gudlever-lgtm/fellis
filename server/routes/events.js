@@ -27,6 +27,7 @@ import path from 'path'
 import multer from 'multer'
 import bcrypt from 'bcrypt'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -46,6 +47,7 @@ router.get('/events', authenticate, async (req, res) => {
           WHERE r3.event_id = e.id AND r3.status = 'maybe') AS maybe_names,
         (SELECT r4.status FROM event_rsvps r4 WHERE r4.event_id = e.id AND r4.user_id = ?) AS my_rsvp
        FROM events e JOIN users u ON e.organizer_id = u.id
+       WHERE (e.mod_status IS NULL OR e.mod_status != 'removed')
        ORDER BY e.date ASC`,
       [req.userId]
     )
@@ -96,6 +98,7 @@ router.post('/events', authenticate, async (req, res) => {
       recipients: event.recipients || 'all',
       going: [], maybe: [], myRsvp: null,
     })
+    moderateContent({ table: 'events', id: result.insertId, text: `${title}\n${description || ''}`, userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     console.error('POST /api/events error:', err.message)
     res.status(500).json({ error: 'Server error' })

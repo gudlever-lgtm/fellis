@@ -33,6 +33,7 @@ import {
   recordLoginDay, computeUserStats, generateStreamKey,
   selectAdsForUser,
 } from '../helpers.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -1008,7 +1009,8 @@ router.get('/companies/:id/posts', authenticate, async (req, res) => {
               (SELECT COUNT(*) > 0 FROM company_post_likes WHERE post_id = cp.id AND user_id = ?) AS liked,
               (SELECT COUNT(*) FROM company_post_comments WHERE post_id = cp.id) AS comment_count
        FROM company_posts cp JOIN users u ON u.id = cp.author_id
-       WHERE cp.company_id = ? ORDER BY cp.created_at DESC LIMIT ? OFFSET ?`,
+       WHERE cp.company_id = ? AND (cp.mod_status IS NULL OR cp.mod_status != 'removed')
+       ORDER BY cp.created_at DESC LIMIT ? OFFSET ?`,
       [req.userId, req.params.id, limit, offset]
     )
     res.json({ posts })
@@ -1038,6 +1040,7 @@ router.post('/companies/:id/posts', authenticate, async (req, res) => {
       [result.insertId]
     )
     res.json(post)
+    moderateContent({ table: 'company_posts', id: result.insertId, text: text_da || '', userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     console.error('POST /api/companies/:id/posts error:', err.message)
     res.status(500).json({ error: 'Server error' })

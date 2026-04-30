@@ -271,6 +271,39 @@ if (!feedInsertRe.test(combinedServerSrc)) {
 // Suppress unused variable warning for the marker
 void POST_FEED_USER_MODE_MARKER
 
+// ── Content moderation module route declarations ──────────────────────────────
+//
+//   GET  /api/admin/moderation/flagged         → 200 (admin) | 401/403 (non-admin)
+//   PATCH /api/admin/moderation/:table/:id     → 200 (admin) | 400 (invalid table/status)
+//
+const REQUIRED_MODERATION_ROUTES = [
+  'GET /api/admin/moderation/flagged',
+  'PATCH /api/admin/moderation/:table/:id',
+]
+
+const missingModerationRoutes = REQUIRED_MODERATION_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingModerationRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required content moderation server routes:${RESET}`)
+  for (const r of missingModerationRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Content moderation routes (flagged + review) are registered on the server.${RESET}\n`)
+}
+
+// Verify table whitelist guard exists in admin moderation PATCH handler
+const MOD_TABLE_WHITELIST_MARKER = 'MODERATED_TABLES'
+if (!combinedServerSrc.includes(MOD_TABLE_WHITELIST_MARKER)) {
+  console.log(`${RED}✗ PATCH /api/admin/moderation/:table/:id is missing table whitelist guard (MODERATED_TABLES).${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Admin moderation PATCH handler validates table against whitelist.${RESET}\n`)
+}
+
 // ── 7. Direct fetch() / XHR calls have matching server routes ─────────────────
 //
 // Calls that bypass request() (auth, file uploads, public endpoints) are
