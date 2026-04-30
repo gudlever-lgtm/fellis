@@ -9662,6 +9662,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
     if (platform === 'twitter') shareUrl = `https://twitter.com/intent/tweet?url=${encoded}&text=${encodedText}`
     else if (platform === 'linkedin') shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}`
     else if (platform === 'whatsapp') shareUrl = `https://wa.me/?text=${encodedText}%20${encoded}`
+    else if (platform === 'facebook') shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encoded}`
     if (shareUrl) window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer')
     apiTrackShare('invite', null, platform).catch(() => {})
   }
@@ -9976,6 +9977,12 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     apiTrackShare('invite', null, 'whatsapp').catch(() => {})
   }, [inviteLink, lang])
 
+  const handleFacebookShare = useCallback(() => {
+    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=600,height=400')
+    apiTrackShare('invite', null, 'facebook').catch(() => {})
+  }, [inviteLink])
+
   const handleSendEmailInvite = useCallback(async (e) => {
     e.preventDefault()
     if (!inviteEmail.trim()) return
@@ -10168,6 +10175,10 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
           <button className="p-fb-share-btn" onClick={handleWhatsAppShare} style={{ background: '#25D366' }}>
             <span className="fb-icon">💬</span>
             {t.referralDashShareWhatsApp}
+          </button>
+          <button className="p-fb-share-btn" onClick={handleFacebookShare} style={{ background: '#1877F2' }}>
+            <span className="fb-icon" style={{ fontWeight: 900, fontSize: 16 }}>f</span>
+            {t.referralDashShareFacebook}
           </button>
         </div>
       </div>
