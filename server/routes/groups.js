@@ -25,6 +25,11 @@ const router = express.Router()
       KEY idx_gf_group (group_id),
       KEY idx_gf_user (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Ensure group_status ENUM includes flagged/removed (idempotent, safe to run repeatedly)
+    await pool.query(
+      `ALTER TABLE conversations
+       MODIFY COLUMN group_status ENUM('active','pending','rejected','flagged','removed') DEFAULT 'active'`
+    ).catch(() => {})
   } catch (err) {
     console.error('group_follows init error:', err.message)
   }
@@ -57,7 +62,7 @@ router.get('/groups', authenticate, async (req, res) => {
     const conditions = [
       `c.is_group = 1`,
       `c.type != 'hidden'`,
-      `(c.group_status IS NULL OR c.group_status = 'active')`,
+      `(c.group_status IS NULL OR c.group_status NOT IN ('pending', 'rejected', 'removed'))`,
     ]
     const params = [req.userId]
     if (category) { conditions.push(`c.category = ?`); params.push(category) }
