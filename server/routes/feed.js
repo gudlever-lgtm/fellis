@@ -131,6 +131,7 @@ router.get('/feed', authenticate, async (req, res) => {
            OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?)
            OR p.author_id IN (SELECT followee_id FROM user_follows WHERE follower_id = ?)
            OR p.group_id IN (SELECT group_id FROM group_follows WHERE user_id = ?))
+           AND p.deleted_at IS NULL
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
            AND (p.post_context IS NULL OR p.post_context = 'social')
            ${modeClause}
@@ -157,6 +158,7 @@ router.get('/feed', authenticate, async (req, res) => {
              OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
              OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?)
              OR p.group_id IN (SELECT group_id FROM group_follows WHERE user_id = ?))
+             AND p.deleted_at IS NULL
              AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
              ${modeClause}
              ${cursorFilter}
@@ -180,6 +182,7 @@ router.get('/feed', authenticate, async (req, res) => {
            WHERE (p.author_id = ?
              OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
              OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+             AND p.deleted_at IS NULL
              AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
              ${cursorFilter}
              ${rankedWindowClause}
@@ -308,6 +311,7 @@ router.get('/feed', authenticate, async (req, res) => {
         comments: commentsByPost[p.id] || [],
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
+        editedAt: p.edited_at || null,
         authorBadgeCount: p.author_badge_count || 0,
         placeName: p.place_name || null,
         geoLat: p.geo_lat || null,
@@ -459,6 +463,7 @@ async function fetchContextFeed(req, res, context) {
          WHERE (p.author_id = ?
            OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
            OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+           AND p.deleted_at IS NULL
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
            AND p.post_context = ?
            ${cursorFilter}
@@ -521,6 +526,7 @@ async function fetchContextFeed(req, res, context) {
         comments: commentsByPost[p.id] || [],
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
+        editedAt: p.edited_at || null,
         authorBadgeCount: p.author_badge_count || 0,
         placeName: p.place_name || null,
         postContext: p.post_context || context,
@@ -1014,12 +1020,32 @@ router.post('/comments/:id/like', authenticate, async (req, res) => {
 router.delete('/feed/:id', authenticate, async (req, res) => {
   try {
     const postId = parseInt(req.params.id)
-    const [rows] = await pool.query('SELECT id FROM posts WHERE id = ? AND author_id = ?', [postId, req.userId])
-    if (!rows.length) return res.status(403).json({ error: 'Not your post' })
-    await pool.query('DELETE FROM posts WHERE id = ?', [postId])
+    const [[post]] = await pool.query('SELECT id, author_id FROM posts WHERE id = ? AND deleted_at IS NULL', [postId])
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+    const isAdmin = req.userRole === 'admin'
+    if (post.author_id !== req.userId && !isAdmin) return res.status(403).json({ error: 'Not your post' })
+    await pool.query('UPDATE posts SET deleted_at = NOW() WHERE id = ?', [postId])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete post' })
+  }
+})
+
+
+router.get('/admin/posts/deleted', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200)
+    const [posts] = await pool.query(
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.created_at, p.edited_at, p.deleted_at
+       FROM posts p JOIN users u ON p.author_id = u.id
+       WHERE p.deleted_at IS NOT NULL
+       ORDER BY p.deleted_at DESC
+       LIMIT ?`,
+      [limit]
+    )
+    res.json({ posts })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch deleted posts' })
   }
 })
 
@@ -1052,7 +1078,7 @@ router.get('/posts/:id', authenticate, async (req, res) => {
     const [posts] = await pool.query(
       `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media,
               (SELECT reaction FROM post_likes WHERE post_id = p.id AND user_id = ?) as userReaction
-       FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?`,
+       FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ? AND p.deleted_at IS NULL`,
       [req.userId, postId]
     )
     if (!posts.length) return res.status(404).json({ error: 'Post not found' })
