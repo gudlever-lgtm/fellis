@@ -27,6 +27,7 @@ import multer from 'multer'
 import bcrypt from 'bcrypt'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
 import { getMollieClient } from '../helpers.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -76,7 +77,8 @@ router.get('/marketplace', authenticate, async (req, res) => {
     if (category) { where.push('l.category = ?'); params.push(category) }
     if (subcategory) { where.push('l.subcategory = ?'); params.push(subcategory) }
     if (location) { where.push('l.location LIKE ?'); params.push(`%${location}%`) }
-    if (where.length) sql += ' WHERE ' + where.join(' AND ')
+    where.push('(l.mod_status IS NULL OR l.mod_status != \'removed\')')
+    sql += ' WHERE ' + where.join(' AND ')
     sql += ' ORDER BY (l.boosted_until > NOW()) DESC, l.created_at DESC, l.id DESC LIMIT ? OFFSET ?'
     params.push(limit + 1, offset)
     const [rows] = await pool.query(sql, params)
@@ -133,6 +135,7 @@ router.post('/marketplace', authenticate, upload.array('photos', 10), async (req
     } catch (e) { console.error('[marketplace keyword alerts]', e.message) }
 
     res.json(parseListingPhotos(listing))
+    moderateContent({ table: 'marketplace_listings', id: result.insertId, text: `${title}\n${description || ''}`, userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     console.error('POST /api/marketplace error:', err.message)
     res.status(500).json({ error: 'Server error' })
