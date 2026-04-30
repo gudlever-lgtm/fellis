@@ -3581,14 +3581,16 @@
 .p-fb-share-btn {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #1877F2;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 10px 24px;
+  padding: 10px 12px;
   border-radius: 8px;
   transition: background 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .p-fb-share-btn:hover {
   background: #1565d8;
