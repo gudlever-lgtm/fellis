@@ -4942,7 +4942,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             {profile.location && (
               <span style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => setLocationPopup(profile.location)} title={lang === 'da' ? 'Vis på kort' : 'Show on map'}>📍 {profile.location}</span>
             )}
-            {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}</span>}
+            {profile.birthday && !isNaN(new Date(profile.birthday + 'T12:00:00')) && <span>🎂 {new Date(profile.birthday + 'T12:00:00').toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}</span>}
             {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(getLocale(lang), { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
             {profile.totalMinutes > 0 && <span>⏱ {t.hoursOnline}: {Math.floor(profile.totalMinutes / 60) > 0 ? `${Math.floor(profile.totalMinutes / 60)}t ` : ''}{profile.totalMinutes % 60}min</span>}
@@ -8859,7 +8859,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               {profile.location && (
                 <span style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => setLocationPopup(profile.location)} title={lang === 'da' ? 'Vis på kort' : 'Show on map'}>📍 {profile.location}</span>
               )}
-              {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}</span>}
+              {profile.birthday && !isNaN(new Date(profile.birthday + 'T12:00:00')) && <span>🎂 {new Date(profile.birthday + 'T12:00:00').toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}</span>}
               {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
               {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(getLocale(lang), { year: 'numeric', month: 'long' })}</span>}
             </div>
@@ -13402,7 +13402,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     )}
                     {job.deadline && (
                       <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 6 }}>
-                        ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}
+                        ⏳ {t.jobDeadline}: {new Date(job.deadline.slice(0, 10) + 'T12:00:00').toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}
                       </div>
                     )}
                     {job.collective_agreement && (
@@ -14487,7 +14487,7 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
           )}
           {job.deadline && (
             <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 8 }}>
-              ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
+              ⏳ {t.jobDeadline}: {new Date(job.deadline.slice(0, 10) + 'T12:00:00').toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -15155,7 +15155,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
   const [requirements, setRequirements] = useState(editJob?.requirements || '')
   const [applyLink, setApplyLink] = useState(editJob?.apply_link || '')
   const [contactEmail, setContactEmail] = useState(editJob?.contact_email || '')
-  const [deadline, setDeadline] = useState(editJob?.deadline ? editJob.deadline.split('T')[0] : '')
+  const [deadline, setDeadline] = useState(editJob?.deadline ? editJob.deadline.slice(0, 10) : '')
   const [salaryMin, setSalaryMin] = useState(editJob?.salary_min || '')
   const [salaryMax, setSalaryMax] = useState(editJob?.salary_max || '')
   const [salaryCurrency, setSalaryCurrency] = useState(editJob?.salary_currency || 'DKK')

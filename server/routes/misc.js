@@ -2105,7 +2105,7 @@ router.get('/calendar/events', authenticate, async (req, res) => {
     )
     const birthdays = birthdayRows.map(u => {
       let dateStr = u.birthday instanceof Date
-        ? `${u.birthday.getUTCFullYear()}-${String(u.birthday.getUTCMonth() + 1).padStart(2,'0')}-${String(u.birthday.getUTCDate()).padStart(2,'0')}`
+        ? `${u.birthday.getFullYear()}-${String(u.birthday.getMonth() + 1).padStart(2,'0')}-${String(u.birthday.getDate()).padStart(2,'0')}`
         : String(u.birthday).slice(0, 10)
       return { userId: u.id, name: u.name, initials: u.initials, avatarUrl: u.avatar_url, date: dateStr }
     })
@@ -2118,7 +2118,7 @@ router.get('/calendar/events', authenticate, async (req, res) => {
     personalRows.forEach(pb => {
       let dateStr = String(pb.birthday).slice(0, 10)
       if (pb.birthday instanceof Date) {
-        dateStr = `${pb.birthday.getUTCFullYear()}-${String(pb.birthday.getUTCMonth() + 1).padStart(2, '0')}-${String(pb.birthday.getUTCDate()).padStart(2, '0')}`
+        dateStr = `${pb.birthday.getFullYear()}-${String(pb.birthday.getMonth() + 1).padStart(2, '0')}-${String(pb.birthday.getDate()).padStart(2, '0')}`
       }
       birthdays.push({ personalId: pb.id, userId: null, name: pb.name, initials: pb.name.slice(0, 2).toUpperCase(), avatarUrl: null, date: dateStr, relation: pb.relation })
     })
@@ -2153,12 +2153,10 @@ router.get('/calendar/reminders', authenticate, async (req, res) => {
       'SELECT id, date, title, note FROM calendar_reminders WHERE user_id = ? ORDER BY date',
       [req.userId]
     )
-    // Format DATE as YYYY-MM-DD without timezone conversion (DATE columns are always local)
     const reminders = rows.map(r => {
       let dateStr = String(r.date).slice(0, 10)
-      // If it's a Date object, use getUTC* to avoid timezone shifts
       if (r.date instanceof Date) {
-        dateStr = `${r.date.getUTCFullYear()}-${String(r.date.getUTCMonth() + 1).padStart(2, '0')}-${String(r.date.getUTCDate()).padStart(2, '0')}`
+        dateStr = `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}-${String(r.date.getDate()).padStart(2, '0')}`
       }
       return { ...r, date: dateStr }
     })
@@ -2213,7 +2211,7 @@ router.get('/calendar/birthdays', authenticate, async (req, res) => {
     const birthdays = rows.map(r => {
       let dateStr = String(r.birthday).slice(0, 10)
       if (r.birthday instanceof Date) {
-        dateStr = `${r.birthday.getUTCFullYear()}-${String(r.birthday.getUTCMonth() + 1).padStart(2, '0')}-${String(r.birthday.getUTCDate()).padStart(2, '0')}`
+        dateStr = `${r.birthday.getFullYear()}-${String(r.birthday.getMonth() + 1).padStart(2, '0')}-${String(r.birthday.getDate()).padStart(2, '0')}`
       }
       return { id: r.id, name: r.name, birthday: dateStr, relation: r.relation }
     })
