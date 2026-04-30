@@ -5518,9 +5518,14 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 
         {/* ── Profile tab ─────────────────────────────────── */}
         {tab === 'profile' && <>
-          {/* Name (read-only) */}
+          {/* Name */}
           <label style={labelStyle}>{t.editNameLabel}</label>
-          <input style={fieldStyle} value={profile.name || ''} readOnly />
+          <input
+            style={fieldStyle}
+            value={profile.name || ''}
+            onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
+            maxLength={100}
+          />
 
           {/* Bio */}
           <label style={labelStyle}>{t.editBioLabel}</label>
@@ -5542,26 +5547,35 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
             inputStyle={fieldStyle}
           />
 
-          {/* Save bio + location */}
+          {/* Save name, bio + location */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
             <button
               type="button"
               disabled={bioSaveStatus === 'saving'}
               onClick={async () => {
+                const trimmedName = (profile.name || '').trim()
+                if (!trimmedName) { setBioSaveStatus('name-error'); return }
                 setBioSaveStatus('saving')
                 const res = await apiUpdateProfile({
+                  name: trimmedName,
                   bio_da: profile.bio?.da || '',
                   bio_en: profile.bio?.en || '',
                   location: profile.location || '',
                 })
                 setBioSaveStatus(res?.ok ? 'saved' : 'error')
                 setTimeout(() => setBioSaveStatus(null), 2000)
-                if (res?.ok) setTimeout(onBadgeCheck, 400)
+                if (res?.ok) {
+                  onUserUpdate(prev => ({ ...prev, name: trimmedName, initials: getInitials(trimmedName) }))
+                  setTimeout(onBadgeCheck, 400)
+                }
               }}
               style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
             >
               {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
             </button>
+            {bioSaveStatus === 'name-error' && (
+              <span style={{ color: '#C0392B', fontSize: 13 }}>{t.editNameRequired}</span>
+            )}
           </div>
 
           {/* Birthday */}
