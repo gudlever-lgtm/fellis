@@ -19,6 +19,7 @@ import {
   mailer, oauthStateTokens,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
+  BADGE_THRESHOLDS,
 } from '../middleware.js'
 import { requireFeature } from '../middleware/requireFeature.js'
 import crypto from 'crypto'
