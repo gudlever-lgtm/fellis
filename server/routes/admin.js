@@ -535,7 +535,7 @@ router.get('/admin/growth', authenticate, requireAdmin, async (req, res) => {
     )
     // Fill in zeros for days with no signups
     const map = {}
-    for (const r of rows) map[r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day).slice(0, 10)] = Number(r.count)
+    for (const r of rows) map[r.day instanceof Date ? `${r.day.getFullYear()}-${String(r.day.getMonth()+1).padStart(2,'0')}-${String(r.day.getDate()).padStart(2,'0')}` : String(r.day).slice(0, 10)] = Number(r.count)
     const result = []
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(); d.setDate(d.getDate() - i)

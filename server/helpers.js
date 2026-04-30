@@ -362,7 +362,7 @@ export async function computeUserStats(userId) {
     const yestStr = yesterday.toISOString().slice(0, 10)
     const dates = loginDays.map(d => {
       const v = d.login_date
-      if (v instanceof Date) return v.toISOString().slice(0, 10)
+      if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`
       return String(v).slice(0, 10)
     })
     if (dates[0] === todayStr || dates[0] === yestStr) {
