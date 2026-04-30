@@ -2950,7 +2950,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
     const data = await apiEditPost(postId, text).catch(() => null)
     if (data?.ok) {
       setPosts(prev => prev.map(p => p.id === postId
-        ? { ...p, text: { da: data.text, en: data.text }, edited: true }
+        ? { ...p, text: { da: data.text, en: data.text }, edited: true, editedAt: new Date().toISOString() }
         : p))
       setEditingPostId(null)
       setEditPostText('')
@@ -4302,7 +4302,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
             ) : (
               <>
                 <PostText text={post.text} lang={lang} />
-                {post.edited && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.edited}</div>}
+                {post.editedAt && (() => {
+                  const editedDate = new Date(post.editedAt)
+                  const now = new Date()
+                  const isToday = editedDate.toDateString() === now.toDateString()
+                  const timeStr = isToday
+                    ? editedDate.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
+                    : editedDate.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })
+                  return <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.editedPrefix} {timeStr}</div>
+                })()}
               </>
             )}
             {post.media && <PostMedia media={post.media} lang={lang} />}

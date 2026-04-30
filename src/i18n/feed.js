@@ -82,6 +82,7 @@ export default {
     translate_post: 'Oversæt opslag',
     show_original: 'Vis original',
     translating: 'Oversætter...',
+    editedPrefix: 'Redigeret',
   },
   en: {
     newPost: "What's on your mind?",
@@ -166,6 +167,7 @@ export default {
     translate_post: 'Translate post',
     show_original: 'Show original',
     translating: 'Translating...',
+    editedPrefix: 'Edited',
   },
   sv: {
     newPost: 'Vad tänker du på?',
@@ -241,6 +243,7 @@ export default {
     translate_post: 'Översätt inlägg',
     show_original: 'Visa original',
     translating: 'Översätter...',
+    editedPrefix: 'Redigerat',
   },
   no: {
     newPost: 'Hva tenker du på?',
@@ -316,6 +319,7 @@ export default {
     translate_post: 'Oversett innlegg',
     show_original: 'Vis original',
     translating: 'Oversetter...',
+    editedPrefix: 'Redigert',
   },
   de: {
     newPost: 'Was denkst du?',
@@ -391,6 +395,7 @@ export default {
     translate_post: 'Beitrag übersetzen',
     show_original: 'Original anzeigen',
     translating: 'Wird übersetzt...',
+    editedPrefix: 'Bearbeitet',
   },
   fr: {
     newPost: 'Quoi de neuf ?',
@@ -466,6 +471,7 @@ export default {
     translate_post: 'Traduire le post',
     show_original: "Afficher l'original",
     translating: 'Traduction...',
+    editedPrefix: 'Modifié',
   },
   es: {
     newPost: '¿Qué hay de nuevo?',
@@ -541,6 +547,7 @@ export default {
     translate_post: 'Traducir publicación',
     show_original: 'Ver original',
     translating: 'Traduciendo...',
+    editedPrefix: 'Editado',
   },
   it: {
     newPost: 'A cosa stai pensando?',
@@ -616,6 +623,7 @@ export default {
     translate_post: 'Traduci post',
     show_original: 'Mostra originale',
     translating: 'Traduzione...',
+    editedPrefix: 'Modificato',
   },
   nl: {
     newPost: 'Wat heb je op je hart?',
@@ -691,6 +699,7 @@ export default {
     translate_post: 'Bericht vertalen',
     show_original: 'Origineel tonen',
     translating: 'Vertalen...',
+    editedPrefix: 'Bewerkt',
   },
   pl: {
     newPost: 'Co masz na myśli?',
@@ -766,6 +775,7 @@ export default {
     translate_post: 'Przetłumacz post',
     show_original: 'Pokaż oryginał',
     translating: 'Tłumaczenie...',
+    editedPrefix: 'Edytowano',
   },
   pt: {
     newPost: 'O que tens na mente?',
@@ -841,6 +851,7 @@ export default {
     translate_post: 'Traduzir publicação',
     show_original: 'Mostrar original',
     translating: 'A traduzir...',
+    editedPrefix: 'Editado',
   },
   fi: {
     feedTab: { social: 'Sosiaalinen', network: 'Verkosto', business: 'Yritys' },
@@ -850,5 +861,6 @@ export default {
     translate_post: 'Käännä julkaisu',
     show_original: 'Näytä alkuperäinen',
     translating: 'Käännetään...',
+    editedPrefix: 'Muokattu',
   },
 }
