@@ -751,35 +751,37 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                       <div className="p-post-author">{post.author_name}</div>
                       <div className="p-post-time">{fmtTime(post.created_at, lang)}</div>
                     </div>
-                    {(canPin || canDelete) && (
+                    {(canPin || canDelete || canReport) && (
                       <div style={{ position: 'relative' }}>
-                        <button
-                          style={s.iconBtn}
-                          title={post.is_pinned ? g.unpinPost : g.pinPost}
-                          onClick={() => handlePinPost(post)}
-                        >
-                          {post.is_pinned ? '📌' : '📍'}
-                        </button>
-                      )}
-                      {canDelete && (
-                        <button
-                          style={s.iconBtn}
-                          title={g.deletePost}
-                          onClick={() => handleDeletePost(post.id)}
-                        >
-                          {'🗑️'}
-                        </button>
-                      )}
-                      {canReport && (
-                        <button
-                          style={s.iconBtn}
-                          title={t.redFlagTitlePost}
-                          onClick={() => openReport('post', post.id)}
-                        >
-                          {'🚩'}
-                        </button>
-                      )}
-                    </div>
+                        {(canPin || canDelete) && (
+                          <button
+                            style={s.iconBtn}
+                            title={post.is_pinned ? g.unpinPost : g.pinPost}
+                            onClick={() => handlePinPost(post)}
+                          >
+                            {post.is_pinned ? '📌' : '📍'}
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            style={s.iconBtn}
+                            title={g.deletePost}
+                            onClick={() => handleDeletePost(post.id)}
+                          >
+                            {'🗑️'}
+                          </button>
+                        )}
+                        {canReport && (
+                          <button
+                            style={s.iconBtn}
+                            title={t.redFlagTitlePost}
+                            onClick={() => openReport('post', post.id)}
+                          >
+                            {'🚩'}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <p className="p-post-text">{text}</p>
                   {media.length > 0 && (
