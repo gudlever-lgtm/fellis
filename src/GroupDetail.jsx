@@ -96,6 +96,8 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [modReports, setModReports] = useState([])
   const [modLoading, setModLoading] = useState(false)
   const [postMenu, setPostMenu] = useState(null)
+  const [likePopup, setLikePopup] = useState(null)
+  const [expandedComments, setExpandedComments] = useState(new Set())
   const [redFlagModal, setRedFlagModal] = useState(false)
   const [redFlagStatus, setRedFlagStatus] = useState('idle') // idle | submitting | done | duplicate
   const [redFlagReason, setRedFlagReason] = useState('')
@@ -335,6 +337,14 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       return { ...p, user_vote: optionIdx, options: newOptions }
     }))
     await apiVoteGroupPoll(group.slug, poll.id, optionIdx)
+  }
+
+  const toggleComments = (postId) => {
+    setExpandedComments(prev => {
+      const next = new Set(prev)
+      next.has(postId) ? next.delete(postId) : next.add(postId)
+      return next
+    })
   }
 
   const handleCopyLink = () => {
@@ -779,22 +789,79 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                       })}
                     </div>
                   )}
+                  {REACTIONS.some(r => (post.reactions?.[r] || 0) > 0) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 8px', borderBottom: '1px solid #F0EDE8', flexWrap: 'wrap' }}>
+                      {REACTIONS.filter(r => (post.reactions?.[r] || 0) > 0).map(r => (
+                        <span key={r} style={{ fontSize: 14 }}>
+                          {REACTION_EMOJI[r]} <span style={{ fontSize: 12, color: '#888' }}>{post.reactions[r]}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="p-post-actions">
-                    {REACTIONS.map(r => {
-                      const count = post.reactions?.[r] || 0
-                      const active = post.my_reaction === r
-                      return (
-                        <button
-                          key={r}
-                          className={`p-action-btn${active ? ' liked' : ''}`}
-                          title={g[`react${r.charAt(0).toUpperCase() + r.slice(1)}`] || r}
-                          onClick={() => handleReact(post, r)}
-                        >
-                          {REACTION_EMOJI[r]}{count > 0 ? ` ${count}` : ''}
-                        </button>
-                      )
-                    })}
+                    <div className="p-reaction-wrap" style={{ position: 'relative' }}>
+                      <button
+                        className={`p-action-btn${post.my_reaction ? ' liked' : ''}`}
+                        onClick={() => setLikePopup(p => p === post.id ? null : post.id)}
+                      >
+                        {post.my_reaction ? REACTION_EMOJI[post.my_reaction] : '🤍'} {t.like || (lang === 'da' ? 'Synes godt om' : 'Like')}
+                      </button>
+                      {likePopup === post.id && (
+                        <>
+                          <div className="p-share-backdrop" onClick={() => setLikePopup(null)} />
+                          <div className="p-reaction-popup">
+                            {REACTIONS.map(r => (
+                              <button
+                                key={r}
+                                className="p-reaction-btn"
+                                title={g[`react${r.charAt(0).toUpperCase() + r.slice(1)}`] || r}
+                                onClick={() => { handleReact(post, r); setLikePopup(null) }}
+                              >
+                                {REACTION_EMOJI[r]}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <button className="p-action-btn" onClick={() => toggleComments(post.id)}>
+                      💬 {t.comment || (lang === 'da' ? 'Kommentar' : 'Comment')}
+                    </button>
+                    <button
+                      className="p-action-btn"
+                      onClick={() => {
+                        const url = `${window.location.origin}/groups/${group.slug}`
+                        navigator.clipboard.writeText(url).catch(() => {})
+                      }}
+                    >
+                      ↗ {t.share || (lang === 'da' ? 'Del' : 'Share')}
+                    </button>
+                    <button
+                      className="p-action-btn"
+                      onClick={() => {
+                        setPosts(prev => prev.map(p =>
+                          p.id === post.id ? { ...p, _saved: !p._saved } : p
+                        ))
+                      }}
+                    >
+                      {post._saved ? '🔖' : '📌'} {t.save || (lang === 'da' ? 'Gem' : 'Save')}
+                    </button>
                   </div>
+                  {expandedComments.has(post.id) && (
+                    <div style={{ borderTop: '1px solid #F0EDE8', paddingTop: 10, marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div className="p-avatar-sm" style={{ background: nameToColor(currentUser?.name || ''), flexShrink: 0, fontSize: 11 }}>
+                        {getInitials(currentUser?.name || '')}
+                      </div>
+                      <input
+                        className="p-comment-input"
+                        placeholder={lang === 'da' ? 'Skriv en kommentar... — @ mention, # tag' : 'Write a comment... — @ mention, # tag'}
+                        style={{ flex: 1 }}
+                      />
+                      <button style={{ padding: '8px 16px', borderRadius: 20, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                        {lang === 'da' ? 'Send' : 'Send'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}

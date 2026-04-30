@@ -3464,6 +3464,84 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found' })
 })
 
+// ── Dynamic invite preview (OG tags + redirect) ──
+app.get('/invite/:token', async (req, res) => {
+  const { token } = req.params
+  const genericHtml = (status) => `<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta property="og:title" content="Du er inviteret til Fellis" />
+  <meta property="og:description" content="Bliv en del af det europæiske fællesskab – privat, GDPR-venligt og uden tracking." />
+  <meta property="og:image" content="https://fellis.eu/og-image.jpg" />
+  <meta property="og:url" content="https://fellis.eu/invite/${token}" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta http-equiv="refresh" content="0; url=https://fellis.eu/?invite=${token}" />
+</head>
+<body>Omstiller...</body>
+</html>`
+
+  try {
+    // Check personal invite token on users table
+    const [users] = await pool.query(
+      'SELECT name FROM users WHERE invite_token = ?',
+      [token]
+    )
+    if (users.length > 0) {
+      const name = users[0].name || 'En ven'
+      res.set('Content-Type', 'text/html')
+      return res.send(`<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta property="og:title" content="${name} har inviteret dig til Fellis" />
+  <meta property="og:description" content="Bliv en del af det europæiske fællesskab – privat, GDPR-venligt og uden tracking." />
+  <meta property="og:image" content="https://fellis.eu/og-image.jpg" />
+  <meta property="og:url" content="https://fellis.eu/invite/${token}" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta http-equiv="refresh" content="0; url=https://fellis.eu/?invite=${token}" />
+</head>
+<body>Omstiller...</body>
+</html>`)
+    }
+
+    // Check individual invitation token
+    const [invitations] = await pool.query(
+      `SELECT u.name FROM invitations i
+       JOIN users u ON i.inviter_id = u.id
+       WHERE i.invite_token = ? AND i.status = 'pending'`,
+      [token]
+    )
+    if (invitations.length > 0) {
+      const name = invitations[0].name || 'En ven'
+      res.set('Content-Type', 'text/html')
+      return res.send(`<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta property="og:title" content="${name} har inviteret dig til Fellis" />
+  <meta property="og:description" content="Bliv en del af det europæiske fællesskab – privat, GDPR-venligt og uden tracking." />
+  <meta property="og:image" content="https://fellis.eu/og-image.jpg" />
+  <meta property="og:url" content="https://fellis.eu/invite/${token}" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta http-equiv="refresh" content="0; url=https://fellis.eu/?invite=${token}" />
+</head>
+<body>Omstiller...</body>
+</html>`)
+    }
+
+    res.set('Content-Type', 'text/html')
+    return res.status(404).send(genericHtml(404))
+  } catch (err) {
+    console.error('GET /invite/:token error:', err.message)
+    res.set('Content-Type', 'text/html')
+    return res.status(200).send(genericHtml(200))
+  }
+})
+
 // ── SPA fallback ──
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
