@@ -4763,6 +4763,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [adfreeAssignments, setAdfreeAssignments] = useState(null) // null = not loaded
   const [photos, setPhotos] = useState([])
   const [lightbox, setLightbox] = useState(null)
+  const [locationPopup, setLocationPopup] = useState(null)
   const { rels } = useContactRelationships()
   const { syncFromServer: syncEggsFromServer } = useEasterEggs()
 
@@ -4920,7 +4921,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           <div className="p-profile-meta">
             {mode === 'business' && profile.jobTitle && <span>💼 {profile.jobTitle}{profile.company ? ` · ${profile.company}` : ''}</span>}
             {mode === 'business' && profile.industry && <span>🏭 {profile.industry}</span>}
-            {profile.location && <span>📍 {profile.location}</span>}
+            {profile.location && (
+              <span style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => setLocationPopup(profile.location)} title={lang === 'da' ? 'Vis på kort' : 'Show on map'}>📍 {profile.location}</span>
+            )}
             {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}</span>}
             {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(getLocale(lang), { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
@@ -5368,6 +5371,18 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         <div className="p-card" style={{ padding: '20px 24px' }}>
           <HashtagFollows lang={lang} />
         </div>
+      )}
+
+      {locationPopup && (
+        <>
+          <div onClick={() => setLocationPopup(null)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.35)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 300, background: '#fff', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '20px 24px', minWidth: 300, maxWidth: 380, width: '90vw' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>📍 {lang === 'da' ? 'Lokation' : 'Location'}</div>
+            <div style={{ fontSize: 14, color: '#333', marginBottom: 12 }}>{locationPopup}</div>
+            <OsmMap location={locationPopup} lang={lang} height={200} />
+            <button onClick={() => setLocationPopup(null)} style={{ display: 'block', marginTop: 12, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13 }}>{lang === 'da' ? 'Luk' : 'Close'}</button>
+          </div>
+        </>
       )}
     </div>
   )
@@ -8771,6 +8786,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
   const [crmNoteUpdatedAt, setCrmNoteUpdatedAt] = useState(null)
   const [crmSaveStatus, setCrmSaveStatus] = useState(null)
   const crmTimerRef = useRef(null)
+  const [locationPopup, setLocationPopup] = useState(null)
   const { triggerEgg } = useEasterEggs()
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
@@ -8911,7 +8927,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               </p>
             )}
             <div className="p-profile-meta">
-              {profile.location && <span>📍 {profile.location}</span>}
+              {profile.location && (
+                <span style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => setLocationPopup(profile.location)} title={lang === 'da' ? 'Vis på kort' : 'Show on map'}>📍 {profile.location}</span>
+              )}
               {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'long' })}</span>}
               {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
               {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(getLocale(lang), { year: 'numeric', month: 'long' })}</span>}
@@ -9391,6 +9409,18 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
           >✕</button>
         </div>
       )}
+
+      {locationPopup && (
+        <>
+          <div onClick={() => setLocationPopup(null)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.35)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 300, background: '#fff', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '20px 24px', minWidth: 300, maxWidth: 380, width: '90vw' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>📍 {lang === 'da' ? 'Lokation' : 'Location'}</div>
+            <div style={{ fontSize: 14, color: '#333', marginBottom: 12 }}>{locationPopup}</div>
+            <OsmMap location={locationPopup} lang={lang} height={200} />
+            <button onClick={() => setLocationPopup(null)} style={{ display: 'block', marginTop: 12, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13 }}>{lang === 'da' ? 'Luk' : 'Close'}</button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -9401,6 +9431,7 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
   const [crmNote, setCrmNote] = useState('')
   const [crmNoteUpdatedAt, setCrmNoteUpdatedAt] = useState(null)
   const [crmSaveStatus, setCrmSaveStatus] = useState(null) // null | 'saving' | 'saved'
+  const [locationPopup, setLocationPopup] = useState(null)
   const crmTimerRef = useRef(null)
 
   useEffect(() => {
@@ -9455,7 +9486,9 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
               {profile.handle && <p className="p-friend-profile-handle">@{profile.handle}</p>}
               {profile.bio?.[lang] && <p className="p-friend-profile-bio">{profile.bio[lang]}</p>}
               <div className="p-friend-profile-meta">
-                {profile.location && <span>📍 {profile.location}</span>}
+                {profile.location && (
+                  <span style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => setLocationPopup(profile.location)} title={lang === 'da' ? 'Vis på kort' : 'Show on map'}>📍 {profile.location}</span>
+                )}
                 {profile.joinDate && (
                   <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(getLocale(lang), { year: 'numeric', month: 'long' })}</span>
                 )}
@@ -9528,6 +9561,18 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
           </>
         )}
       </div>
+
+      {locationPopup && (
+        <>
+          <div onClick={() => setLocationPopup(null)} style={{ position: 'fixed', inset: 0, zIndex: 399, background: 'rgba(0,0,0,0.35)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 400, background: '#fff', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '20px 24px', minWidth: 300, maxWidth: 380, width: '90vw' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>📍 {lang === 'da' ? 'Lokation' : 'Location'}</div>
+            <div style={{ fontSize: 14, color: '#333', marginBottom: 12 }}>{locationPopup}</div>
+            <OsmMap location={locationPopup} lang={lang} height={200} />
+            <button onClick={() => setLocationPopup(null)} style={{ display: 'block', marginTop: 12, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13 }}>{lang === 'da' ? 'Luk' : 'Close'}</button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
