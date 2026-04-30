@@ -719,6 +719,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               const isOwn = post.author_id === currentUser?.id
               const canDelete = isOwn || isMod
               const canPin = isMod
+              const canReport = !isOwn && !!currentUser
               let media = []
               if (post.media) {
                 try {
@@ -769,7 +770,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                           {'🗑️'}
                         </button>
                       )}
-                      {!isOwn && currentUser && (
+                      {canReport && (
                         <button
                           style={s.iconBtn}
                           title={t.redFlagTitlePost}
