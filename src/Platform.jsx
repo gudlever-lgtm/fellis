@@ -863,7 +863,7 @@ export default function Platform({ onLogout, initialPostId }) {
           <FeedSidebar lang={lang} t={t} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} onNavigate={navigateTo} />
         </div>
         {page === 'reels' && <Suspense fallback={null}><ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={decodeURIComponent(location.pathname.split('/')[2] || '')} onViewProfile={(userId) => navigate('/profile/' + userId)} /></Suspense>}
-        {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => navigate('/profile/' + userId)} onNavigate={navigateGroups} />}
+        {page === 'explore' && <ExplorePage lang={lang} currentUser={currentUser} onViewProfile={(userId) => navigate('/profile/' + userId)} onNavigate={navigateGroups} />}
         {page === 'groups' && <Suspense fallback={null}><GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
         {page === 'group-detail' && <Suspense fallback={null}><GroupDetail slug={decodeURIComponent(location.pathname.split('/')[2] || '')} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
         {page === 'group-settings' && <Suspense fallback={null}><GroupSettings slug={decodeURIComponent(location.pathname.split('/')[2] || '')} lang={lang} onNavigate={navigateGroups} /></Suspense>}

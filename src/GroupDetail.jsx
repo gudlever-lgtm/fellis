@@ -95,10 +95,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [pollSaving, setPollSaving] = useState(false)
   const [modReports, setModReports] = useState([])
   const [modLoading, setModLoading] = useState(false)
-  const [postMenu, setPostMenu] = useState(null)
-  const [likePopup, setLikePopup] = useState(null)
-  const [expandedComments, setExpandedComments] = useState(new Set())
-  const [redFlagModal, setRedFlagModal] = useState(false)
+  const [reportTarget, setReportTarget] = useState(null) // { type: 'post'|'group', id: number } | null
   const [redFlagStatus, setRedFlagStatus] = useState('idle') // idle | submitting | done | duplicate
   const [redFlagReason, setRedFlagReason] = useState('')
   const [redFlagDetails, setRedFlagDetails] = useState('')
@@ -545,7 +542,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               {currentUser && !isAdmin && (
                 <button
                   style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', cursor: 'pointer', color: '#888' }}
-                  onClick={() => { setRedFlagModal(true); setRedFlagStatus('idle'); setRedFlagReason(''); setRedFlagDetails('') }}
+                  onClick={() => { setReportTarget({ type: 'group', id: group.id }); setRedFlagStatus('idle'); setRedFlagReason(''); setRedFlagDetails('') }}
                   title={t.redFlagTitleGroup}
                 >
                   {t.redFlag}
@@ -749,34 +746,32 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                     {(canPin || canDelete) && (
                       <div style={{ position: 'relative' }}>
                         <button
-                          onClick={() => setPostMenu(p => p === post.id ? null : post.id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 18, lineHeight: 1, padding: '0 4px', borderRadius: 4 }}
-                        >···</button>
-                        {postMenu === post.id && (
-                          <>
-                            <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setPostMenu(null)} />
-                            <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 160, overflow: 'hidden' }}>
-                              {canPin && (
-                                <button
-                                  className="p-post-menu-item"
-                                  onClick={() => { handlePinPost(post); setPostMenu(null) }}
-                                >
-                                  {post.is_pinned ? `📌 ${g.unpinPost}` : `📍 ${g.pinPost}`}
-                                </button>
-                              )}
-                              {canDelete && (
-                                <button
-                                  className="p-post-menu-item danger"
-                                  onClick={() => { handleDeletePost(post.id); setPostMenu(null) }}
-                                >
-                                  {'🗑️ '}{g.deletePost}
-                                </button>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
+                          style={s.iconBtn}
+                          title={post.is_pinned ? g.unpinPost : g.pinPost}
+                          onClick={() => handlePinPost(post)}
+                        >
+                          {post.is_pinned ? '📌' : '📍'}
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          style={s.iconBtn}
+                          title={g.deletePost}
+                          onClick={() => handleDeletePost(post.id)}
+                        >
+                          {'🗑️'}
+                        </button>
+                      )}
+                      {!isOwn && currentUser && (
+                        <button
+                          style={s.iconBtn}
+                          title={t.redFlagTitlePost}
+                          onClick={() => { setReportTarget({ type: 'post', id: post.id }); setRedFlagStatus('idle'); setRedFlagReason(''); setRedFlagDetails('') }}
+                        >
+                          {'🚩'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="p-post-text">{text}</p>
                   {media.length > 0 && (
@@ -1257,13 +1252,13 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       {muteOpen && (
         <GroupMuteModal g={g} isMuted={isMuted} onClose={() => setMuteOpen(false)} onMute={handleMute} />
       )}
-      {redFlagModal && (
+      {reportTarget && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={() => setRedFlagModal(false)}
+          onClick={() => setReportTarget(null)}
         >
           <div style={{ background: '#fff', borderRadius: 14, padding: '24px 28px', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>{t.redFlagTitleGroup}</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>{reportTarget.type === 'group' ? t.redFlagTitleGroup : t.redFlagTitlePost}</h3>
             {redFlagStatus === 'done' && <div style={{ color: '#2D6A4F', fontWeight: 600, marginBottom: 12 }}>✓ {t.reportDone}</div>}
             {redFlagStatus === 'duplicate' && <div style={{ color: '#888', marginBottom: 12 }}>{t.reportDuplicate}</div>}
             {redFlagStatus !== 'done' && (
@@ -1271,10 +1266,10 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 e.preventDefault()
                 if (!redFlagReason) return
                 setRedFlagStatus('submitting')
-                const data = await apiReportContent('group', group.id, redFlagReason, redFlagDetails).catch(() => null)
+                const data = await apiReportContent(reportTarget.type, reportTarget.id, redFlagReason, redFlagDetails).catch(() => null)
                 if (data?.duplicate) { setRedFlagStatus('duplicate'); return }
                 setRedFlagStatus('done')
-                setTimeout(() => setRedFlagModal(false), 1800)
+                setTimeout(() => setReportTarget(null), 1800)
               }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t.reportReasonLabel}</label>
                 <select
@@ -1304,7 +1299,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                   <button type="submit" style={{ padding: '10px 22px', borderRadius: 8, border: 'none', background: '#E07A5F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }} disabled={!redFlagReason || redFlagStatus === 'submitting'}>
                     {redFlagStatus === 'submitting' ? '…' : t.reportSubmit}
                   </button>
-                  <button type="button" style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', fontSize: 14, cursor: 'pointer', marginLeft: 8 }} onClick={() => setRedFlagModal(false)}>
+                  <button type="button" style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', fontSize: 14, cursor: 'pointer', marginLeft: 8 }} onClick={() => setReportTarget(null)}>
                     {t.cancel}
                   </button>
                 </div>

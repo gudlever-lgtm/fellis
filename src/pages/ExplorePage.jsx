@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, PT } from '../data.js'
-import { apiGetTrendingTags, apiGetExploreFeed, apiGetSuggestedUsers, apiSendFriendRequest, apiGetExploreGroupPosts } from '../api.js'
+import { apiGetTrendingTags, apiGetExploreFeed, apiGetSuggestedUsers, apiSendFriendRequest, apiGetExploreGroupPosts, apiReportContent } from '../api.js'
 
 const FILTERS = ['all', 'images']
 
@@ -14,7 +14,7 @@ function timeAgo(dateStr, lang) {
   return `${d}${d !== 1 ? t.timeAgoDaysPlural : t.timeAgoDays}`
 }
 
-function PostCard({ post, lang, onViewProfile }) {
+function PostCard({ post, lang, onViewProfile, onReport }) {
   const text = post.text?.[lang] || post.text?.da || ''
   const time = post.created_at ? timeAgo(post.created_at, lang) : (post.time?.[lang] || post.time?.da || '')
   const media = post.media || []
@@ -31,7 +31,7 @@ function PostCard({ post, lang, onViewProfile }) {
             ? <img src={post.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
             : (post.initials || getInitials(post.author || ''))}
         </div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             className="p-post-author"
             style={onViewProfile ? { cursor: 'pointer' } : {}}
@@ -41,6 +41,15 @@ function PostCard({ post, lang, onViewProfile }) {
           </div>
           <div className="p-post-time">{time}</div>
         </div>
+        {onReport && (
+          <button
+            onClick={() => onReport(post.id)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: 14, padding: '2px 6px', borderRadius: 6, flexShrink: 0 }}
+            title={PT[lang].redFlagTitlePost}
+          >
+            🚩
+          </button>
+        )}
       </div>
       {text && <div className="p-post-body">{text}</div>}
       {media.length > 0 && (
@@ -97,7 +106,7 @@ function SuggestedCard({ user, lang, onViewProfile }) {
   )
 }
 
-function GroupPostCard({ post, lang, onViewProfile, onNavigate }) {
+function GroupPostCard({ post, lang, onViewProfile, onNavigate, onReport }) {
   const text = post.text?.[lang] || post.text?.da || ''
   const time = post.created_at ? timeAgo(post.created_at, lang) : ''
   const media = post.media || []
@@ -123,7 +132,7 @@ function GroupPostCard({ post, lang, onViewProfile, onNavigate }) {
             ? <img src={post.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
             : (post.initials || getInitials(post.author || ''))}
         </div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             className="p-post-author"
             style={onViewProfile ? { cursor: 'pointer' } : {}}
@@ -133,6 +142,15 @@ function GroupPostCard({ post, lang, onViewProfile, onNavigate }) {
           </div>
           <div className="p-post-time">{time}</div>
         </div>
+        {onReport && (
+          <button
+            onClick={() => onReport(post.id)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: 14, padding: '2px 6px', borderRadius: 6, flexShrink: 0 }}
+            title={PT[lang].redFlagTitlePost}
+          >
+            🚩
+          </button>
+        )}
       </div>
       {text && <div className="p-post-body">{text}</div>}
       {media.length > 0 && (
@@ -160,7 +178,7 @@ function GroupPostCard({ post, lang, onViewProfile, onNavigate }) {
   )
 }
 
-export default function ExplorePage({ lang, onViewProfile, onNavigate }) {
+export default function ExplorePage({ lang, currentUser, onViewProfile, onNavigate }) {
   const da = lang === 'da'
   const t = {
     title: da ? 'Udforsk' : 'Explore',
@@ -188,6 +206,14 @@ export default function ExplorePage({ lang, onViewProfile, onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const sentinelRef = useRef(null)
+
+  // Red flag modal state
+  const [reportPostId, setReportPostId] = useState(null)
+  const [reportReason, setReportReason] = useState('')
+  const [reportDetails, setReportDetails] = useState('')
+  const [reportStatus, setReportStatus] = useState('idle') // idle | submitting | done | duplicate
+
+  const openReport = currentUser ? (id) => { setReportPostId(id); setReportReason(''); setReportDetails(''); setReportStatus('idle') } : null
 
   // Fetch trending tags, suggested users, and group posts on mount
   useEffect(() => {
@@ -233,6 +259,8 @@ export default function ExplorePage({ lang, onViewProfile, onNavigate }) {
     obs.observe(sentinelRef.current)
     return () => obs.disconnect()
   }, [hasMore, loading, fetchPosts])
+
+  const pt = PT[lang]
 
   return (
     <div className="explore-page">
@@ -287,7 +315,7 @@ export default function ExplorePage({ lang, onViewProfile, onNavigate }) {
         <>
           <div className="explore-section-title">{t.groupPosts}</div>
           {groupPosts.map(post => (
-            <GroupPostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} onNavigate={onNavigate} />
+            <GroupPostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} onNavigate={onNavigate} onReport={openReport} />
           ))}
         </>
       )}
@@ -307,7 +335,7 @@ export default function ExplorePage({ lang, onViewProfile, onNavigate }) {
 
       {/* Explore feed */}
       {posts.map(post => (
-        <PostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} />
+        <PostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} onReport={openReport} />
       ))}
 
       {loading && (
@@ -321,6 +349,64 @@ export default function ExplorePage({ lang, onViewProfile, onNavigate }) {
         </div>
       )}
       <div ref={sentinelRef} style={{ height: 4 }} />
+
+      {/* Red Flag modal */}
+      {reportPostId !== null && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setReportPostId(null)}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, padding: '24px 28px', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>{pt.redFlagTitlePost}</h3>
+            {reportStatus === 'done' && <div style={{ color: '#2D6A4F', fontWeight: 600, marginBottom: 12 }}>✓ {pt.reportDone}</div>}
+            {reportStatus === 'duplicate' && <div style={{ color: '#888', marginBottom: 12 }}>{pt.reportDuplicate}</div>}
+            {reportStatus !== 'done' && (
+              <form onSubmit={async e => {
+                e.preventDefault()
+                if (!reportReason) return
+                setReportStatus('submitting')
+                const data = await apiReportContent('post', reportPostId, reportReason, reportDetails).catch(() => null)
+                if (data?.duplicate) { setReportStatus('duplicate'); return }
+                setReportStatus('done')
+                setTimeout(() => setReportPostId(null), 1800)
+              }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{pt.reportReasonLabel}</label>
+                <select
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 12 }}
+                  value={reportReason}
+                  onChange={e => setReportReason(e.target.value)}
+                  required
+                >
+                  <option value="">—</option>
+                  <option value="spam">{pt.reportReasonSpam}</option>
+                  <option value="hate">{pt.reportReasonHate}</option>
+                  <option value="harassment">{pt.reportReasonHarassment}</option>
+                  <option value="misinformation">{pt.reportReasonMisinformation}</option>
+                  <option value="violence">{pt.reportReasonViolence}</option>
+                  <option value="nudity">{pt.reportReasonNudity}</option>
+                  <option value="other">{pt.reportReasonOther}</option>
+                </select>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{pt.reportDetailsLabel}</label>
+                <textarea
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minHeight: 70, resize: 'vertical', boxSizing: 'border-box', marginBottom: 14 }}
+                  value={reportDetails}
+                  onChange={e => setReportDetails(e.target.value)}
+                  placeholder={pt.reportDetailsPlaceholder}
+                  maxLength={500}
+                />
+                <div>
+                  <button type="submit" style={{ padding: '10px 22px', borderRadius: 8, border: 'none', background: '#E07A5F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }} disabled={!reportReason || reportStatus === 'submitting'}>
+                    {reportStatus === 'submitting' ? '…' : pt.reportSubmit}
+                  </button>
+                  <button type="button" style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', fontSize: 14, cursor: 'pointer', marginLeft: 8 }} onClick={() => setReportPostId(null)}>
+                    {pt.cancel}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
