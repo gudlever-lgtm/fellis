@@ -1074,7 +1074,7 @@ const NOTIF_TYPE_PAGE = {
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
   moderator_granted: 'moderation', mod_result: 'moderation', moderation: 'moderation', group_report: 'moderation',
-  new_message: 'messages', badge: 'badges',
+  new_message: 'messages', badge: 'profile',
 }
 
 function timeAgo(dateStr, lang) {
@@ -1095,6 +1095,7 @@ function normaliseNotif(n, lang) {
     message: lang === 'en' ? (n.message_en || n.message_da) : (n.message_da || n.message_en),
     page: NOTIF_TYPE_PAGE[n.type] || null,
     convId: n.type === 'new_message' && n.post_id ? n.post_id : null,
+    tab: n.type === 'badge' ? 'badges' : null,
     read: Boolean(n.is_read),  // DB uses is_read (0/1), not read_at
     time: timeAgo(n.created_at, lang),
   }
@@ -1120,7 +1121,7 @@ function NotificationsPanel({ notifs, t, lang, titleRef, onMarkAllRead, onMarkRe
   const groups = groupNotifs(notifs)
   const handleClick = (g) => {
     onMarkRead(g.ids)
-    if (g.page && onNavigate) onNavigate(g.page, g.convId ? { convId: g.convId } : null)
+    if (g.page && onNavigate) onNavigate(g.page, g.convId ? { convId: g.convId } : g.tab ? { tab: g.tab } : null)
   }
   return (
     <div className="notif-panel">
