@@ -3139,7 +3139,7 @@ router.get('/geocode', async (req, res) => {
   if (wait > 0) await new Promise(r => setTimeout(r, wait))
   nominatimLastCall = Date.now()
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=${lang}`
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1&accept-language=${lang}`
     const r = await fetch(url, { headers: { 'User-Agent': 'fellis.eu/1.0 (contact@fellis.eu)' } })
     if (!r.ok) return res.status(r.status).json([])
     const data = await r.json()
