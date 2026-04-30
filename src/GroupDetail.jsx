@@ -430,6 +430,13 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     )
   }
 
+  const openReport = (type, id) => {
+    setReportTarget({ type, id })
+    setRedFlagStatus('idle')
+    setRedFlagReason('')
+    setRedFlagDetails('')
+  }
+
   // ── Group ready ───────────────────────────────────────────────────────────
 
   const { membership } = group
@@ -542,7 +549,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               {currentUser && !isAdmin && (
                 <button
                   style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', cursor: 'pointer', color: '#888' }}
-                  onClick={() => { setReportTarget({ type: 'group', id: group.id }); setRedFlagStatus('idle'); setRedFlagReason(''); setRedFlagDetails('') }}
+                  onClick={() => openReport('group', group.id)}
                   title={t.redFlagTitleGroup}
                 >
                   {t.redFlag}
@@ -766,7 +773,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                         <button
                           style={s.iconBtn}
                           title={t.redFlagTitlePost}
-                          onClick={() => { setReportTarget({ type: 'post', id: post.id }); setRedFlagStatus('idle'); setRedFlagReason(''); setRedFlagDetails('') }}
+                          onClick={() => openReport('post', post.id)}
                         >
                           {'🚩'}
                         </button>
