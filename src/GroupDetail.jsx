@@ -99,6 +99,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [redFlagStatus, setRedFlagStatus] = useState('idle') // idle | submitting | done | duplicate
   const [redFlagReason, setRedFlagReason] = useState('')
   const [redFlagDetails, setRedFlagDetails] = useState('')
+  const [likePopup, setLikePopup] = useState(null)
 
   useEffect(() => {
     let cancelled = false
