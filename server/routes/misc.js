@@ -2437,12 +2437,13 @@ router.post('/share/track', authenticate, async (req, res) => {
 router.get('/config', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('media_max_files','marketplace_max_photos')"
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('media_max_files','marketplace_max_photos','feedback_placement')"
     )
     const cfg = {}
     for (const r of rows) cfg[r.key_name] = r.key_value
     if (cfg.media_max_files) cfg.mediaMaxFiles = parseInt(cfg.media_max_files, 10) || 4
     if (cfg.marketplace_max_photos) cfg.marketplaceMaxPhotos = parseInt(cfg.marketplace_max_photos, 10) || 4
+    cfg.feedbackPlacement = cfg.feedback_placement || 'floating'
     res.json({ config: cfg })
   } catch { res.json({ config: {} }) }
 })

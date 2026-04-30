@@ -290,12 +290,12 @@ router.get('/admin/storage-stats', authenticate, requireAdmin, async (req, res) 
 
 
 router.post('/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key', 'uploads_max_gb', 'db_max_gb']
+  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key', 'uploads_max_gb', 'db_max_gb', 'feedback_placement']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
       // pwd_, media_, registration_, uploads_, db_ keys are always saved (value can be '0'/'')
-      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key.startsWith('uploads_') || key.startsWith('db_')
+      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key.startsWith('uploads_') || key.startsWith('db_') || key === 'feedback_placement'
       if (!alwaysSave) {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
         if (key === 'mollie_api_key' && value.includes('•')) continue // skip masked display value
