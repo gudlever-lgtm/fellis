@@ -28,7 +28,7 @@ import {
   apiGetMyPortfolio, apiGetUserPortfolio, apiCreatePortfolioItem, apiUpdatePortfolioItem, apiDeletePortfolioItem,
   apiShareReelToFeed,
   apiConvertPostToReel,
-  apiSubmitFeedback, apiGetAdminFeedback, apiUpdateFeedbackStatus,
+  apiGetAdminFeedback, apiUpdateFeedbackStatus,
   apiGetDiscovery,
 } from './api.js'
 import { siApplepay, siGooglepay, siVisa } from 'simple-icons'
@@ -66,6 +66,8 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
   apiGetNavOrder,
   apiSaveNavOrder,
 } from './api.js'
+import FeedbackButton from './FeedbackButton.jsx'
+import FeedbackModal from './FeedbackModal.jsx'
 import MediaPickerButton from './components/MediaPickerButton.jsx'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import CompanyProfileForm from './CompanyProfileForm.jsx'
@@ -314,6 +316,8 @@ export default function Platform({ onLogout, initialPostId }) {
     return localStorage.getItem('fellis_dark') === '1' ? 'dark' : 'light'
   })
   const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
+  const [feedbackPlacement, setFeedbackPlacement] = useState('floating')
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [navOrder, setNavOrder] = useState(null) // null = use platform defaults
 
   // 🥚 All easter egg triggers — global so they work from any page
@@ -455,11 +459,12 @@ export default function Platform({ onLogout, initialPostId }) {
     })
   }, [onLogout]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load platform config (marketplace photo limit etc.)
+  // Load platform config (marketplace photo limit, feedback placement etc.)
   useEffect(() => {
     apiGetConfig().then(res => {
       const cfg = res?.config || res
       if (cfg?.marketplaceMaxPhotos) setMarketplaceMaxPhotos(cfg.marketplaceMaxPhotos)
+      if (cfg?.feedbackPlacement) setFeedbackPlacement(cfg.feedbackPlacement)
     })
   }, [])
 
@@ -821,6 +826,11 @@ export default function Platform({ onLogout, initialPostId }) {
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('about')}>
                   <span>💡</span> {menuT.aboutMenu}
                 </button>
+                {feedbackPlacement === 'menu' && (
+                  <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowFeedbackModal(true) }}>
+                    <span>💬</span> {menuT.feedbackMenu}
+                  </button>
+                )}
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacyMenu}
                 </button>
@@ -1020,6 +1030,14 @@ export default function Platform({ onLogout, initialPostId }) {
 
       {/* 🏅 Badge toast notifications */}
       <BadgeToastQueue queueRef={badgeQueueRef} lang={lang} />
+
+      {/* 💬 Floating feedback button */}
+      {feedbackPlacement === 'floating' && <FeedbackButton t={t} />}
+
+      {/* 💬 Feedback modal for menu placement */}
+      {feedbackPlacement === 'menu' && (
+        <FeedbackModal open={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} t={t} />
+      )}
 
       {/* Fixed status bar at bottom */}
       <div style={{
@@ -7961,10 +7979,6 @@ function SettingsSprog({ lang, t, theme, onThemeChange }) {
 // Philosophy, purpose, and implemented changelog
 function AboutPage({ lang }) {
   const [changelog, setChangelog] = useState([])
-  const [fbType, setFbType] = useState('bug')
-  const [fbTitle, setFbTitle] = useState('')
-  const [fbDesc, setFbDesc] = useState('')
-  const [fbStatus, setFbStatus] = useState('idle') // idle | sending | done | error
 
   useEffect(() => {
     apiGetChangelog(lang).then(data => { if (data?.entries) setChangelog(data.entries) })
@@ -8078,91 +8092,6 @@ function AboutPage({ lang }) {
         </a>
       </div>
 
-      {/* Feedback */}
-      <div style={s.section}>💬 {t.aboutFeedbackTitle}</div>
-      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
-        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.aboutFeedbackSubtitle}</p>
-        {fbStatus === 'done' ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', fontSize: 15, color: '#2D6A4F', fontWeight: 600 }}>✓ {t.aboutFeedbackDone}</div>
-        ) : (
-          <form onSubmit={async e => {
-            e.preventDefault()
-            if (!fbTitle.trim() || !fbDesc.trim()) return
-            setFbStatus('sending')
-            const res = await apiSubmitFeedback(fbType, fbTitle.trim(), fbDesc.trim())
-            if (res?.ok) {
-              setFbStatus('done')
-              setFbTitle('')
-              setFbDesc('')
-            } else {
-              setFbStatus('error')
-            }
-          }}>
-            {/* Type selector */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 6 }}>{t.aboutFeedbackTypeLabel}</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[
-                  { key: 'bug', label: `🐛 ${t.aboutFeedbackTypeBug}` },
-                  { key: 'missing', label: `🔍 ${t.aboutFeedbackTypeMissing}` },
-                  { key: 'suggestion', label: `💡 ${t.aboutFeedbackTypeSuggestion}` },
-                ].map(opt => (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => setFbType(opt.key)}
-                    style={{
-                      padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: fbType === opt.key ? 700 : 500,
-                      background: fbType === opt.key ? '#2D6A4F' : '#f0f0ec',
-                      color: fbType === opt.key ? '#fff' : '#444',
-                      transition: 'all 0.15s',
-                    }}
-                  >{opt.label}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* Title */}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.aboutFeedbackTitleLabel}</label>
-              <input
-                value={fbTitle}
-                onChange={e => { setFbTitle(e.target.value); if (fbStatus === 'error') setFbStatus('idle') }}
-                placeholder={t.aboutFeedbackTitlePlaceholder}
-                maxLength={200}
-                required
-                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {/* Description */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.aboutFeedbackDescLabel}</label>
-              <textarea
-                value={fbDesc}
-                onChange={e => { setFbDesc(e.target.value); if (fbStatus === 'error') setFbStatus('idle') }}
-                placeholder={t.aboutFeedbackDescPlaceholder}
-                rows={4}
-                required
-                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {fbStatus === 'error' && (
-              <div style={{ fontSize: 13, color: '#C0392B', marginBottom: 10 }}>{t.aboutFeedbackError}</div>
-            )}
-
-            <button
-              type="submit"
-              disabled={fbStatus === 'sending' || !fbTitle.trim() || !fbDesc.trim()}
-              style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (fbStatus === 'sending' || !fbTitle.trim() || !fbDesc.trim()) ? 0.6 : 1 }}
-            >
-              {fbStatus === 'sending' ? '…' : t.aboutFeedbackSubmit}
-            </button>
-          </form>
-        )}
-      </div>
     </div>
   )
 }
@@ -20587,6 +20516,7 @@ function AdminPage({ lang, t }) {
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', marketplace_max_photos: '4', registration_open: '1',
     uploads_max_gb: '100', db_max_gb: '10',
+    feedback_placement: 'floating',
   })
   const [storageStats, setStorageStats] = useState(null)
   const [storageLoading, setStorageLoading] = useState(false)
@@ -21431,6 +21361,30 @@ function AdminPage({ lang, t }) {
 
       {adminTab === 'platform' && (
         <form onSubmit={handleSave}>
+          {/* ── Feedback button placement ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>💬 {t.adminFeedbackButtonLabel}</h3>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[
+                { val: 'floating', label: t.adminFeedbackPlacementFloating },
+                { val: 'menu', label: t.adminFeedbackPlacementMenu },
+              ].map(opt => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, feedback_placement: opt.val }))}
+                  style={{
+                    padding: '8px 18px', borderRadius: 8, border: '2px solid',
+                    borderColor: form.feedback_placement === opt.val ? '#2D6A4F' : '#E8E4DF',
+                    background: form.feedback_placement === opt.val ? '#2D6A4F' : '#fff',
+                    color: form.feedback_placement === opt.val ? '#fff' : '#444',
+                    fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+          </div>
+
           {/* ── Storage monitoring ── */}
           <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
