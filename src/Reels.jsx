@@ -33,6 +33,10 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
   const [reportingComment, setReportingComment] = useState(null) // commentId
   const [reportReason, setReportReason] = useState('')
   const [reportDone, setReportDone] = useState(false)
+  const [reelReportOpen, setReelReportOpen] = useState(false)
+  const [reelReportReason, setReelReportReason] = useState('')
+  const [reelReportDetails, setReelReportDetails] = useState('')
+  const [reelReportStatus, setReelReportStatus] = useState('idle') // idle | submitting | done | duplicate
   const [commentError, setCommentError] = useState(null)
   const [commentInfo, setCommentInfo] = useState(null)
   const videoRef = useRef(null)
@@ -583,6 +587,15 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
           <span style={{ fontSize: 20 }}>↗</span>
           <span>{sharesCount > 0 ? `${sharesCount} ` : ''}{t.reelsShare}</span>
         </button>
+        {!isOwn && currentUser && (
+          <button
+            style={{ ...s.actionBtn, marginLeft: 4 }}
+            onClick={() => { setReelReportOpen(true); setReelReportReason(''); setReelReportDetails(''); setReelReportStatus('idle') }}
+            title={t.redFlagTitlePost}
+          >
+            <span style={{ fontSize: 18 }}>🚩</span>
+          </button>
+        )}
         {showSharePopup && (
           <>
             <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => setShowSharePopup(false)} />
@@ -816,6 +829,64 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
           )}
         </div>
       </div>}
+
+      {/* Red flag reel modal */}
+      {reelReportOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setReelReportOpen(false)}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, padding: '24px 28px', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>{t.redFlagTitlePost}</h3>
+            {reelReportStatus === 'done' && <div style={{ color: '#2D6A4F', fontWeight: 600, marginBottom: 12 }}>✓ {t.reportDone}</div>}
+            {reelReportStatus === 'duplicate' && <div style={{ color: '#888', marginBottom: 12 }}>{t.reportDuplicate}</div>}
+            {reelReportStatus !== 'done' && (
+              <form onSubmit={async e => {
+                e.preventDefault()
+                if (!reelReportReason) return
+                setReelReportStatus('submitting')
+                const data = await apiReportContent('reel', reel.id, reelReportReason, reelReportDetails).catch(() => null)
+                if (data?.duplicate) { setReelReportStatus('duplicate'); return }
+                setReelReportStatus('done')
+                setTimeout(() => setReelReportOpen(false), 1800)
+              }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t.reportReasonLabel}</label>
+                <select
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 12 }}
+                  value={reelReportReason}
+                  onChange={e => setReelReportReason(e.target.value)}
+                  required
+                >
+                  <option value="">—</option>
+                  <option value="spam">{t.reportReasonSpam}</option>
+                  <option value="hate">{t.reportReasonHate}</option>
+                  <option value="harassment">{t.reportReasonHarassment}</option>
+                  <option value="misinformation">{t.reportReasonMisinformation}</option>
+                  <option value="violence">{t.reportReasonViolence}</option>
+                  <option value="nudity">{t.reportReasonNudity}</option>
+                  <option value="other">{t.reportReasonOther}</option>
+                </select>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t.reportDetailsLabel}</label>
+                <textarea
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minHeight: 70, resize: 'vertical', boxSizing: 'border-box', marginBottom: 14 }}
+                  value={reelReportDetails}
+                  onChange={e => setReelReportDetails(e.target.value)}
+                  placeholder={t.reportDetailsPlaceholder}
+                  maxLength={500}
+                />
+                <div>
+                  <button type="submit" style={{ padding: '10px 22px', borderRadius: 8, border: 'none', background: '#E07A5F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }} disabled={!reelReportReason || reelReportStatus === 'submitting'}>
+                    {reelReportStatus === 'submitting' ? '…' : t.reportSubmit}
+                  </button>
+                  <button type="button" style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', fontSize: 14, cursor: 'pointer', marginLeft: 8 }} onClick={() => setReelReportOpen(false)}>
+                    {t.cancel || 'Annuller'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
