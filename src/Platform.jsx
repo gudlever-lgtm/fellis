@@ -4245,7 +4245,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                             🙈 {t.hidePost}
                           </button>
                           <button className="p-post-menu-item" onClick={() => { setPostMenu(null); setReportModal({ targetType: 'post', targetId: post.id }) }}>
-                            🚩 {t.reportPost}
+                            {t.redFlag}
                           </button>
                           {post.authorId && (
                             <>
@@ -19188,7 +19188,7 @@ function ReportModal({ t, targetType, targetId, onClose }) {
   return (
     <div style={s.backdrop} onClick={onClose}>
       <div style={s.modal} onClick={e => e.stopPropagation()}>
-        <h3 style={s.title}>🚩 {t.reportTitle}</h3>
+        <h3 style={s.title}>{targetType === 'group' ? t.redFlagTitleGroup : t.redFlagTitlePost}</h3>
         {status === 'done' && <div style={{ color: '#2D6A4F', fontWeight: 600, marginBottom: 12 }}>✓ {t.reportDone}</div>}
         {status === 'duplicate' && <div style={{ color: '#888', marginBottom: 12 }}>{t.reportDuplicate}</div>}
         {status !== 'done' && (

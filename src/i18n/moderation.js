@@ -1,5 +1,8 @@
 export default {
   da: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag dette opslag',
+    redFlagTitleGroup: 'Red flag denne gruppe',
     reportPost: 'Anmeld opslag',
     reportComment: 'Anmeld kommentar',
     reportUser: 'Anmeld bruger',
@@ -110,6 +113,9 @@ export default {
     no_flagged_content: 'Ingen markeret indhold afventer gennemgang',
   },
   en: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag this post',
+    redFlagTitleGroup: 'Red flag this group',
     reportPost: 'Report post',
     reportComment: 'Report comment',
     reportUser: 'Report user',
@@ -220,6 +226,9 @@ export default {
     no_flagged_content: 'No flagged content awaiting review',
   },
   sv: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag det här inlägget',
+    redFlagTitleGroup: 'Red flag den här gruppen',
     reportPost: 'Anmäl inlägg',
     reportComment: 'Anmäl kommentar',
     reportUser: 'Anmäl användare',
@@ -330,6 +339,9 @@ export default {
     no_flagged_content: 'Inget flaggat innehåll väntar på granskning',
   },
   no: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag dette innlegget',
+    redFlagTitleGroup: 'Red flag denne gruppen',
     reportPost: 'Rapporter innlegg',
     reportComment: 'Rapporter kommentar',
     reportUser: 'Rapporter bruker',
@@ -440,6 +452,9 @@ export default {
     no_flagged_content: 'Ingen flagget innhold venter på gjennomgang',
   },
   de: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag diesen Beitrag',
+    redFlagTitleGroup: 'Red flag diese Gruppe',
     reportPost: 'Beitrag melden',
     reportComment: 'Kommentar melden',
     reportUser: 'Nutzer melden',
@@ -550,6 +565,9 @@ export default {
     no_flagged_content: 'Kein markierter Inhalt wartet auf Überprüfung',
   },
   fr: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag cette publication',
+    redFlagTitleGroup: 'Red flag ce groupe',
     reportPost: 'Signaler la publication',
     reportComment: 'Signaler le commentaire',
     reportUser: 'Signaler l\'utilisateur',
@@ -660,6 +678,9 @@ export default {
     no_flagged_content: 'Aucun contenu signalé en attente de révision',
   },
   es: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag esta publicación',
+    redFlagTitleGroup: 'Red flag este grupo',
     reportPost: 'Denunciar publicación',
     reportComment: 'Denunciar comentario',
     reportUser: 'Denunciar usuario',
@@ -770,6 +791,9 @@ export default {
     no_flagged_content: 'No hay contenido marcado pendiente de revisión',
   },
   it: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag questo post',
+    redFlagTitleGroup: 'Red flag questo gruppo',
     reportPost: 'Segnala post',
     reportComment: 'Segnala commento',
     reportUser: 'Segnala utente',
@@ -880,6 +904,9 @@ export default {
     no_flagged_content: 'Nessun contenuto segnalato in attesa di revisione',
   },
   nl: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag dit bericht',
+    redFlagTitleGroup: 'Red flag deze groep',
     reportPost: 'Bericht melden',
     reportComment: 'Reactie melden',
     reportUser: 'Gebruiker melden',
@@ -990,6 +1017,9 @@ export default {
     no_flagged_content: 'Geen gemarkeerde inhoud wacht op beoordeling',
   },
   pl: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag ten post',
+    redFlagTitleGroup: 'Red flag tę grupę',
     reportPost: 'Zgłoś post',
     reportComment: 'Zgłoś komentarz',
     reportUser: 'Zgłoś użytkownika',
@@ -1100,6 +1130,9 @@ export default {
     no_flagged_content: 'Brak oznaczonej treści oczekującej na przegląd',
   },
   pt: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag esta publicação',
+    redFlagTitleGroup: 'Red flag este grupo',
     reportPost: 'Denunciar publicação',
     reportComment: 'Denunciar comentário',
     reportUser: 'Denunciar utilizador',
@@ -1210,6 +1243,9 @@ export default {
     no_flagged_content: 'Nenhum conteúdo sinalizado aguarda revisão',
   },
   fi: {
+    redFlag: '🚩 Red flag',
+    redFlagTitlePost: 'Red flag tämä julkaisu',
+    redFlagTitleGroup: 'Red flag tämä ryhmä',
     moderation_queue: 'Tekoälyn merkitsemä sisältö',
     approve: 'Hyväksy',
     remove: 'Poista',
