@@ -268,7 +268,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   }, [regName, regEmail, regPassword, regPasswordRepeat, honeypot, gdprAccepted, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
 
   return (
-    <div className="app" style={{ height: '100dvh', maxHeight: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div className="app" style={{ minHeight: '100dvh', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <nav className="nav">
         <div className="nav-logo">
           <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
@@ -462,7 +462,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
 
       {/* Landing — full viewport layout */}
       {step === 4 && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '8px 16px', boxSizing: 'border-box', overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '8px 16px', boxSizing: 'border-box', overflowX: 'hidden' }}>
 
           {/* Heading */}
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
