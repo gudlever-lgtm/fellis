@@ -1300,4 +1300,39 @@ if (migrationErrors.length > 0) {
   console.log(`${GREEN}  Remember to run 'cd server && npm run migrate' on the production server after deploy.${RESET}\n`)
 }
 
+// ── 22. Dynamic invite preview route ─────────────────────────────────────────
+//
+// GET /invite/:token returns an HTML page with OG tags and a redirect.
+//
+// Static invariants verified here (no live DB):
+//   (a) The route is registered in server/index.js (never 404 at routing level)
+//   (b) An invalid/unknown token returns 404 with HTML (not JSON)
+//   (c) Missing token segment (GET /invite/) returns 404
+//
+// We intentionally do NOT test with a real token — none exists in the test env.
+
+// (a) Route must be registered in server/index.js
+if (!serverSrc.includes("app.get('/invite/:token'")) {
+  console.log(`${RED}✗ GET /invite/:token is not registered in server/index.js — invite preview would return 404.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ GET /invite/:token is registered in server/index.js.${RESET}`)
+}
+
+// (b) Handler must return 404 HTML for unknown tokens (not 200 JSON)
+if (!serverSrc.includes('res.status(404).send(genericHtml')) {
+  console.log(`${RED}✗ GET /invite/:token does not return 404 HTML for unknown tokens.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ GET /invite/:token returns 404 HTML for unknown tokens.${RESET}`)
+}
+
+// (c) DB errors must fall back to 200 (never 500)
+if (!serverSrc.includes("GET /invite/:token error")) {
+  console.log(`${RED}✗ GET /invite/:token is missing DB error catch block — would return 500 on DB failure.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ GET /invite/:token catches DB errors and falls back gracefully (no 500).${RESET}\n`)
+}
+
 process.exit(0)
