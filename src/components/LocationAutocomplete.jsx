@@ -57,7 +57,14 @@ export default function LocationAutocomplete({
   }
 
   const handlePick = (r) => {
-    const name = r.display_name
+    const a = r.address || {}
+    const road = a.road || a.pedestrian || a.footway || a.path || ''
+    const number = a.house_number ? `${road} ${a.house_number}`.trim() : road
+    const city = a.city || a.town || a.village || a.municipality || a.county || ''
+    const postcode = a.postcode ? a.postcode.replace(/\s+/g, ' ').trim() : ''
+    const country = a.country || ''
+    const parts = [number, [postcode, city].filter(Boolean).join(' '), country].filter(Boolean)
+    const name = parts.length > 1 ? parts.join(', ') : r.display_name
     if (onSelect) {
       onSelect({ name, lat: parseFloat(r.lat), lng: parseFloat(r.lon) })
     } else {
