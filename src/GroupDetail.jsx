@@ -100,6 +100,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [redFlagReason, setRedFlagReason] = useState('')
   const [redFlagDetails, setRedFlagDetails] = useState('')
   const [likePopup, setLikePopup] = useState(null)
+  const [expandedComments, setExpandedComments] = useState(new Set())
 
   useEffect(() => {
     let cancelled = false
