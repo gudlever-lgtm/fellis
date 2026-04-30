@@ -57,7 +57,7 @@ export default function LocationAutocomplete({
   }
 
   const handlePick = (r) => {
-    const name = r.display_name.split(',').slice(0, 2).join(',').trim()
+    const name = r.display_name
     if (onSelect) {
       onSelect({ name, lat: parseFloat(r.lat), lng: parseFloat(r.lon) })
     } else {
