@@ -5,9 +5,11 @@ import path from 'path'
 import {
   authenticate, writeLimit, fileUploadLimit,
   upload, coverUpload, UPLOADS_DIR,
-  createNotification,
+  createNotification, auditLog,
 } from '../middleware.js'
 import { checkKeywords } from '../helpers.js'
+import { moderateGroupContent } from '../group-moderation.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -361,6 +363,64 @@ router.get('/groups/admin/reports', authenticate, async (req, res) => {
   }
 })
 
+// GET /groups/admin/flagged — groups flagged by AI moderation
+router.get('/groups/admin/flagged', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  try {
+    const [rows] = await pool.query(
+      `SELECT c.id, c.name, c.slug, c.category,
+              c.description_da, c.description_en,
+              c.cover_url, c.member_count, c.type, c.created_at,
+              c.group_moderation_note,
+              u.name AS creator_name, u.email AS creator_email
+       FROM conversations c
+       LEFT JOIN users u ON u.id = c.created_by
+       WHERE c.is_group = 1 AND c.group_status = 'flagged'
+       ORDER BY c.created_at DESC`
+    )
+    res.json({ groups: rows })
+  } catch (err) {
+    console.error('GET /api/groups/admin/flagged error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// PATCH /groups/admin/:id/status — approve or remove a flagged group
+router.patch('/groups/admin/:id/status', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'invalid_id' })
+  const { status, note } = req.body || {}
+  const allowed = ['active', 'removed']
+  if (!allowed.includes(status)) return res.status(400).json({ error: 'invalid_status' })
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, group_status FROM conversations WHERE id = ? AND is_group = 1',
+      [id]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    await pool.query(
+      `UPDATE conversations
+       SET group_status = ?, group_moderation_note = COALESCE(?, group_moderation_note),
+           group_reviewed_by = ?, group_reviewed_at = NOW()
+       WHERE id = ?`,
+      [status, note || null, req.userId, id]
+    )
+    await auditLog(req, 'group_status_changed', 'group', id, {
+      details: { from: group.group_status, to: status, note: note || null },
+    })
+    const [[updated]] = await pool.query(
+      'SELECT id, name, slug, group_status FROM conversations WHERE id = ?',
+      [id]
+    )
+    res.json({ group: updated })
+  } catch (err) {
+    console.error('PATCH /api/groups/admin/:id/status error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
 // GET /groups/admin/settings
 router.get('/groups/admin/settings', authenticate, async (req, res) => {
   if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
@@ -476,6 +536,7 @@ router.get('/groups/suggestions', authenticate, async (req, res) => {
        JOIN conversation_participants cp2 ON cp2.conversation_id = c.id
        WHERE c.is_public = 1
          AND c.is_group = 1
+         AND (c.group_status IS NULL OR c.group_status = 'active')
          AND c.id NOT IN (
            SELECT conversation_id FROM conversation_participants WHERE user_id = ?
          )
@@ -499,6 +560,7 @@ router.get('/groups/suggestions', authenticate, async (req, res) => {
          FROM conversations c
          WHERE c.is_public = 1
            AND c.is_group = 1
+           AND (c.group_status IS NULL OR c.group_status = 'active')
            AND c.id NOT IN (
              SELECT conversation_id FROM conversation_participants WHERE user_id = ?
            )
@@ -580,7 +642,27 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
       [result.insertId, req.userId, 'moderator']
     )
 
-    res.status(201).json({ id: result.insertId, slug: cleanSlug })
+    const newGroupId = result.insertId
+    res.status(201).json({ id: newGroupId, slug: cleanSlug })
+
+    // Background moderation — never blocks the response
+    const groupName = String(name).trim()
+    const groupDesc = description ? String(description).trim() : ''
+    moderateContent({ table: 'conversations', id: newGroupId, text: `${groupName}\n${groupDesc}`, userId: req.userId }).catch(err => console.error('moderation error:', err))
+    moderateGroupContent(groupName, groupDesc).then(async ({ flagged, categories }) => {
+      if (!flagged) return
+      try {
+        await pool.query(
+          "UPDATE conversations SET group_status = 'flagged', group_moderation_note = ? WHERE id = ?",
+          [JSON.stringify(categories), newGroupId]
+        )
+        await auditLog(req, 'group_flagged', 'group', newGroupId, {
+          details: { categories },
+        })
+      } catch (dbErr) {
+        console.error('[group-moderation] DB update error:', dbErr.message)
+      }
+    }).catch(() => {})
   } catch (err) {
     console.error('POST /api/groups error:', err)
     res.status(500).json({ error: 'Failed to create group' })
@@ -942,6 +1024,7 @@ router.post('/groups/:id/posts', authenticate, writeLimit, upload.single('media'
       [result.insertId]
     )
     res.status(201).json({ ...post, reactions: {}, my_reaction: null, flagged: autoFlagKeyword ? true : undefined })
+    moderateContent({ table: 'posts', id: result.insertId, text: clean, userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     console.error('POST /api/groups/:id/posts error:', err)
     if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})

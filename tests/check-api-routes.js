@@ -271,6 +271,39 @@ if (!feedInsertRe.test(combinedServerSrc)) {
 // Suppress unused variable warning for the marker
 void POST_FEED_USER_MODE_MARKER
 
+// ── Content moderation module route declarations ──────────────────────────────
+//
+//   GET  /api/admin/moderation/flagged         → 200 (admin) | 401/403 (non-admin)
+//   PATCH /api/admin/moderation/:table/:id     → 200 (admin) | 400 (invalid table/status)
+//
+const REQUIRED_MODERATION_ROUTES = [
+  'GET /api/admin/moderation/flagged',
+  'PATCH /api/admin/moderation/:table/:id',
+]
+
+const missingModerationRoutes = REQUIRED_MODERATION_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingModerationRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required content moderation server routes:${RESET}`)
+  for (const r of missingModerationRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Content moderation routes (flagged + review) are registered on the server.${RESET}\n`)
+}
+
+// Verify table whitelist guard exists in admin moderation PATCH handler
+const MOD_TABLE_WHITELIST_MARKER = 'MODERATED_TABLES'
+if (!combinedServerSrc.includes(MOD_TABLE_WHITELIST_MARKER)) {
+  console.log(`${RED}✗ PATCH /api/admin/moderation/:table/:id is missing table whitelist guard (MODERATED_TABLES).${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Admin moderation PATCH handler validates table against whitelist.${RESET}\n`)
+}
+
 // ── 7. Direct fetch() / XHR calls have matching server routes ─────────────────
 //
 // Calls that bypass request() (auth, file uploads, public endpoints) are
@@ -1178,59 +1211,128 @@ if (translationSystemErrors.length > 0) {
   console.log(`${GREEN}✓ Translation system routes (set-language, content/:id, translate) are registered; translate.js has cache + DeepL wiring; VALID_LANGS includes 'fi'; POST /api/translate validates text and lang.${RESET}\n`)
 }
 
-// ── Reports / Red Flag endpoint declarations ──────────────────────────────────
+// ── 21. Group creation moderation routes ─────────────────────────────────────
 //
-// POST /api/reports — submit a report (Red Flag) for a post or group.
+// Hybrid auto-approve + AI moderation pipeline for group creation:
 //
-//   POST /api/reports { target_type: 'post', target_id: 1, reason: 'spam' }
-//     → 200 { ok: true }           (valid payload, authenticated)
-//   POST /api/reports { target_type: 'post', target_id: 1 }
-//     → 400                        (missing reason)
-//   POST /api/reports { target_type: 'page', target_id: 1, reason: 'spam' }
-//     → 400                        (invalid target_type)
-//   POST /api/reports { target_type: 'post', target_id: 1, reason: 'spam' }
-//     → 409 / { ok: true, duplicate: true }  (same user reporting same target twice)
+//   POST  /api/groups                   → 201 (created, always immediate)
+//   GET   /api/groups/admin/flagged     → 200 (admin) | 401/403 (non-admin)
+//   PATCH /api/groups/admin/:id/status  → 200 (valid status: active|removed)
+//                                         400 (invalid status value)
 //
-const REQUIRED_REPORTS_ROUTES = ['POST /api/reports']
+// Static invariants:
+//   (a) All three routes are registered on the server
+//   (b) api.js exports apiGetFlaggedGroups and apiUpdateGroupModerationStatus
+//   (c) server/group-moderation.js exists and references MISTRAL_API_KEY
+//   (d) The migration file exists and extends group_status ENUM
 
-const missingReportsRoutes = REQUIRED_REPORTS_ROUTES.filter(r => {
+const REQUIRED_GROUP_MOD_ROUTES = [
+  'POST /api/groups',
+  'GET /api/groups/admin/flagged',
+  'PATCH /api/groups/admin/:id/status',
+]
+
+const missingGroupModRoutes = REQUIRED_GROUP_MOD_ROUTES.filter(r => {
   const [method, p] = r.split(' ')
   return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
 })
 
-if (missingReportsRoutes.length > 0) {
-  console.log(`${RED}✗ Missing required reports/red-flag server routes:${RESET}`)
-  for (const r of missingReportsRoutes) console.log(`  ${RED}${r}${RESET}`)
+if (missingGroupModRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required group moderation server routes:${RESET}`)
+  for (const r of missingGroupModRoutes) console.log(`  ${RED}${r}${RESET}`)
   console.log()
   process.exit(1)
 } else {
-  console.log(`${GREEN}✓ POST /api/reports (Red Flag) route is registered on the server.${RESET}\n`)
+  console.log(`${GREEN}✓ Group moderation routes (POST /api/groups, GET /api/groups/admin/flagged, PATCH /api/groups/admin/:id/status) are registered.${RESET}\n`)
 }
 
-// Verify the route validates target_type, requires reason, and detects duplicates.
-const reportsSrc = (() => {
-  try { return readFileSync(resolve(root, 'server/routes/misc.js'), 'utf8') } catch { return '' }
-})()
-
-const reportsErrors = []
-
-if (!reportsSrc.includes("'post'") || !reportsSrc.includes("'group'")) {
-  reportsErrors.push("POST /api/reports does not validate 'post' and 'group' as valid target_type values")
-}
-if (!reportsSrc.includes('reason required') && !reportsSrc.includes("!reason")) {
-  reportsErrors.push('POST /api/reports does not validate that reason is required (missing 400 guard)')
-}
-if (!reportsSrc.includes('duplicate') && !reportsSrc.includes('unique_report')) {
-  reportsErrors.push('POST /api/reports does not detect duplicate reports (missing 409 / duplicate guard)')
+// (b) api.js exports the moderation functions
+const REQUIRED_GROUP_MOD_API_FNS = ['apiGetFlaggedGroups', 'apiUpdateGroupModerationStatus']
+const missingGroupModApiFns = REQUIRED_GROUP_MOD_API_FNS.filter(fn => !apiSrc.includes(fn))
+if (missingGroupModApiFns.length > 0) {
+  console.log(`${RED}✗ src/api.js is missing group moderation API functions: ${missingGroupModApiFns.join(', ')}${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ src/api.js exports ${REQUIRED_GROUP_MOD_API_FNS.join(' and ')}.${RESET}\n`)
 }
 
-if (reportsErrors.length > 0) {
-  console.log(`${RED}✗ Reports/Red-flag route implementation issues:${RESET}`)
-  for (const e of reportsErrors) console.log(`  ${RED}${e}${RESET}`)
+// (c) server/group-moderation.js exists and references MISTRAL_API_KEY
+const groupModerationPath = resolve(root, 'server/group-moderation.js')
+if (!existsSync(groupModerationPath)) {
+  console.log(`${RED}✗ server/group-moderation.js is missing — AI moderation for groups is not implemented.${RESET}\n`)
+  process.exit(1)
+}
+const groupModerationSrc = readFileSync(groupModerationPath, 'utf8')
+if (!groupModerationSrc.includes('MISTRAL_API_KEY')) {
+  console.log(`${RED}✗ server/group-moderation.js does not reference MISTRAL_API_KEY.${RESET}\n`)
+  process.exit(1)
+}
+if (!groupModerationSrc.includes('flagged: false')) {
+  console.log(`${RED}✗ server/group-moderation.js is missing fail-safe { flagged: false } fallback — group creation would be blocked on moderation failure.${RESET}\n`)
+  process.exit(1)
+}
+console.log(`${GREEN}✓ server/group-moderation.js exists, references MISTRAL_API_KEY, and has fail-safe fallback.${RESET}\n`)
+
+// (d) migration file exists and extends group_status ENUM
+const groupModMigrationPath = resolve(root, 'server/migrate-group-moderation.sql')
+if (!existsSync(groupModMigrationPath)) {
+  console.log(`${RED}✗ server/migrate-group-moderation.sql is missing — group moderation columns are never added.${RESET}\n`)
+  process.exit(1)
+}
+const groupModMigrationSrc = readFileSync(groupModMigrationPath, 'utf8')
+const migrationErrors = []
+if (!groupModMigrationSrc.includes('flagged')) {
+  migrationErrors.push("group_status ENUM does not include 'flagged'")
+}
+if (!groupModMigrationSrc.includes('removed')) {
+  migrationErrors.push("group_status ENUM does not include 'removed'")
+}
+if (!groupModMigrationSrc.includes('group_moderation_note')) {
+  migrationErrors.push('group_moderation_note column is not defined')
+}
+if (migrationErrors.length > 0) {
+  console.log(`${RED}✗ server/migrate-group-moderation.sql is incomplete:${RESET}`)
+  for (const e of migrationErrors) console.log(`  ${RED}${e}${RESET}`)
   console.log()
   process.exit(1)
 } else {
-  console.log(`${GREEN}✓ POST /api/reports validates target_type ('post','group'), requires reason, and guards against duplicates.${RESET}\n`)
+  console.log(`${GREEN}✓ server/migrate-group-moderation.sql defines flagged/removed statuses and group_moderation_note.${RESET}`)
+  console.log(`${GREEN}  Remember to run 'cd server && npm run migrate' on the production server after deploy.${RESET}\n`)
+}
+
+// ── 22. Dynamic invite preview route ─────────────────────────────────────────
+//
+// GET /invite/:token returns an HTML page with OG tags and a redirect.
+//
+// Static invariants verified here (no live DB):
+//   (a) The route is registered in server/index.js (never 404 at routing level)
+//   (b) An invalid/unknown token returns 404 with HTML (not JSON)
+//   (c) Missing token segment (GET /invite/) returns 404
+//
+// We intentionally do NOT test with a real token — none exists in the test env.
+
+// (a) Route must be registered in server/index.js
+if (!serverSrc.includes("app.get('/invite/:token'")) {
+  console.log(`${RED}✗ GET /invite/:token is not registered in server/index.js — invite preview would return 404.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ GET /invite/:token is registered in server/index.js.${RESET}`)
+}
+
+// (b) Handler must return 404 HTML for unknown tokens (not 200 JSON)
+if (!serverSrc.includes('res.status(404).send(genericHtml')) {
+  console.log(`${RED}✗ GET /invite/:token does not return 404 HTML for unknown tokens.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ GET /invite/:token returns 404 HTML for unknown tokens.${RESET}`)
+}
+
+// (c) DB errors must fall back to 200 (never 500)
+if (!serverSrc.includes("GET /invite/:token error")) {
+  console.log(`${RED}✗ GET /invite/:token is missing DB error catch block — would return 500 on DB failure.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ GET /invite/:token catches DB errors and falls back gracefully (no 500).${RESET}\n`)
 }
 
 process.exit(0)

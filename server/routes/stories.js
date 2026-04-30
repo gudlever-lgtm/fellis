@@ -26,6 +26,7 @@ import path from 'path'
 import multer from 'multer'
 import bcrypt from 'bcrypt'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
+import { moderateContent } from '../moderation.js'
 
 const router = express.Router()
 
@@ -51,6 +52,7 @@ router.get('/stories/feed', authenticate, async (req, res) => {
       FROM stories s
       JOIN users u ON u.id = s.user_id
       WHERE s.expires_at > NOW()
+        AND (s.mod_status IS NULL OR s.mod_status != 'removed')
         AND (
           s.user_id = ?
           OR s.user_id IN (
@@ -91,6 +93,7 @@ router.post('/stories', authenticate, async (req, res) => {
       [result.insertId]
     )
     res.json(story)
+    moderateContent({ table: 'stories', id: result.insertId, text: content_text || '', userId: req.userId }).catch(err => console.error('moderation error:', err))
   } catch (err) {
     console.error('POST /api/stories error:', err.message)
     res.status(500).json({ error: 'Server error' })

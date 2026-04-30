@@ -926,6 +926,70 @@ router.post('/admin/moderation/reports/:id/dismiss', authenticate, requireModera
 })
 
 
+const MODERATED_TABLES = ['posts', 'comments', 'reels', 'stories', 'events', 'marketplace_listings', 'jobs', 'company_posts', 'conversations']
+
+router.get('/admin/moderation/flagged', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT q.table_name, q.id, q.mod_note, q.created_at, q.user_id,
+              u.name AS username, u.email
+       FROM (
+         SELECT 'posts' AS table_name, id, mod_note, created_at, author_id AS user_id FROM posts WHERE mod_status = 'flagged'
+         UNION ALL
+         SELECT 'comments', id, mod_note, created_at, author_id FROM comments WHERE mod_status = 'flagged'
+         UNION ALL
+         SELECT 'reels', id, mod_note, created_at, user_id FROM reels WHERE mod_status = 'flagged'
+         UNION ALL
+         SELECT 'stories', id, mod_note, created_at, user_id FROM stories WHERE mod_status = 'flagged'
+         UNION ALL
+         SELECT 'events', id, mod_note, created_at, organizer_id FROM events WHERE mod_status = 'flagged'
+         UNION ALL
+         SELECT 'marketplace_listings', id, mod_note, created_at, user_id FROM marketplace_listings WHERE mod_status = 'flagged'
+         UNION ALL
+         SELECT 'jobs', id, mod_note, created_at, NULL FROM jobs WHERE mod_status = 'flagged'
+         UNION ALL
+         SELECT 'company_posts', id, mod_note, created_at, author_id FROM company_posts WHERE mod_status = 'flagged'
+         UNION ALL
+         SELECT 'conversations', id, mod_note, created_at, created_by FROM conversations WHERE mod_status = 'flagged' AND is_group = 1
+       ) q
+       LEFT JOIN users u ON u.id = q.user_id
+       ORDER BY q.created_at DESC
+       LIMIT 50`
+    )
+    res.json({ flagged: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/flagged error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.patch('/admin/moderation/:table/:id', authenticate, requireAdmin, async (req, res) => {
+  const { table, id } = req.params
+  const { status, note } = req.body
+  if (!MODERATED_TABLES.includes(table)) return res.status(400).json({ error: 'Invalid table' })
+  if (!['active', 'removed'].includes(status)) return res.status(400).json({ error: 'Invalid status' })
+  const numId = parseInt(id)
+  if (isNaN(numId)) return res.status(400).json({ error: 'Invalid id' })
+  try {
+    await pool.query(
+      `UPDATE \`${table}\` SET mod_status = ?, mod_note = ?, mod_reviewed_by = ?, mod_reviewed_at = NOW() WHERE id = ?`,
+      [status, note || null, req.userId, numId]
+    )
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details)
+       VALUES (?, 'moderation_decision', ?, ?, ?)`,
+      [req.userId, table, numId, JSON.stringify({ table, id: numId, status, note })]
+    )
+    const [[updated]] = await pool.query(`SELECT * FROM \`${table}\` WHERE id = ?`, [numId])
+    res.json({ ok: true, updated })
+  } catch (err) {
+    console.error('PATCH /api/admin/moderation/:table/:id error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
 router.post('/admin/moderation/content/remove', authenticate, requireModerator, async (req, res) => {
   const { type, target_id, report_id, reason } = req.body
   if (!['post', 'comment', 'reel_comment'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })

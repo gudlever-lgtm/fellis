@@ -336,6 +336,14 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     await apiVoteGroupPoll(group.slug, poll.id, optionIdx)
   }
 
+  const toggleComments = (postId) => {
+    setExpandedComments(prev => {
+      const next = new Set(prev)
+      next.has(postId) ? next.delete(postId) : next.add(postId)
+      return next
+    })
+  }
+
   const handleCopyLink = () => {
     if (!inviteLink) return
     const full = `${window.location.origin}${inviteLink}`
@@ -679,15 +687,9 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                         />
                       </div>
                       <button
+                        className="p-post-btn"
                         onClick={handleCreatePost}
                         disabled={composerSubmitting || !composerText.trim()}
-                        style={{
-                          padding: '8px 22px', borderRadius: 8, border: 'none', color: '#fff',
-                          fontSize: 14, fontWeight: 700, background: '#2D6A4F',
-                          opacity: (composerSubmitting || !composerText.trim()) ? 0.6 : 1,
-                          cursor: (composerSubmitting || !composerText.trim()) ? 'not-allowed' : 'pointer',
-                          transition: 'opacity 0.15s',
-                        }}
                       >
                         {g.post || (lang === 'da' ? 'Post' : 'Post')}
                       </button>
@@ -723,23 +725,26 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 } catch {}
               }
               return (
-                <div key={post.id} style={{ ...s.postCard, ...(post.is_pinned ? s.pinnedCard : {}) }}>
-                  {!!post.is_pinned && <div style={s.pinLabel}>{'📌'}</div>}
-                  <div style={s.postHeader}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                      background: nameToColor(post.author_name), color: '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 13, fontWeight: 700,
-                    }}>
+                <div
+                  key={post.id}
+                  className="p-card p-post"
+                  style={{
+                    borderLeft: `4px solid ${nameToColor(post.author_name)}`,
+                    marginBottom: 12,
+                    ...(post.is_pinned ? { background: '#F5F3FF' } : {}),
+                  }}
+                >
+                  {!!post.is_pinned && <div style={s.pinLabel}>{'📌 '}{g.pinPost}</div>}
+                  <div className="p-post-header">
+                    <div className="p-avatar-sm" style={{ background: nameToColor(post.author_name) }}>
                       {getInitials(post.author_name)}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={s.authorName}>{post.author_name}</div>
-                      <div style={s.postTime}>{fmtTime(post.created_at, lang)}</div>
+                      <div className="p-post-author">{post.author_name}</div>
+                      <div className="p-post-time">{fmtTime(post.created_at, lang)}</div>
                     </div>
-                    <div style={s.postMenuRow}>
-                      {canPin && (
+                    {(canPin || canDelete) && (
+                      <div style={{ position: 'relative' }}>
                         <button
                           style={s.iconBtn}
                           title={post.is_pinned ? g.unpinPost : g.pinPost}
@@ -768,7 +773,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                       )}
                     </div>
                   </div>
-                  <p style={s.postText}>{text}</p>
+                  <p className="p-post-text">{text}</p>
                   {media.length > 0 && (
                     <div style={s.mediaGrid}>
                       {media.map((m, i) => {
@@ -779,22 +784,79 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                       })}
                     </div>
                   )}
-                  <div style={s.reactRow}>
-                    {REACTIONS.map(r => {
-                      const count = post.reactions?.[r] || 0
-                      const active = post.my_reaction === r
-                      return (
-                        <button
-                          key={r}
-                          style={{ ...s.reactBtn, ...(active ? s.reactActive : {}) }}
-                          title={g[`react${r.charAt(0).toUpperCase() + r.slice(1)}`] || r}
-                          onClick={() => handleReact(post, r)}
-                        >
-                          {REACTION_EMOJI[r]}{count > 0 ? ` ${count}` : ''}
-                        </button>
-                      )
-                    })}
+                  {REACTIONS.some(r => (post.reactions?.[r] || 0) > 0) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 8px', borderBottom: '1px solid #F0EDE8', flexWrap: 'wrap' }}>
+                      {REACTIONS.filter(r => (post.reactions?.[r] || 0) > 0).map(r => (
+                        <span key={r} style={{ fontSize: 14 }}>
+                          {REACTION_EMOJI[r]} <span style={{ fontSize: 12, color: '#888' }}>{post.reactions[r]}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="p-post-actions">
+                    <div className="p-reaction-wrap" style={{ position: 'relative' }}>
+                      <button
+                        className={`p-action-btn${post.my_reaction ? ' liked' : ''}`}
+                        onClick={() => setLikePopup(p => p === post.id ? null : post.id)}
+                      >
+                        {post.my_reaction ? REACTION_EMOJI[post.my_reaction] : '🤍'} {t.like || (lang === 'da' ? 'Synes godt om' : 'Like')}
+                      </button>
+                      {likePopup === post.id && (
+                        <>
+                          <div className="p-share-backdrop" onClick={() => setLikePopup(null)} />
+                          <div className="p-reaction-popup">
+                            {REACTIONS.map(r => (
+                              <button
+                                key={r}
+                                className="p-reaction-btn"
+                                title={g[`react${r.charAt(0).toUpperCase() + r.slice(1)}`] || r}
+                                onClick={() => { handleReact(post, r); setLikePopup(null) }}
+                              >
+                                {REACTION_EMOJI[r]}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <button className="p-action-btn" onClick={() => toggleComments(post.id)}>
+                      💬 {t.comment || (lang === 'da' ? 'Kommentar' : 'Comment')}
+                    </button>
+                    <button
+                      className="p-action-btn"
+                      onClick={() => {
+                        const url = `${window.location.origin}/groups/${group.slug}`
+                        navigator.clipboard.writeText(url).catch(() => {})
+                      }}
+                    >
+                      ↗ {t.share || (lang === 'da' ? 'Del' : 'Share')}
+                    </button>
+                    <button
+                      className="p-action-btn"
+                      onClick={() => {
+                        setPosts(prev => prev.map(p =>
+                          p.id === post.id ? { ...p, _saved: !p._saved } : p
+                        ))
+                      }}
+                    >
+                      {post._saved ? '🔖' : '📌'} {t.save || (lang === 'da' ? 'Gem' : 'Save')}
+                    </button>
                   </div>
+                  {expandedComments.has(post.id) && (
+                    <div style={{ borderTop: '1px solid #F0EDE8', paddingTop: 10, marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div className="p-avatar-sm" style={{ background: nameToColor(currentUser?.name || ''), flexShrink: 0, fontSize: 11 }}>
+                        {getInitials(currentUser?.name || '')}
+                      </div>
+                      <input
+                        className="p-comment-input"
+                        placeholder={lang === 'da' ? 'Skriv en kommentar... — @ mention, # tag' : 'Write a comment... — @ mention, # tag'}
+                        style={{ flex: 1 }}
+                      />
+                      <button style={{ padding: '8px 16px', borderRadius: 20, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                        {lang === 'da' ? 'Send' : 'Send'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -1326,20 +1388,9 @@ const s = {
   tabContent: { padding: '16px 20px' },
   feedEmpty: { textAlign: 'center', color: '#bbb', fontSize: 14, padding: '40px 0' },
   pendingBanner: { fontSize: 13, color: '#92400E', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
-  postCard: { background: '#fff', borderRadius: 12, border: '1px solid #E8E4DF', padding: '14px 16px', marginBottom: 12 },
-  pinnedCard: { border: '1px solid #C7D2FE', background: '#F5F3FF' },
   pinLabel: { fontSize: 11, color: '#4338CA', marginBottom: 6, fontWeight: 700 },
-  postHeader: { display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
-  authorName: { fontSize: 14, fontWeight: 700, color: '#1a1a1a' },
-  postTime: { fontSize: 11, color: '#bbb', marginTop: 2 },
-  postMenuRow: { display: 'flex', gap: 2, marginLeft: 'auto', flexShrink: 0 },
-  iconBtn: { fontSize: 15, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 5px', opacity: 0.65, lineHeight: 1 },
-  postText: { fontSize: 14, color: '#333', lineHeight: 1.6, margin: '0 0 10px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
   mediaGrid: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
   mediaImg: { maxWidth: '100%', maxHeight: 300, borderRadius: 8, objectFit: 'cover' },
-  reactRow: { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  reactBtn: { fontSize: 13, padding: '4px 10px', borderRadius: 20, border: '1px solid #E8E4DF', background: '#fff', cursor: 'pointer', color: '#555' },
-  reactActive: { background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#4338CA' },
   // Members tab
   memberRow: {
     display: 'flex', alignItems: 'center', gap: 12,
