@@ -10164,20 +10164,20 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             {inviteCopied ? (t.jobCVCopied) : (t.copy)}
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="p-fb-share-btn" onClick={handleTwitterShare} style={{ background: '#000' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+          <button className="p-fb-share-btn" onClick={handleTwitterShare} style={{ background: '#000', justifyContent: 'center' }}>
             <span className="fb-icon" style={{ fontFamily: 'serif', fontWeight: 900 }}>𝕏</span>
             {t.referralDashShareTwitter}
           </button>
-          <button className="p-fb-share-btn" onClick={handleLinkedInShare} style={{ background: '#0A66C2' }}>
+          <button className="p-fb-share-btn" onClick={handleLinkedInShare} style={{ background: '#0A66C2', justifyContent: 'center' }}>
             <span className="fb-icon" style={{ fontWeight: 900, fontSize: 16 }}>in</span>
             {t.referralDashShareLinkedIn}
           </button>
-          <button className="p-fb-share-btn" onClick={handleWhatsAppShare} style={{ background: '#25D366' }}>
+          <button className="p-fb-share-btn" onClick={handleWhatsAppShare} style={{ background: '#25D366', justifyContent: 'center' }}>
             <span className="fb-icon">💬</span>
             {t.referralDashShareWhatsApp}
           </button>
-          <button className="p-fb-share-btn" onClick={handleFacebookShare} style={{ background: '#1877F2' }}>
+          <button className="p-fb-share-btn" onClick={handleFacebookShare} style={{ background: '#1877F2', justifyContent: 'center' }}>
             <span className="fb-icon" style={{ fontWeight: 900, fontSize: 16 }}>f</span>
             {t.referralDashShareFacebook}
           </button>
