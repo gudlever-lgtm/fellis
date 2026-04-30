@@ -5,7 +5,7 @@ import { validate, schemas } from '../validation.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../../src/badges/badgeEngine.js'
 import {
-  authenticate, writeLimit, fileUploadLimit, strictLimit, registerLimit,
+  authenticate, writeLimit, fileUploadLimit, strictLimit, loginStrictLimit, registerLimit,
   requireAdmin, requireModerator, requireBusiness, attachUserMode,
   upload, uploadDoc, reelUpload, coverUpload,
   formatPostTime, formatMsgTime, applySignals, autoSignalPost,
@@ -153,7 +153,7 @@ router.get('/auth/password-policy', async (req, res) => {
 })
 
 
-router.post('/auth/login', strictLimit, validate(schemas.login), async (req, res) => {
+router.post('/auth/login', loginStrictLimit, validate(schemas.login), async (req, res) => {
   const { email, password, lang } = req.body
   try {
     const [users] = await pool.query(

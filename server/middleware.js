@@ -274,6 +274,19 @@ const strictLimit = rlFactory({
   skip: skipInDev,
 })
 
+// Login-specific limiter: only failed attempts count so normal account
+// switching (log out + log in) never triggers the rate limit.
+const loginStrictLimit = rlFactory({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — prøv igen om 15 minutter' },
+  keyGenerator: (req) => ipKeyGenerator(getClientIp(req)),
+  skip: skipInDev,
+})
+
 // Register: 3 per hour per IP
 const registerLimit = rlFactory({
   windowMs: 60 * 60 * 1000,
@@ -881,7 +894,7 @@ export {
   authenticate,
   
   // Rate limiters
-  strictLimit, registerLimit, writeLimit, fileUploadLimit, generalLimit,
+  strictLimit, loginStrictLimit, registerLimit, writeLimit, fileUploadLimit, generalLimit,
   
   // Authorization middleware
   requireAdmin, requireModerator, requireBusiness, attachUserMode,
