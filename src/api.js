@@ -1128,6 +1128,11 @@ export async function apiAdminDeleteGroup(id) {
 
 export const apiAdminGetGroupReports = () => request('/api/groups/admin/reports')
 
+export const apiGetFlaggedGroups = () => request('/api/groups/admin/flagged')
+
+export const apiUpdateGroupModerationStatus = (id, status, note) =>
+  request(`/api/groups/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, note }) })
+
 export const apiAdminGetGroupSettings = () => request('/api/groups/admin/settings')
 
 export async function apiAdminSaveGroupSettings(data) {

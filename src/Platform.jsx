@@ -55,6 +55,7 @@ import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
   apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
+  apiGetFlaggedGroups, apiUpdateGroupModerationStatus,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
   apiGetMyServices,
   apiGetCompanyProfile,
@@ -20659,6 +20660,10 @@ function AdminPage({ lang, t }) {
   // Flagged content (AI moderation queue)
   const [flaggedContent, setFlaggedContent] = useState(null)
   const [flaggedActionLoading, setFlaggedActionLoading] = useState({})
+  // Groups AI moderation queue
+  const [grpFlaggedQueue, setGrpFlaggedQueue] = useState(null)
+  const [grpFlaggedLoading, setGrpFlaggedLoading] = useState({})
+  const [grpFlaggedNotes, setGrpFlaggedNotes] = useState({})
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -20780,6 +20785,10 @@ function AdminPage({ lang, t }) {
     if (adminTab === 'groups-categories') {
       apiAdminGetGroupCategories().then(data => { if (data) setGrpCategories(data.categories || []) })
     }
+    if (adminTab === 'groups-ai-queue') {
+      setGrpFlaggedQueue(null)
+      apiGetFlaggedGroups().then(data => { if (data) setGrpFlaggedQueue(data.groups || []) })
+    }
   }, [adminTab, viralDays, auditLogOffset, auditLogFilter, feedbackFilter])
 
   const handleSave = async (e) => {
@@ -20866,6 +20875,7 @@ function AdminPage({ lang, t }) {
             tabs: [
               { id: 'groups-overview',    icon: '📊', label: t.adminGroupsOverview },
               { id: 'groups-approval',    icon: '✅', label: t.adminGroupsApproval },
+              { id: 'groups-ai-queue',    icon: '🤖', label: t.groups?.adminAiQueueTitle || 'AI Queue' },
               { id: 'groups-manage',      icon: '🔧', label: t.adminGroupsManage },
               { id: 'groups-reports',     icon: '🚨', label: t.adminGroupsReportsTab },
               { id: 'groups-settings',    icon: '⚙️', label: t.adminGroupsSettings },
@@ -22420,6 +22430,76 @@ function AdminPage({ lang, t }) {
                 </div>
               </div>
             ))}
+          </div>
+        )
+      })()}
+
+      {adminTab === 'groups-ai-queue' && (() => {
+        const tg = t.groups || {}
+        const sRow = { background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '14px 18px', marginBottom: 12 }
+        const actOnGroup = async (g, action) => {
+          const note = grpFlaggedNotes[g.id] || ''
+          setGrpFlaggedLoading(prev => ({ ...prev, [g.id]: action }))
+          const res = await apiUpdateGroupModerationStatus(g.id, action, note)
+          if (res?.group) {
+            setGrpFlaggedQueue(prev => prev.filter(x => x.id !== g.id))
+            setGrpFlaggedNotes(prev => { const n = { ...prev }; delete n[g.id]; return n })
+          }
+          setGrpFlaggedLoading(prev => { const n = { ...prev }; delete n[g.id]; return n })
+        }
+        return (
+          <div>
+            {!grpFlaggedQueue ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+            ) : grpFlaggedQueue.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>✅ {tg.adminAiQueueEmpty}</div>
+            ) : grpFlaggedQueue.map(g => {
+              const cats = (() => { try { return JSON.parse(g.group_moderation_note || '{}') } catch { return {} } })()
+              const flaggedCats = Object.entries(cats).filter(([, v]) => v).map(([k]) => k)
+              const loading = grpFlaggedLoading[g.id]
+              return (
+                <div key={g.id} style={sRow}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    {g.cover_url && <img src={g.cover_url} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{g.name}</div>
+                      <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
+                        {tg.adminAiQueueCreator}: {g.creator_name} ({g.creator_email}) · {g.category} · {g.type}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>
+                        {(g.description_da || g.description_en || '').slice(0, 160)}
+                      </div>
+                      {flaggedCats.length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, color: '#666', fontWeight: 600 }}>{tg.adminAiQueueFlaggedCategories}: </span>
+                          {flaggedCats.map(c => (
+                            <span key={c} style={{ background: '#FEE2E2', color: '#991B1B', borderRadius: 4, padding: '1px 7px', fontSize: 11, fontWeight: 700, marginRight: 4 }}>{c}</span>
+                          ))}
+                        </div>
+                      )}
+                      <input
+                        value={grpFlaggedNotes[g.id] || ''}
+                        onChange={e => setGrpFlaggedNotes(prev => ({ ...prev, [g.id]: e.target.value }))}
+                        placeholder={tg.adminAiQueueNoteHint}
+                        style={{ width: '100%', padding: '6px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, boxSizing: 'border-box', marginBottom: 8 }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          disabled={!!loading}
+                          onClick={() => actOnGroup(g, 'active')}
+                          style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #22C55E', background: '#F0FDF4', color: '#166534', fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: loading ? 0.6 : 1 }}
+                        >✓ {tg.adminAiQueueApprove}</button>
+                        <button
+                          disabled={!!loading}
+                          onClick={() => actOnGroup(g, 'removed')}
+                          style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #e03131', background: '#fff', color: '#e03131', fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: loading ? 0.6 : 1 }}
+                        >✕ {tg.adminAiQueueRemove}</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )
       })()}
