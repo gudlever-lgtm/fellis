@@ -645,6 +645,29 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
     const newGroupId = result.insertId
     res.status(201).json({ id: newGroupId, slug: cleanSlug })
 
+    // Notify creator
+    createNotification(
+      req.userId, 'group_created',
+      `Din gruppe "${String(name).trim()}" er oprettet`,
+      `Your group "${String(name).trim()}" has been created`,
+      req.userId
+    ).catch(() => {})
+
+    // Notify all admins
+    pool.query('SELECT user_id FROM admin_roles').then(([admins]) => {
+      const adminIds = admins.map(a => a.user_id)
+      if (!adminIds.includes(1)) adminIds.push(1)
+      for (const adminId of adminIds) {
+        if (adminId === req.userId) continue
+        createNotification(
+          adminId, 'group_created',
+          `Ny gruppe oprettet: "${String(name).trim()}"`,
+          `New group created: "${String(name).trim()}"`,
+          req.userId
+        ).catch(() => {})
+      }
+    }).catch(() => {})
+
     // Background moderation — never blocks the response
     const groupName = String(name).trim()
     const groupDesc = description ? String(description).trim() : ''
