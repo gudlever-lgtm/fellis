@@ -1178,4 +1178,59 @@ if (translationSystemErrors.length > 0) {
   console.log(`${GREEN}✓ Translation system routes (set-language, content/:id, translate) are registered; translate.js has cache + DeepL wiring; VALID_LANGS includes 'fi'; POST /api/translate validates text and lang.${RESET}\n`)
 }
 
+// ── Reports / Red Flag endpoint declarations ──────────────────────────────────
+//
+// POST /api/reports — submit a report (Red Flag) for a post or group.
+//
+//   POST /api/reports { target_type: 'post', target_id: 1, reason: 'spam' }
+//     → 200 { ok: true }           (valid payload, authenticated)
+//   POST /api/reports { target_type: 'post', target_id: 1 }
+//     → 400                        (missing reason)
+//   POST /api/reports { target_type: 'page', target_id: 1, reason: 'spam' }
+//     → 400                        (invalid target_type)
+//   POST /api/reports { target_type: 'post', target_id: 1, reason: 'spam' }
+//     → 409 / { ok: true, duplicate: true }  (same user reporting same target twice)
+//
+const REQUIRED_REPORTS_ROUTES = ['POST /api/reports']
+
+const missingReportsRoutes = REQUIRED_REPORTS_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingReportsRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required reports/red-flag server routes:${RESET}`)
+  for (const r of missingReportsRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ POST /api/reports (Red Flag) route is registered on the server.${RESET}\n`)
+}
+
+// Verify the route validates target_type, requires reason, and detects duplicates.
+const reportsSrc = (() => {
+  try { return readFileSync(resolve(root, 'server/routes/misc.js'), 'utf8') } catch { return '' }
+})()
+
+const reportsErrors = []
+
+if (!reportsSrc.includes("'post'") || !reportsSrc.includes("'group'")) {
+  reportsErrors.push("POST /api/reports does not validate 'post' and 'group' as valid target_type values")
+}
+if (!reportsSrc.includes('reason required') && !reportsSrc.includes("!reason")) {
+  reportsErrors.push('POST /api/reports does not validate that reason is required (missing 400 guard)')
+}
+if (!reportsSrc.includes('duplicate') && !reportsSrc.includes('unique_report')) {
+  reportsErrors.push('POST /api/reports does not detect duplicate reports (missing 409 / duplicate guard)')
+}
+
+if (reportsErrors.length > 0) {
+  console.log(`${RED}✗ Reports/Red-flag route implementation issues:${RESET}`)
+  for (const e of reportsErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ POST /api/reports validates target_type ('post','group'), requires reason, and guards against duplicates.${RESET}\n`)
+}
+
 process.exit(0)

@@ -12,6 +12,7 @@ import {
   apiGetGroupModerationReports, apiDismissGroupReport,
   apiPreflightPost,
   apiFollowGroup, apiUnfollowGroup,
+  apiReportContent,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 import { getLocale } from './utils/dateFormat.js'
@@ -94,6 +95,10 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [pollSaving, setPollSaving] = useState(false)
   const [modReports, setModReports] = useState([])
   const [modLoading, setModLoading] = useState(false)
+  const [redFlagModal, setRedFlagModal] = useState(false)
+  const [redFlagStatus, setRedFlagStatus] = useState('idle') // idle | submitting | done | duplicate
+  const [redFlagReason, setRedFlagReason] = useState('')
+  const [redFlagDetails, setRedFlagDetails] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -524,6 +529,15 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               {isAdmin && (
                 <button style={s.settingsBtn} onClick={() => onNavigate?.(`/groups/${slug}/settings`)}>
                   {'⚙️ '}{g.settings}
+                </button>
+              )}
+              {currentUser && !isAdmin && (
+                <button
+                  style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', cursor: 'pointer', color: '#888' }}
+                  onClick={() => { setRedFlagModal(true); setRedFlagStatus('idle'); setRedFlagReason(''); setRedFlagDetails('') }}
+                  title={t.redFlagTitleGroup}
+                >
+                  {t.redFlag}
                 </button>
               )}
               {membership.isMember && (
@@ -1166,6 +1180,62 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       </div>
       {muteOpen && (
         <GroupMuteModal g={g} isMuted={isMuted} onClose={() => setMuteOpen(false)} onMute={handleMute} />
+      )}
+      {redFlagModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setRedFlagModal(false)}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, padding: '24px 28px', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>{t.redFlagTitleGroup}</h3>
+            {redFlagStatus === 'done' && <div style={{ color: '#2D6A4F', fontWeight: 600, marginBottom: 12 }}>✓ {t.reportDone}</div>}
+            {redFlagStatus === 'duplicate' && <div style={{ color: '#888', marginBottom: 12 }}>{t.reportDuplicate}</div>}
+            {redFlagStatus !== 'done' && (
+              <form onSubmit={async e => {
+                e.preventDefault()
+                if (!redFlagReason) return
+                setRedFlagStatus('submitting')
+                const data = await apiReportContent('group', group.id, redFlagReason, redFlagDetails).catch(() => null)
+                if (data?.duplicate) { setRedFlagStatus('duplicate'); return }
+                setRedFlagStatus('done')
+                setTimeout(() => setRedFlagModal(false), 1800)
+              }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t.reportReasonLabel}</label>
+                <select
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 12 }}
+                  value={redFlagReason}
+                  onChange={e => setRedFlagReason(e.target.value)}
+                  required
+                >
+                  <option value="">—</option>
+                  <option value="spam">{t.reportReasonSpam}</option>
+                  <option value="hate">{t.reportReasonHate}</option>
+                  <option value="harassment">{t.reportReasonHarassment}</option>
+                  <option value="misinformation">{t.reportReasonMisinformation}</option>
+                  <option value="violence">{t.reportReasonViolence}</option>
+                  <option value="nudity">{t.reportReasonNudity}</option>
+                  <option value="other">{t.reportReasonOther}</option>
+                </select>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t.reportDetailsLabel}</label>
+                <textarea
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minHeight: 70, resize: 'vertical', boxSizing: 'border-box', marginBottom: 14 }}
+                  value={redFlagDetails}
+                  onChange={e => setRedFlagDetails(e.target.value)}
+                  placeholder={t.reportDetailsPlaceholder}
+                  maxLength={500}
+                />
+                <div>
+                  <button type="submit" style={{ padding: '10px 22px', borderRadius: 8, border: 'none', background: '#E07A5F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }} disabled={!redFlagReason || redFlagStatus === 'submitting'}>
+                    {redFlagStatus === 'submitting' ? '…' : t.reportSubmit}
+                  </button>
+                  <button type="button" style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', fontSize: 14, cursor: 'pointer', marginLeft: 8 }} onClick={() => setRedFlagModal(false)}>
+                    {t.cancel}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
