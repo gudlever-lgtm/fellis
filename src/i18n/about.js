@@ -2,6 +2,7 @@ export default {
   da: {
     aboutTitle: 'Om Fellis',
     aboutSubtitle: 'Filosofi og formål med Fellis.eu',
+    about_fellis_name_long: 'Fellis er skabt af de nordiske ord for fælles — fælles på dansk, felles på norsk, fällas på svensk. Vi tog kernen fra alle tre og byggede et nyt ord til en ny slags platform. Ikke et eksisterende ord. Ikke marketing. Et navn der peger direkte mod det Fellis handler om: et sted vi har til fælles — på tværs af grænser, sprog og kulturer. Fellis er europæisk, uafhængigt og bygget på tillid. Her ejer du din data. Her er serverne i Europa. Og her er fællesskabet i centrum — ikke algoritmer.',
     aboutPhilosophyTitle: 'Vores filosofi',
     aboutPhilosophyText: [
       'Fellis.eu er skabt som et privat og trygt alternativ til de store sociale netværk. Vi tror på, at sociale medier skal tjene mennesker — ikke omvendt.',
@@ -81,6 +82,7 @@ export default {
   en: {
     aboutTitle: 'About Fellis',
     aboutSubtitle: 'Philosophy and purpose of Fellis.eu',
+    about_fellis_name_long: 'Fellis was created from the Nordic words for togetherness — fælles in Danish, felles in Norwegian, fällas in Swedish. We took the core from all three and built a new word for a new kind of platform. Not an existing word. Not marketing. A name that points directly at what Fellis is about: a place we hold in common — across borders, languages and cultures. Fellis is European, independent and built on trust. Here you own your data. Here the servers are in Europe. And here the community is at the centre — not algorithms.',
     aboutPhilosophyTitle: 'Our philosophy',
     aboutPhilosophyText: [
       'Fellis.eu was created as a private and safe alternative to the major social networks. We believe social media should serve people — not the other way around.',
@@ -160,6 +162,7 @@ export default {
   sv: {
     aboutTitle: 'Om Fellis',
     aboutSubtitle: 'Filosofi och syfte med Fellis.eu',
+    about_fellis_name_long: 'Fellis skapades av de nordiska orden för gemensam — fælles på danska, felles på norska, fällas på svenska. Vi tog kärnan från alla tre och byggde ett nytt ord för en ny sorts plattform. Inte ett befintligt ord. Inte marknadsföring. Ett namn som pekar direkt på vad Fellis handlar om: en plats vi har gemensamt — över gränser, språk och kulturer. Fellis är europeiskt, oberoende och byggt på förtroende. Här äger du din data. Här finns servrarna i Europa. Och här är gemenskapen i centrum — inte algoritmer.',
     aboutPhilosophyTitle: 'Vår filosofi',
     aboutPurposeTitle: 'Syfte',
     aboutChangelogTitle: 'Implementerade funktioner',
@@ -190,6 +193,7 @@ export default {
   no: {
     aboutTitle: 'Om Fellis',
     aboutSubtitle: 'Filosofi og formål med Fellis.eu',
+    about_fellis_name_long: 'Fellis ble skapt av de nordiske ordene for felles — fælles på dansk, felles på norsk, fällas på svensk. Vi tok kjernen fra alle tre og bygde et nytt ord for en ny slags plattform. Ikke et eksisterende ord. Ikke markedsføring. Et navn som peker direkte mot det Fellis handler om: et sted vi har til felles — på tvers av grenser, språk og kulturer. Fellis er europeisk, uavhengig og bygget på tillit. Her eier du dine data. Her er serverne i Europa. Og her er fellesskapet i sentrum — ikke algoritmer.',
     aboutPhilosophyTitle: 'Vår filosofi',
     aboutPurposeTitle: 'Formål',
     aboutChangelogTitle: 'Implementerte funksjoner',
@@ -220,6 +224,7 @@ export default {
   de: {
     aboutTitle: 'Über Fellis',
     aboutSubtitle: 'Philosophie und Zweck von Fellis.eu',
+    about_fellis_name_long: 'Fellis entstand aus den nordischen Wörtern für gemeinschaftlich — fælles auf Dänisch, felles auf Norwegisch, fällas auf Schwedisch. Wir nahmen den Kern aus allen dreien und bauten ein neues Wort für eine neue Art von Plattform. Kein bestehendes Wort. Kein Marketing. Ein Name, der direkt auf das zeigt, worum es bei Fellis geht: ein Ort, den wir gemeinsam haben — über Grenzen, Sprachen und Kulturen hinweg. Fellis ist europäisch, unabhängig und auf Vertrauen aufgebaut. Hier besitzt du deine Daten. Hier stehen die Server in Europa. Und hier steht die Gemeinschaft im Mittelpunkt — nicht Algorithmen.',
     aboutPhilosophyTitle: 'Unsere Philosophie',
     aboutPurposeTitle: 'Zweck',
     aboutChangelogTitle: 'Implementierte Funktionen',
@@ -250,6 +255,7 @@ export default {
   fr: {
     aboutTitle: 'À propos de Fellis',
     aboutSubtitle: 'Philosophie et objectif de Fellis.eu',
+    about_fellis_name_long: "Fellis est né des mots nordiques pour désigner ce qui est commun — fælles en danois, felles en norvégien, fällas en suédois. Nous avons pris l'essence des trois et construit un nouveau mot pour un nouveau type de plateforme. Pas un mot existant. Pas du marketing. Un nom qui pointe directement sur ce que Fellis représente : un endroit que nous avons en commun — à travers les frontières, les langues et les cultures. Fellis est européen, indépendant et fondé sur la confiance. Ici, vous possédez vos données. Ici, les serveurs sont en Europe. Et ici, la communauté est au centre — pas les algorithmes.",
     aboutPhilosophyTitle: 'Notre philosophie',
     aboutPurposeTitle: 'Objectif',
     aboutChangelogTitle: 'Fonctionnalités implémentées',
@@ -280,6 +286,7 @@ export default {
   es: {
     aboutTitle: 'Acerca de Fellis',
     aboutSubtitle: 'Filosofía y propósito de Fellis.eu',
+    about_fellis_name_long: 'Fellis nació de las palabras nórdicas para común — fælles en danés, felles en noruego, fällas en sueco. Tomamos el núcleo de las tres y construimos una nueva palabra para un nuevo tipo de plataforma. No una palabra existente. No marketing. Un nombre que apunta directamente a lo que es Fellis: un lugar que tenemos en común — a través de fronteras, idiomas y culturas. Fellis es europeo, independiente y construido sobre la confianza. Aquí tú eres dueño de tus datos. Aquí los servidores están en Europa. Y aquí la comunidad está en el centro — no los algoritmos.',
     aboutPhilosophyTitle: 'Nuestra filosofía',
     aboutPurposeTitle: 'Propósito',
     aboutChangelogTitle: 'Funciones implementadas',
@@ -310,6 +317,7 @@ export default {
   it: {
     aboutTitle: 'Informazioni su Fellis',
     aboutSubtitle: 'Filosofia e scopo di Fellis.eu',
+    about_fellis_name_long: 'Fellis nacque dalle parole nordiche per comune — fælles in danese, felles in norvegese, fällas in svedese. Abbiamo preso il nucleo da tutte e tre e costruito una nuova parola per un nuovo tipo di piattaforma. Non una parola esistente. Non marketing. Un nome che punta direttamente a ciò di cui Fellis si occupa: un luogo che abbiamo in comune — attraverso confini, lingue e culture. Fellis è europeo, indipendente e costruito sulla fiducia. Qui sei tu a possedere i tuoi dati. Qui i server sono in Europa. E qui la comunità è al centro — non gli algoritmi.',
     aboutPhilosophyTitle: 'La nostra filosofia',
     aboutPurposeTitle: 'Scopo',
     aboutChangelogTitle: 'Funzionalità implementate',
@@ -340,6 +348,7 @@ export default {
   nl: {
     aboutTitle: 'Over Fellis',
     aboutSubtitle: 'Filosofie en doel van Fellis.eu',
+    about_fellis_name_long: 'Fellis ontstond uit de Noordse woorden voor gemeenschappelijk — fælles in het Deens, felles in het Noors, fällas in het Zweeds. We namen de kern van alle drie en bouwden een nieuw woord voor een nieuw soort platform. Geen bestaand woord. Geen marketing. Een naam die rechtstreeks verwijst naar waar Fellis over gaat: een plek die we gemeen hebben — over grenzen, talen en culturen heen. Fellis is Europees, onafhankelijk en gebouwd op vertrouwen. Hier bezit jij je gegevens. Hier staan de servers in Europa. En hier staat de gemeenschap centraal — niet algoritmen.',
     aboutPhilosophyTitle: 'Onze filosofie',
     aboutPurposeTitle: 'Doel',
     aboutChangelogTitle: 'Geïmplementeerde functies',
@@ -370,6 +379,7 @@ export default {
   pl: {
     aboutTitle: 'O Fellis',
     aboutSubtitle: 'Filozofia i cel Fellis.eu',
+    about_fellis_name_long: 'Fellis powstał z nordyckich słów oznaczających wspólny — fælles po duńsku, felles po norwesku, fällas po szwedzku. Wzięliśmy rdzeń ze wszystkich trzech i zbudowaliśmy nowe słowo dla nowego rodzaju platformy. Nie istniejące słowo. Nie marketing. Nazwa wskazująca bezpośrednio na to, o czym jest Fellis: miejsce, które mamy wspólne — ponad granicami, językami i kulturami. Fellis jest europejski, niezależny i zbudowany na zaufaniu. Tu Ty jesteś właścicielem swoich danych. Tu serwery są w Europie. I tu społeczność jest w centrum — nie algorytmy.',
     aboutPhilosophyTitle: 'Nasza filozofia',
     aboutPurposeTitle: 'Cel',
     aboutChangelogTitle: 'Zaimplementowane funkcje',
@@ -397,9 +407,15 @@ export default {
     aboutServicesTitle: 'Usługi, z których korzystamy — i dlaczego europejskie',
     aboutServicesIntro: 'Świadomie wybieramy europejskich dostawców na każdej warstwie platformy. Nie chodzi tylko o zgodność z RODO — chodzi o to, aby Twoje dane, komunikacja i płatności pozostawały w ramach prawnych, które Cię chronią.',
   },
+  fi: {
+    aboutTitle: 'Tietoa Fellistä',
+    aboutSubtitle: 'Filosofia ja tarkoitus Fellis.eu',
+    about_fellis_name_long: 'Fellis syntyi pohjoismaisista sanoista yhteinen — fælles tanskaksi, felles norjaksi, fällas ruotsiksi. Otimme ytimen kaikista kolmesta ja rakensimme uuden sanan uudenlaiselle alustalle. Ei olemassa olevaa sanaa. Ei markkinointia. Nimi, joka osoittaa suoraan siihen, mistä Fellis on kyse: paikka, joka on meille yhteinen — rajojen, kielten ja kulttuurien yli. Fellis on eurooppalainen, riippumaton ja luottamukseen rakennettu. Täällä sinä omistat datasi. Täällä palvelimet ovat Euroopassa. Ja täällä yhteisö on keskiössä — ei algoritmit.',
+  },
   pt: {
     aboutTitle: 'Sobre o Fellis',
     aboutSubtitle: 'Filosofia e propósito do Fellis.eu',
+    about_fellis_name_long: 'Fellis foi criado a partir das palavras nórdicas para comum — fælles em dinamarquês, felles em norueguês, fällas em sueco. Retirámos o núcleo das três e construímos uma nova palavra para um novo tipo de plataforma. Não uma palavra existente. Não marketing. Um nome que aponta diretamente para aquilo que é o Fellis: um lugar que temos em comum — através de fronteiras, línguas e culturas. Fellis é europeu, independente e construído sobre a confiança. Aqui és tu que possuis os teus dados. Aqui os servidores estão na Europa. E aqui a comunidade está no centro — não os algoritmos.',
     aboutPhilosophyTitle: 'A nossa filosofia',
     aboutPurposeTitle: 'Propósito',
     aboutChangelogTitle: 'Funcionalidades implementadas',

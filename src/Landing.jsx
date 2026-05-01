@@ -467,7 +467,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           {/* Heading */}
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <h1 style={{ fontSize: 28, lineHeight: 1.2, fontWeight: 700, margin: '0 0 4px' }}>{t.headline}</h1>
-            <p style={{ fontSize: 14, color: '#6B6560', margin: 0, lineHeight: 1.4 }}>{t.subtitle}</p>
+            <p style={{ fontSize: 14, color: '#6B6560', margin: '0 0 4px', lineHeight: 1.4 }}>{t.subtitle}</p>
+            {t.about_fellis_name_short && <p style={{ fontSize: 13, color: '#2D6A4F', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>{t.about_fellis_name_short}</p>}
           </div>
 
           {/* Two-card row: manifesto + registration */}
