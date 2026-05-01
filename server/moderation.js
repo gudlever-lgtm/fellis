@@ -1,4 +1,4 @@
-import Mistral from '@mistralai/mistralai'
+import { Mistral } from '@mistralai/mistralai'
 import pool from './db.js'
 
 const SYSTEM_PROMPT = `You are a content moderation assistant for a social platform.
