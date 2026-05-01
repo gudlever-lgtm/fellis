@@ -8070,6 +8070,18 @@ function AboutPage({ lang }) {
         }
       </div>
 
+      {/* Age requirement */}
+      {t.aboutAgeReqTitle && (
+        <>
+          <div style={s.section}>🔞 {t.aboutAgeReqTitle}</div>
+          <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+            {(t.aboutAgeReqText || []).map((line, i, arr) => (
+              <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < arr.length - 1 ? '1px solid #f0f0f0' : 'none', lineHeight: 1.6 }}>{line}</div>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* Legal documents */}
       <div style={s.section}>📄 {t.aboutLegalTitle}</div>
       <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
@@ -8551,6 +8563,16 @@ function PrivacySection({ lang, onLogout }) {
           {t.hostingRights.map((item, i) => <li key={i}>{item}</li>)}
         </ul>
       </div>
+
+      {/* ── Children & Minors (GDPR Art. 8) ── */}
+      {t.childrenTitle && (
+        <div style={sectionStyle}>
+          <h3 style={sectionTitleStyle}>{t.childrenTitle}</h3>
+          <ul style={listStyle}>
+            {(t.childrenText || []).map((item, i) => <li key={i}>{item}</li>)}
+          </ul>
+        </div>
+      )}
 
       {/* ── Consent Management (GDPR Art. 7) ── */}
       <div style={sectionStyle}>

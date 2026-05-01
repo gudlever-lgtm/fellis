@@ -313,7 +313,15 @@ router.post('/auth/login', loginStrictLimit, validate(schemas.login), async (req
 
 
 router.post('/auth/register', registerLimit, validate(schemas.register), async (req, res) => {
-  const { name, email, password, lang, inviteToken } = req.body
+  const { name, email, password, lang, inviteToken, birth_year } = req.body
+  const currentYear = new Date().getFullYear()
+  const age = currentYear - birth_year
+  if (age < 13) {
+    return res.status(400).json({ error: lang === 'da'
+      ? 'Du skal være mindst 13 år for at oprette en konto'
+      : 'You must be at least 13 years old to create an account'
+    })
+  }
   const regPolicy = await getPasswordPolicy()
   const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
   if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
@@ -323,8 +331,8 @@ router.post('/auth/register', registerLimit, validate(schemas.register), async (
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase()
     const userInviteToken = crypto.randomBytes(32).toString('hex')
     const [result] = await pool.query(
-      'INSERT INTO users (name, handle, initials, email, password_hash, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, bcryptHash, new Date().toISOString().split('T')[0], userInviteToken]
+      'INSERT INTO users (name, handle, initials, email, password_hash, join_date, invite_token, birth_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, handle, initials, email, bcryptHash, new Date().toISOString().split('T')[0], userInviteToken, birth_year]
     )
     const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
