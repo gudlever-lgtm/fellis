@@ -18339,6 +18339,8 @@ function ModeratorPage({ lang, t, currentUser }) {
                 <div style={{ background: 'var(--bg, #f9f7f5)', borderRadius: 8, padding: '8px 12px', fontSize: 13, margin: '8px 0', color: 'var(--text, #444)' }}>
                   {r.target_type === 'user' ? (
                     <><strong>{r.preview.name}</strong> (@{r.preview.handle}) — {r.preview.status}</>
+                  ) : r.target_type === 'group' ? (
+                    <><strong>{r.preview.name}</strong>{r.preview.slug ? ` (/${r.preview.slug})` : ''} — {r.preview.group_status || 'active'}</>
                   ) : (
                     <><strong>{r.preview.author}:</strong> {(lang === 'en' ? (r.preview.text_en || r.preview.text_da) : (r.preview.text_da || r.preview.text_en) || '').slice(0, 300)}</>
                   )}
@@ -18360,7 +18362,7 @@ function ModeratorPage({ lang, t, currentUser }) {
                   <button style={s.btn('#f97316')} onClick={() => openWarnModal(r.target_id, r.preview?.name || `#${r.target_id}`)}>
                     {t.adminModWarn || 'Advar bruger'}
                   </button>
-                ) : (
+                ) : r.target_type !== 'group' && (
                   <button style={s.btn('#ef4444')} onClick={async () => {
                     await apiModerateRemoveContent(r.target_type, r.target_id, r.id, reasons[r.id] || '')
                     await refreshQueue()
@@ -21727,6 +21729,8 @@ function AdminPage({ lang, t }) {
                       <div style={{ background: '#f9f7f5', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 10, color: '#444' }}>
                         {report.target_type === 'user' ? (
                           <><strong>{report.preview.name}</strong> ({report.preview.handle}) — {report.preview.status}, {report.preview.strike_count} {t.adminModStrikes}</>
+                        ) : report.target_type === 'group' ? (
+                          <><strong>{report.preview.name}</strong>{report.preview.slug ? ` (/${report.preview.slug})` : ''} — {report.preview.group_status || 'active'}</>
                         ) : (
                           <><strong>{report.preview.author}:</strong> {(report.preview.text_da || '').slice(0, 200)}</>
                         )}
@@ -21751,7 +21755,7 @@ function AdminPage({ lang, t }) {
                         {t.adminModDismiss}
                       </button>
                       )}
-                      {report.target_type !== 'user' && canActOnReport && (
+                      {report.target_type !== 'user' && report.target_type !== 'group' && canActOnReport && (
                         <button style={{ padding: '6px 12px', borderRadius: 7, border: 'none', fontSize: 13, cursor: 'pointer', background: '#E07A5F', color: '#fff', fontWeight: 600 }}
                           onClick={async () => {
                             await apiModerateRemoveContent(report.target_type, report.target_id, report.id, reason)
