@@ -70,14 +70,14 @@ export async function apiLogin(email, password, lang) {
   }
 }
 
-export async function apiRegister(name, email, password, lang, inviteToken) {
+export async function apiRegister(name, email, password, lang, inviteToken, birthYear) {
   // Use raw fetch so non-ok responses can return their error body to the UI
   try {
     const res = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: headers(),
       credentials: 'same-origin',
-      body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined }),
+      body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined, birth_year: birthYear }),
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) return { error: body.error || 'registration_failed' }

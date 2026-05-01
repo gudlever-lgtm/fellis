@@ -47,6 +47,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
   const [gdprAccepted, setGdprAccepted] = useState(false)
+  const [regBirthYear, setRegBirthYear] = useState('')
   // Anti-bot: math challenge
   const [mathChallenge] = useState(() => {
     const a = Math.floor(Math.random() * 9) + 1
@@ -227,6 +228,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       setRegError(t.registerPasswordMismatch)
       return
     }
+    const birthYearInt = parseInt(regBirthYear, 10)
+    const currentYear = new Date().getFullYear()
+    if (!regBirthYear || isNaN(birthYearInt) || birthYearInt < 1900 || birthYearInt > currentYear) {
+      setRegError(t.registerBirthYear ? `${t.registerBirthYear}: ${1900}–${currentYear}` : 'Ugyldigt fødselsår')
+      return
+    }
+    if (currentYear - birthYearInt < 13) {
+      setRegError(t.registerAgeTooYoung)
+      return
+    }
     if (!gdprAccepted) {
       setRegError(t.registerGdprRequired)
       return
@@ -238,7 +249,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setRegLoading(true)
     setRegError('')
     try {
-      const regData = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
+      const regData = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined, birthYearInt)
       if (!regData?.sessionId) {
         const serverErr = regData?.error || ''
         let displayErr = t.registerError
@@ -265,7 +276,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regPassword, regPasswordRepeat, honeypot, gdprAccepted, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
+  }, [regName, regEmail, regPassword, regPasswordRepeat, regBirthYear, honeypot, gdprAccepted, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
 
   return (
     <div className="app" style={{ minHeight: '100dvh', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -542,6 +553,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               minLength={6}
               required
             />
+            <input
+              type="number"
+              placeholder={t.registerBirthYear}
+              value={regBirthYear}
+              onChange={e => setRegBirthYear(e.target.value)}
+              className="register-input"
+              min={1900}
+              max={new Date().getFullYear()}
+              required
+            />
             <PasswordStrengthIndicator password={regPassword} lang={lang} />
             {/* Math challenge — simple human verification */}
             <div style={{ marginTop: 2, marginBottom: 0 }}>
@@ -579,6 +600,19 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             </button>
           </form>
           </div>{/* end two-card row */}
+
+          {/* Age requirement card */}
+          {t.ageCardTitle && (
+            <div style={{ marginTop: 12, width: '100%', maxWidth: 860 }}>
+              <div style={{ border: '1px solid #C8DDD2', borderRadius: 12, padding: '14px 20px', background: '#F8FBFA', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2D6A4F', marginBottom: 3 }}>{t.ageCardTitle}</div>
+                  <div style={{ fontSize: 12, color: '#4a6b5c', lineHeight: 1.6 }}>{t.ageCardText}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Trust + services row — bottom */}
           <div style={{ marginTop: 12, width: '100%', maxWidth: 860, flexShrink: 0 }}>

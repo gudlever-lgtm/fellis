@@ -38,6 +38,7 @@ const register = z.object({
   inviteToken: z.string().max(128).optional(),
   birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Birthday must be YYYY-MM-DD').optional().or(z.literal('')),
   location: z.string().max(200).trim().optional(),
+  birth_year: z.number().int().min(1900).max(new Date().getFullYear()),
 })
 
 const forgotPassword = z.object({
