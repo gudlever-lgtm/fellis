@@ -8013,6 +8013,13 @@ function AboutPage({ lang }) {
         <div style={{ fontSize: 13, color: '#888' }}>{t.aboutSubtitle}</div>
       </div>
 
+      {/* Name origin */}
+      {t.about_fellis_name_long && (
+        <div className="p-card" style={{ padding: 20, marginBottom: 16, background: '#F0FAF4', border: '1px solid #C8DDD2' }}>
+          <p style={{ fontSize: 14, color: '#2D6A4F', lineHeight: 1.7, margin: 0 }}>{t.about_fellis_name_long}</p>
+        </div>
+      )}
+
       {/* Philosophy */}
       <div style={s.section}>🌿 {t.aboutPhilosophyTitle}</div>
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>

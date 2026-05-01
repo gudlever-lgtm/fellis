@@ -468,6 +468,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <h1 style={{ fontSize: 28, lineHeight: 1.2, fontWeight: 700, margin: '0 0 4px' }}>{t.headline}</h1>
             <p style={{ fontSize: 14, color: '#6B6560', margin: 0, lineHeight: 1.4 }}>{t.subtitle}</p>
+            <p style={{ fontSize: 13, color: '#888', margin: '6px 0 0', lineHeight: 1.5, fontStyle: 'italic' }}>{PT[lang]?.about_fellis_name_short || PT.en.about_fellis_name_short}</p>
           </div>
 
           {/* Two-card row: manifesto + registration */}
