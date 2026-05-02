@@ -104,8 +104,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const handleStripScroll = useCallback(() => {
     const strip = stripRef.current
     if (!strip) return
-    setStripAtStart(strip.scrollLeft <= 4)
-    setStripAtEnd(strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 4)
+    setStripAtStart(strip.scrollLeft <= 1)
+    setStripAtEnd(strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1)
     const viewCenter = strip.scrollLeft + strip.clientWidth / 2
     let bestIdx = 0, bestDist = Infinity
     Array.from(strip.children).forEach((card, i) => {
@@ -131,7 +131,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   useEffect(() => {
     const strip = stripRef.current
     if (!strip) return
-    setStripAtEnd(strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 4)
+    setStripAtStart(strip.scrollLeft <= 1)
+    setStripAtEnd(strip.scrollWidth <= strip.clientWidth + 1)
   }, [])
 
   // ── Login handler ──
