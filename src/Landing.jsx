@@ -683,10 +683,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             const sArrow = { position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', background: 'rgba(30,30,30,0.65)', border: 'none', color: '#fff', fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, padding: 0 }
             const sDot = { width: 8, height: 8, borderRadius: '50%', background: '#D0D0D0', flexShrink: 0 }
             const sDotActive = { ...sDot, background: '#2D6A4F' }
-            const sImgWrap = { minWidth: 'clamp(160px, 42vw, 210px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 10, overflow: 'hidden', flexShrink: 0, cursor: 'zoom-in' }
-            const sTextCard = { minWidth: 'clamp(150px, 38vw, 190px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 10, padding: '12px 14px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }
+            const sImgWrap = { minWidth: 'clamp(130px, 30vw, 170px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 10, overflow: 'hidden', flexShrink: 0, cursor: 'zoom-in' }
+            const sTextCard = { minWidth: 'clamp(120px, 26vw, 155px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 10, padding: '10px 12px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }
             return (
-              <div style={{ marginTop: 20, width: '100%', maxWidth: 860, flexShrink: 0 }}>
+              <div style={{ marginTop: 14, width: '100%', maxWidth: 860, flexShrink: 0 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 600, color: '#2D6A4F', margin: '0 0 10px', textAlign: 'center' }}>
                   {t.previewHeading}
                 </h2>
@@ -735,25 +735,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             )
           })()}
 
-          {/* Lightbox */}
-          {lightboxImg && (
-            <div
-              onClick={() => setLightboxImg(null)}
-              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <button
-                onClick={() => setLightboxImg(null)}
-                style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', lineHeight: 1, opacity: 0.8, padding: 4 }}
-                aria-label="Close"
-              >&#x2715;</button>
-              <img
-                src={lightboxImg}
-                alt=""
-                onClick={e => e.stopPropagation()}
-                style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,0.6)', display: 'block' }}
-              />
-            </div>
-          )}
         </div>
       )}
       {/* Step 5 — User type selector */}
@@ -770,6 +751,26 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               localStorage.setItem('fellis_mode', mode)
               onEnterPlatform(lang)
             }}
+          />
+        </div>
+      )}
+
+      {/* Lightbox — at root level so no overflow:hidden ancestor clips it */}
+      {lightboxImg && (
+        <div
+          onClick={() => setLightboxImg(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <button
+            onClick={() => setLightboxImg(null)}
+            style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', color: '#fff', fontSize: 32, cursor: 'pointer', lineHeight: 1, opacity: 0.85, padding: 4 }}
+            aria-label="Close"
+          >&#x2715;</button>
+          <img
+            src={lightboxImg}
+            alt=""
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,0.6)', display: 'block' }}
           />
         </div>
       )}
