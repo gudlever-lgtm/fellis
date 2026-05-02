@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 // Add one import + one entry here to show another screenshot in the preview strip
 import screenshotFeed from '../public/screenshots/fellis_screenshot_feed_1.png'
 import screenshotGroups from '../public/screenshots/fellis_screenshot_groups_1.png'
@@ -128,7 +128,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     strip.scrollBy({ left: dir * cardWidth, behavior: 'smooth' })
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const strip = stripRef.current
     if (!strip) return
     setStripAtStart(strip.scrollLeft <= 1)
@@ -547,7 +547,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           </div>
 
           {/* Right column: registration form + age card */}
-          <div style={{ flex: '1 1 280px', maxWidth: 420, width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ flex: '1 1 280px', maxWidth: 400, width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Registration form */}
           <form className="register-form" onSubmit={handleRegister} style={{ border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
             <h3 className="register-title" style={{ marginBottom: 2 }}>{t.registerTitle}</h3>
