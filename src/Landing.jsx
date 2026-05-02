@@ -651,7 +651,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
 
           {/* Age requirement card — inside right column so it matches form width */}
           {t.ageCardTitle && (
-            <div style={{ border: '1px solid #C8DDD2', borderRadius: 12, padding: '14px 20px', background: '#F8FBFA', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{ border: '1px solid #C8DDD2', borderRadius: 12, padding: '14px 20px', background: '#F8FBFA', display: 'flex', gap: 12, alignItems: 'flex-start', boxSizing: 'border-box', width: '100%' }}>
               <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#2D6A4F', marginBottom: 3 }}>{t.ageCardTitle}</div>
@@ -690,7 +690,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             const sImgWrap = { width: 176, height: CARD_H, border: '1px solid #E0DCD7', borderRadius: 10, overflow: 'hidden', flexShrink: 0, cursor: 'zoom-in' }
             const sTextCard = { width: 148, height: CARD_H, background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 10, padding: '10px 12px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }
             return (
-              <div style={{ marginTop: 14, width: '100%', maxWidth: 860, flexShrink: 0 }}>
+              <div style={{ marginTop: 14, width: '100%', maxWidth: 580, flexShrink: 0 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 600, color: '#2D6A4F', margin: '0 0 10px', textAlign: 'center' }}>
                   {t.previewHeading}
                 </h2>
