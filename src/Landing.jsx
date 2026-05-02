@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+// Add one import + one entry here to show another screenshot in the preview strip
 import screenshotFeed from '../public/screenshots/fellis_screenshot_feed_1.png'
 import screenshotGroups from '../public/screenshots/fellis_screenshot_groups_1.png'
 import screenshotAbout from '../public/screenshots/fellis_screenshot_about_1.png'
+const SCREENSHOTS = [screenshotFeed, screenshotGroups, screenshotAbout]
 import { UI_LANGS, PT } from './data.js'
 import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, apiGiveConsent } from './api.js'
 import UserTypeSelector from './UserTypeSelector.jsx'
@@ -704,31 +706,24 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                     style={{ display: 'flex', overflowX: 'auto', scrollBehavior: 'smooth', gap: 10, paddingBottom: 6, scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
                     onScroll={handleStripScroll}
                   >
-                    {/* Why Fellis card */}
-                    <div style={sTextCard}>
-                      <p style={{ fontSize: 12, lineHeight: 1.6, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[0]}</p>
-                    </div>
-                    {/* Screenshot */}
-                    <div style={sImgWrap} onClick={() => setLightboxImg(screenshotFeed)}>
-                      <img src={screenshotFeed} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    </div>
-                    {/* Why Fellis card */}
-                    <div style={sTextCard}>
-                      <p style={{ fontSize: 12, lineHeight: 1.6, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[1]}</p>
-                    </div>
-                    {/* Screenshot */}
-                    <div style={sImgWrap} onClick={() => setLightboxImg(screenshotGroups)}>
-                      <img src={screenshotGroups} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    </div>
-                    {/* Screenshot */}
-                    <div style={sImgWrap} onClick={() => setLightboxImg(screenshotAbout)}>
-                      <img src={screenshotAbout} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    </div>
+                    {(() => {
+                      const whyCards = t.previewWhyCards || []
+                      // Interleave: text[i], img[i] — then remaining imgs appended
+                      const cards = []
+                      whyCards.forEach((text, wi) => {
+                        cards.push(<div key={`t${wi}`} style={sTextCard}><p style={{ fontSize: 12, lineHeight: 1.6, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{text}</p></div>)
+                        if (SCREENSHOTS[wi]) cards.push(<div key={`s${wi}`} style={sImgWrap} onClick={() => setLightboxImg(SCREENSHOTS[wi])}><img src={SCREENSHOTS[wi]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div>)
+                      })
+                      SCREENSHOTS.slice(whyCards.length).forEach((src, i) => {
+                        cards.push(<div key={`sx${i}`} style={sImgWrap} onClick={() => setLightboxImg(src)}><img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div>)
+                      })
+                      return cards
+                    })()}
                   </div>
                 </div>
-                {/* Dot indicators */}
+                {/* Dot indicators — count adjusts with SCREENSHOTS.length */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 8 }}>
-                  {[0, 1, 2, 3, 4].map(i => (
+                  {Array.from({ length: (t.previewWhyCards?.length || 0) + SCREENSHOTS.length }).map((_, i) => (
                     <div key={i} style={i === activeCard ? sDotActive : sDot} />
                   ))}
                 </div>
