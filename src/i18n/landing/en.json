@@ -165,5 +165,12 @@
     "Company pages",
     "Conferences & webinars"
   ],
-  "modeSelectBtn": "Get started"
+  "modeSelectBtn": "Get started",
+  "previewHeading": "See how Fellis looks",
+  "previewWhyCards": [
+    "A European alternative to the big platforms — your data, your rules.",
+    "No algorithms dictating what you see. You decide.",
+    "Communities built on trust, not advertising revenue."
+  ],
+  "previewScreenshotPlaceholder": "Screenshot coming soon"
 }
