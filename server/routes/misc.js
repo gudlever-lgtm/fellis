@@ -3169,6 +3169,34 @@ router.get('/geocode/reverse', async (req, res) => {
 })
 
 
+router.get('/geocode/nearby', async (req, res) => {
+  const lat = parseFloat(req.query.lat)
+  const lng = parseFloat(req.query.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Invalid coordinates' })
+  const q = `[out:json][timeout:10];(node(around:50,${lat},${lng})["amenity"]["name"];node(around:50,${lat},${lng})["shop"]["name"];node(around:50,${lat},${lng})["tourism"]["name"];node(around:50,${lat},${lng})["leisure"]["name"];node(around:50,${lat},${lng})["office"]["name"];way(around:50,${lat},${lng})["amenity"]["name"];way(around:50,${lat},${lng})["shop"]["name"];way(around:50,${lat},${lng})["tourism"]["name"];way(around:50,${lat},${lng})["leisure"]["name"];way(around:50,${lat},${lng})["office"]["name"];);out center 10;`
+  try {
+    const r = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`, {
+      headers: { 'User-Agent': 'fellis.eu/1.0 (contact@fellis.eu)' },
+      signal: AbortSignal.timeout(12000)
+    })
+    if (!r.ok) return res.json([])
+    const data = await r.json()
+    const places = (data.elements || []).map(el => {
+      const tags = el.tags || {}
+      const name = tags.name
+      if (!name) return null
+      const type = tags.amenity || tags.shop || tags.tourism || tags.leisure || tags.office || null
+      const elLat = el.type === 'way' ? el.center?.lat : el.lat
+      const elLng = el.type === 'way' ? el.center?.lon : el.lon
+      return { name, type, lat: elLat, lng: elLng }
+    }).filter(Boolean)
+    res.json(places)
+  } catch {
+    res.json([])
+  }
+})
+
+
 router.post('/upload/file', authenticate, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
   try {

@@ -52,7 +52,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiNearbyPlaces, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
   apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
   apiGetFlaggedGroups, apiUpdateGroupModerationStatus,
@@ -2314,6 +2314,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const [locationSearchText, setLocationSearchText] = useState('')
   const [checkInBusy, setCheckInBusy] = useState(false)
   const [checkInError, setCheckInError] = useState(null)
+  const [checkInSuggestions, setCheckInSuggestions] = useState(null) // [{ name, lat, lng }] | null
   // Signal engine: track dwell time on posts via IntersectionObserver
   const dwellTimers = useRef(new Map())   // postId → { startMs, postId, categories }
   const signalQueue = useRef([])
@@ -2779,6 +2780,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
       setPostLocation(null)
       setLocationSearchText('')
       setLocationSearchOpen(false)
+      setCheckInSuggestions(null)
       setTaggedUsers([])
       setLinkedContent(null)
       setComposerLinkUrl(null)
@@ -3547,6 +3549,33 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
               </div>
             )}
 
+            {/* Nearby place picker popup */}
+            {checkInSuggestions && (
+              <div style={{ margin: '8px 4px 0', border: '1px solid #dde3ed', borderRadius: 10, background: '#fff', boxShadow: '0 2px 10px rgba(0,0,0,0.10)', overflow: 'hidden' }}>
+                <div style={{ padding: '8px 12px 6px', fontSize: 12, fontWeight: 600, color: '#555', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>📌 {t.pickNearbyPlace}</span>
+                  <button type="button" onClick={() => setCheckInSuggestions(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 15, lineHeight: 1, padding: '0 2px' }}>×</button>
+                </div>
+                {checkInSuggestions.map((place, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setPostLocation(place)
+                      setCheckInSuggestions(null)
+                      setLocationSearchOpen(false)
+                      setLocationSearchText('')
+                    }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', borderBottom: i < checkInSuggestions.length - 1 ? '1px solid #f4f4f4' : 'none', cursor: 'pointer', fontSize: 13, color: '#222' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#f5f8ff' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                  >
+                    📍 {place.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Selected location chip */}
             {postLocation && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 4px 0' }}>
@@ -3733,23 +3762,44 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                     setCheckInError(null)
                     if (!navigator.geolocation) { setCheckInError(t.checkInUnsupported); return }
                     setCheckInBusy(true)
+                    setCheckInSuggestions(null)
                     navigator.geolocation.getCurrentPosition(async pos => {
                       const { latitude, longitude } = pos.coords
-                      const data = await apiReverseGeocode(latitude, longitude, lang)
+                      const [data, nearby] = await Promise.all([
+                        apiReverseGeocode(latitude, longitude, lang),
+                        apiNearbyPlaces(latitude, longitude)
+                      ])
                       setCheckInBusy(false)
-                      if (!data || data.error) { setCheckInError(t.checkInFailed); return }
-                      const addr = data.address || {}
-                      // Prefer venue-style names; fall back to street address
-                      const venue = addr.amenity || addr.shop || addr.leisure || addr.tourism || addr.building || addr.office || data.name || null
-                      const street = [addr.road, addr.house_number].filter(Boolean).join(' ')
-                      const city = addr.city || addr.town || addr.village || addr.suburb || null
-                      const label = venue
-                        ? [venue, city].filter(Boolean).join(', ')
-                        : (street ? [street, city].filter(Boolean).join(', ') : (data.display_name || '').split(',').slice(0, 2).join(',').trim())
-                      if (!label) { setCheckInError(t.checkInFailed); return }
-                      setPostLocation({ lat: latitude, lng: longitude, name: label })
-                      setLocationSearchOpen(false)
-                      setLocationSearchText('')
+                      // Extract label from reverse geocode
+                      let reverseLabel = null
+                      if (data && !data.error) {
+                        const addr = data.address || {}
+                        const venue = addr.amenity || addr.shop || addr.leisure || addr.tourism || addr.building || addr.office || data.name || null
+                        const street = [addr.road, addr.house_number].filter(Boolean).join(' ')
+                        const city = addr.city || addr.town || addr.village || addr.suburb || null
+                        reverseLabel = venue
+                          ? [venue, city].filter(Boolean).join(', ')
+                          : (street ? [street, city].filter(Boolean).join(', ') : (data.display_name || '').split(',').slice(0, 2).join(',').trim())
+                      }
+                      // Build deduplicated candidate list: Overpass POIs first, then reverse geocode
+                      const seen = new Set()
+                      const candidates = []
+                      for (const p of (nearby || [])) {
+                        const key = p.name.trim().toLowerCase()
+                        if (!seen.has(key)) { seen.add(key); candidates.push({ name: p.name, lat: latitude, lng: longitude }) }
+                      }
+                      if (reverseLabel) {
+                        const key = reverseLabel.trim().toLowerCase()
+                        if (!seen.has(key)) { seen.add(key); candidates.push({ name: reverseLabel, lat: latitude, lng: longitude }) }
+                      }
+                      if (candidates.length === 0) { setCheckInError(t.checkInFailed); return }
+                      if (candidates.length === 1) {
+                        setPostLocation(candidates[0])
+                        setLocationSearchOpen(false)
+                        setLocationSearchText('')
+                        return
+                      }
+                      setCheckInSuggestions(candidates)
                     }, err => {
                       setCheckInBusy(false)
                       setCheckInError(err && err.code === 1 ? t.checkInDenied : t.checkInFailed)
