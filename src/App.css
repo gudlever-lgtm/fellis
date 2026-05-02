@@ -22,9 +22,14 @@
   padding: 16px 32px;
   border-bottom: 1px solid #E8E4DF;
   background: #fff;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
+}
+.app {
+  padding-top: 68px;
 }
 .nav-logo {
   display: flex;
@@ -3356,6 +3361,9 @@
   }
   .nav {
     padding: 12px 16px;
+  }
+  .app {
+    padding-top: 60px;
   }
   .p-nav {
     padding: 0 12px;
