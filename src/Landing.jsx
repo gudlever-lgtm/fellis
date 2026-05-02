@@ -131,8 +131,14 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   useLayoutEffect(() => {
     const strip = stripRef.current
     if (!strip) return
-    setStripAtStart(strip.scrollLeft <= 1)
-    setStripAtEnd(strip.scrollWidth <= strip.clientWidth + 1)
+    const check = () => {
+      setStripAtStart(strip.scrollLeft <= 1)
+      setStripAtEnd(strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1)
+    }
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(strip)
+    return () => ro.disconnect()
   }, [])
 
   // ── Login handler ──
