@@ -1,4 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import screenshotFeed from '../public/screenshots/fellis_screenshot_feed_1.png'
+import screenshotGroups from '../public/screenshots/fellis_screenshot_groups_1.png'
+import screenshotAbout from '../public/screenshots/fellis_screenshot_about_1.png'
 import { UI_LANGS, PT } from './data.js'
 import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, apiGiveConsent } from './api.js'
 import UserTypeSelector from './UserTypeSelector.jsx'
@@ -702,7 +705,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                     </div>
                     {/* Screenshot */}
                     <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
-                      <img src="/screenshots/fellis_screenshot_feed_1.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <img src={screenshotFeed} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                     {/* Why Fellis card */}
                     <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
@@ -710,11 +713,11 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                     </div>
                     {/* Screenshot */}
                     <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
-                      <img src="/screenshots/fellis_screenshot_groups_1.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <img src={screenshotGroups} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                     {/* Screenshot */}
                     <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
-                      <img src="/screenshots/fellis_screenshot_about_1.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <img src={screenshotAbout} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                   </div>
                 </div>
