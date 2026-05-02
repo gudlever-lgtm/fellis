@@ -61,6 +61,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const emailRef = useRef(null)
   const nameRef = useRef(null)
 
+  // Preview strip scroll indicators
+  const stripRef = useRef(null)
+  const [activeCard, setActiveCard] = useState(0)
+  const [stripAtStart, setStripAtStart] = useState(true)
+  const [stripAtEnd, setStripAtEnd] = useState(false)
+
   // Pre-fill email when invite info arrives asynchronously
   useEffect(() => {
     if (inviterEmail && !regEmail) setRegEmail(inviterEmail)
@@ -88,6 +94,39 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const changeLang = useCallback((code) => {
     setLanguage(code)
   }, [setLanguage])
+
+  const handleStripScroll = useCallback(() => {
+    const strip = stripRef.current
+    if (!strip) return
+    setStripAtStart(strip.scrollLeft <= 4)
+    setStripAtEnd(strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 4)
+    const viewCenter = strip.scrollLeft + strip.clientWidth / 2
+    let bestIdx = 0, bestDist = Infinity
+    Array.from(strip.children).forEach((card, i) => {
+      const dist = Math.abs(card.offsetLeft + card.offsetWidth / 2 - viewCenter)
+      if (dist < bestDist) { bestDist = dist; bestIdx = i }
+    })
+    setActiveCard(bestIdx)
+  }, [])
+
+  const scrollStrip = useCallback((dir) => {
+    const strip = stripRef.current
+    if (!strip) return
+    const viewCenter = strip.scrollLeft + strip.clientWidth / 2
+    let cardWidth = strip.clientWidth
+    Array.from(strip.children).forEach(card => {
+      if (Math.abs(card.offsetLeft + card.offsetWidth / 2 - viewCenter) < strip.clientWidth / 2) {
+        cardWidth = card.offsetWidth + 12
+      }
+    })
+    strip.scrollBy({ left: dir * cardWidth, behavior: 'smooth' })
+  }, [])
+
+  useEffect(() => {
+    const strip = stripRef.current
+    if (!strip) return
+    setStripAtEnd(strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 4)
+  }, [])
 
   // ── Login handler ──
   const handleLogin = useCallback(async (e) => {
@@ -635,39 +674,59 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           </div>
 
           {/* Preview section — horizontal scroll strip */}
-          <div style={{ marginTop: 28, width: '100%', maxWidth: 860, flexShrink: 0 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 600, color: '#2D6A4F', margin: '0 0 12px', textAlign: 'center' }}>
-              {t.previewHeading}
-            </h2>
-            <div
-              className="preview-scroll-strip"
-              style={{ display: 'flex', overflowX: 'auto', scrollBehavior: 'smooth', gap: 12, paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
-            >
-              {/* Why Fellis card */}
-              <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[0]}</p>
+          {(() => {
+            const sArrow = { position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', background: 'rgba(30,30,30,0.65)', border: 'none', color: '#fff', fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, padding: 0 }
+            const sDot = { width: 8, height: 8, borderRadius: '50%', background: '#D0D0D0', flexShrink: 0 }
+            const sDotActive = { ...sDot, background: '#2D6A4F' }
+            return (
+              <div style={{ marginTop: 28, width: '100%', maxWidth: 860, flexShrink: 0 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, color: '#2D6A4F', margin: '0 0 12px', textAlign: 'center' }}>
+                  {t.previewHeading}
+                </h2>
+                <div style={{ position: 'relative' }}>
+                  {!stripAtStart && (
+                    <button onClick={() => scrollStrip(-1)} style={{ ...sArrow, left: 4 }} aria-label="Scroll left">‹</button>
+                  )}
+                  {!stripAtEnd && (
+                    <button onClick={() => scrollStrip(1)} style={{ ...sArrow, right: 4 }} aria-label="Scroll right">›</button>
+                  )}
+                  <div
+                    ref={stripRef}
+                    className="preview-scroll-strip"
+                    style={{ display: 'flex', overflowX: 'auto', scrollBehavior: 'smooth', gap: 12, paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
+                    onScroll={handleStripScroll}
+                  >
+                    {/* Why Fellis card */}
+                    <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                      <p style={{ fontSize: 14, lineHeight: 1.7, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[0]}</p>
+                    </div>
+                    {/* Screenshot */}
+                    <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
+                      <img src="/screenshots/fellis_screenshot_feed_1.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </div>
+                    {/* Why Fellis card */}
+                    <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                      <p style={{ fontSize: 14, lineHeight: 1.7, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[1]}</p>
+                    </div>
+                    {/* Screenshot */}
+                    <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
+                      <img src="/screenshots/fellis_screenshot_groups_1.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </div>
+                    {/* Screenshot */}
+                    <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
+                      <img src="/screenshots/fellis_screenshot_about_1.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </div>
+                  </div>
+                </div>
+                {/* Dot indicators */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+                  {[0, 1, 2, 3, 4].map(i => (
+                    <div key={i} style={i === activeCard ? sDotActive : sDot} />
+                  ))}
+                </div>
               </div>
-              {/* Screenshot placeholder */}
-              <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', background: '#F4F4F4', border: '1px solid #E0DCD7', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {/* TODO: replace placeholder with <img src="/screenshots/filename.png" /> */}
-                <span style={{ fontSize: 13, color: '#999' }}>{t.previewScreenshotPlaceholder}</span>
-              </div>
-              {/* Why Fellis card */}
-              <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[1]}</p>
-              </div>
-              {/* Screenshot placeholder */}
-              <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', background: '#F4F4F4', border: '1px solid #E0DCD7', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {/* TODO: replace placeholder with <img src="/screenshots/filename.png" /> */}
-                <span style={{ fontSize: 13, color: '#999' }}>{t.previewScreenshotPlaceholder}</span>
-              </div>
-              {/* Screenshot placeholder */}
-              <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', background: '#F4F4F4', border: '1px solid #E0DCD7', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {/* TODO: replace placeholder with <img src="/screenshots/filename.png" /> */}
-                <span style={{ fontSize: 13, color: '#999' }}>{t.previewScreenshotPlaceholder}</span>
-              </div>
-            </div>
-          </div>
+            )
+          })()}
         </div>
       )}
       {/* Step 5 — User type selector */}
