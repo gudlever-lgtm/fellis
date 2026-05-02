@@ -69,6 +69,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [activeCard, setActiveCard] = useState(0)
   const [stripAtStart, setStripAtStart] = useState(true)
   const [stripAtEnd, setStripAtEnd] = useState(false)
+  const [lightboxImg, setLightboxImg] = useState(null)
 
   // Pre-fill email when invite info arrives asynchronously
   useEffect(() => {
@@ -681,9 +682,11 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             const sArrow = { position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', background: 'rgba(30,30,30,0.65)', border: 'none', color: '#fff', fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, padding: 0 }
             const sDot = { width: 8, height: 8, borderRadius: '50%', background: '#D0D0D0', flexShrink: 0 }
             const sDotActive = { ...sDot, background: '#2D6A4F' }
+            const sImgWrap = { minWidth: 'clamp(160px, 42vw, 210px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 10, overflow: 'hidden', flexShrink: 0, cursor: 'zoom-in' }
+            const sTextCard = { minWidth: 'clamp(150px, 38vw, 190px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 10, padding: '12px 14px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }
             return (
-              <div style={{ marginTop: 28, width: '100%', maxWidth: 860, flexShrink: 0 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, color: '#2D6A4F', margin: '0 0 12px', textAlign: 'center' }}>
+              <div style={{ marginTop: 20, width: '100%', maxWidth: 860, flexShrink: 0 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, color: '#2D6A4F', margin: '0 0 10px', textAlign: 'center' }}>
                   {t.previewHeading}
                 </h2>
                 <div style={{ position: 'relative' }}>
@@ -696,33 +699,33 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                   <div
                     ref={stripRef}
                     className="preview-scroll-strip"
-                    style={{ display: 'flex', overflowX: 'auto', scrollBehavior: 'smooth', gap: 12, paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
+                    style={{ display: 'flex', overflowX: 'auto', scrollBehavior: 'smooth', gap: 10, paddingBottom: 6, scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
                     onScroll={handleStripScroll}
                   >
                     {/* Why Fellis card */}
-                    <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                      <p style={{ fontSize: 14, lineHeight: 1.7, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[0]}</p>
+                    <div style={sTextCard}>
+                      <p style={{ fontSize: 12, lineHeight: 1.6, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[0]}</p>
                     </div>
                     {/* Screenshot */}
-                    <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
+                    <div style={sImgWrap} onClick={() => setLightboxImg(screenshotFeed)}>
                       <img src={screenshotFeed} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                     {/* Why Fellis card */}
-                    <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                      <p style={{ fontSize: 14, lineHeight: 1.7, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[1]}</p>
+                    <div style={sTextCard}>
+                      <p style={{ fontSize: 12, lineHeight: 1.6, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[1]}</p>
                     </div>
                     {/* Screenshot */}
-                    <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
+                    <div style={sImgWrap} onClick={() => setLightboxImg(screenshotGroups)}>
                       <img src={screenshotGroups} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                     {/* Screenshot */}
-                    <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 14, overflow: 'hidden', flexShrink: 0 }}>
+                    <div style={sImgWrap} onClick={() => setLightboxImg(screenshotAbout)}>
                       <img src={screenshotAbout} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                   </div>
                 </div>
                 {/* Dot indicators */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 8 }}>
                   {[0, 1, 2, 3, 4].map(i => (
                     <div key={i} style={i === activeCard ? sDotActive : sDot} />
                   ))}
@@ -730,6 +733,26 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               </div>
             )
           })()}
+
+          {/* Lightbox */}
+          {lightboxImg && (
+            <div
+              onClick={() => setLightboxImg(null)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <button
+                onClick={() => setLightboxImg(null)}
+                style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', lineHeight: 1, opacity: 0.8, padding: 4 }}
+                aria-label="Close"
+              >&#x2715;</button>
+              <img
+                src={lightboxImg}
+                alt=""
+                onClick={e => e.stopPropagation()}
+                style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,0.6)', display: 'block' }}
+              />
+            </div>
+          )}
         </div>
       )}
       {/* Step 5 — User type selector */}
