@@ -543,8 +543,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             </div>
           </div>
 
+          {/* Right column: registration form + age card */}
+          <div style={{ flex: '1 1 280px', maxWidth: 420, width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Registration form */}
-          <form className="register-form" onSubmit={handleRegister} style={{ flex: '1 1 280px', border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', maxWidth: 420, width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
+          <form className="register-form" onSubmit={handleRegister} style={{ border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
             <h3 className="register-title" style={{ marginBottom: 2 }}>{t.registerTitle}</h3>
             {/* Honeypot — hidden from users, filled only by bots */}
             <input
@@ -643,20 +645,19 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               {regLoading ? '...' : t.registerSubmit}
             </button>
           </form>
-          </div>{/* end two-card row */}
 
-          {/* Age requirement card */}
+          {/* Age requirement card — inside right column so it matches form width */}
           {t.ageCardTitle && (
-            <div style={{ marginTop: 12, width: '100%', maxWidth: 860 }}>
-              <div style={{ border: '1px solid #C8DDD2', borderRadius: 12, padding: '14px 20px', background: '#F8FBFA', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2D6A4F', marginBottom: 3 }}>{t.ageCardTitle}</div>
-                  <div style={{ fontSize: 12, color: '#4a6b5c', lineHeight: 1.6 }}>{t.ageCardText}</div>
-                </div>
+            <div style={{ border: '1px solid #C8DDD2', borderRadius: 12, padding: '14px 20px', background: '#F8FBFA', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#2D6A4F', marginBottom: 3 }}>{t.ageCardTitle}</div>
+                <div style={{ fontSize: 12, color: '#4a6b5c', lineHeight: 1.6 }}>{t.ageCardText}</div>
               </div>
             </div>
           )}
+          </div>{/* end right column */}
+          </div>{/* end two-card row */}
 
           {/* Trust + services row — bottom */}
           <div style={{ marginTop: 12, width: '100%', maxWidth: 860, flexShrink: 0 }}>
