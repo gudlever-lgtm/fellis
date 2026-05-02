@@ -683,8 +683,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             const sArrow = { position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', background: 'rgba(30,30,30,0.65)', border: 'none', color: '#fff', fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, padding: 0 }
             const sDot = { width: 8, height: 8, borderRadius: '50%', background: '#D0D0D0', flexShrink: 0 }
             const sDotActive = { ...sDot, background: '#2D6A4F' }
-            const sImgWrap = { minWidth: 'clamp(130px, 30vw, 170px)', aspectRatio: '16/9', border: '1px solid #E0DCD7', borderRadius: 10, overflow: 'hidden', flexShrink: 0, cursor: 'zoom-in' }
-            const sTextCard = { minWidth: 'clamp(120px, 26vw, 155px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 10, padding: '10px 12px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }
+            const CARD_H = 110
+            const sImgWrap = { width: 176, height: CARD_H, border: '1px solid #E0DCD7', borderRadius: 10, overflow: 'hidden', flexShrink: 0, cursor: 'zoom-in' }
+            const sTextCard = { width: 148, height: CARD_H, background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 10, padding: '10px 12px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }
             return (
               <div style={{ marginTop: 14, width: '100%', maxWidth: 860, flexShrink: 0 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 600, color: '#2D6A4F', margin: '0 0 10px', textAlign: 'center' }}>
