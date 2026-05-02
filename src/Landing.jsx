@@ -633,6 +633,41 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               ))}
             </div>
           </div>
+
+          {/* Preview section — horizontal scroll strip */}
+          <div style={{ marginTop: 28, width: '100%', maxWidth: 860, flexShrink: 0 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: '#2D6A4F', margin: '0 0 12px', textAlign: 'center' }}>
+              {t.previewHeading}
+            </h2>
+            <div
+              className="preview-scroll-strip"
+              style={{ display: 'flex', overflowX: 'auto', scrollBehavior: 'smooth', gap: 12, paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none', flexWrap: 'nowrap' }}
+            >
+              {/* Why Fellis card */}
+              <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[0]}</p>
+              </div>
+              {/* Screenshot placeholder */}
+              <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', background: '#F4F4F4', border: '1px solid #E0DCD7', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {/* TODO: replace placeholder with <img src="/screenshots/filename.png" /> */}
+                <span style={{ fontSize: 13, color: '#999' }}>{t.previewScreenshotPlaceholder}</span>
+              </div>
+              {/* Why Fellis card */}
+              <div style={{ minWidth: 'clamp(240px, 72vw, 300px)', background: '#F0FAF4', border: '1px solid #C8DDD2', borderRadius: 14, padding: '20px 22px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: '#1a5c36', fontWeight: 500, margin: 0 }}>{(t.previewWhyCards || [])[1]}</p>
+              </div>
+              {/* Screenshot placeholder */}
+              <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', background: '#F4F4F4', border: '1px solid #E0DCD7', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {/* TODO: replace placeholder with <img src="/screenshots/filename.png" /> */}
+                <span style={{ fontSize: 13, color: '#999' }}>{t.previewScreenshotPlaceholder}</span>
+              </div>
+              {/* Screenshot placeholder */}
+              <div style={{ minWidth: 'clamp(260px, 72vw, 320px)', aspectRatio: '16/9', background: '#F4F4F4', border: '1px solid #E0DCD7', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {/* TODO: replace placeholder with <img src="/screenshots/filename.png" /> */}
+                <span style={{ fontSize: 13, color: '#999' }}>{t.previewScreenshotPlaceholder}</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {/* Step 5 — User type selector */}

@@ -6001,3 +6001,7 @@ body.mode-common .p-action-btn {
   0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
 }
+
+.preview-scroll-strip::-webkit-scrollbar {
+  display: none;
+}

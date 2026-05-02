@@ -165,5 +165,12 @@
     "Virksomhedssider",
     "Konferencer & webinarer"
   ],
-  "modeSelectBtn": "Kom i gang"
+  "modeSelectBtn": "Kom i gang",
+  "previewHeading": "Se hvordan Fellis ser ud",
+  "previewWhyCards": [
+    "Et europæisk alternativ til de store platforme — dine data, dine regler.",
+    "Ingen algoritmer der dikterer hvad du ser. Du bestemmer.",
+    "Fællesskaber der er bygget på tillid, ikke på annoncekroner."
+  ],
+  "previewScreenshotPlaceholder": "Screenshot kommer snart"
 }
