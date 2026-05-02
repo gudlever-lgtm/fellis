@@ -883,6 +883,12 @@ router.get('/admin/moderation/queue', authenticate, requireModerator, async (req
         } else if (r.target_type === 'message') {
           const [[m]] = await pool.query('SELECT m.text_da, m.text_en, u.name AS author, m.conversation_id FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?', [r.target_id])
           preview = m || null
+        } else if (r.target_type === 'reel') {
+          const [[rl]] = await pool.query('SELECT r.caption AS text_da, r.caption AS text_en, u.name AS author FROM reels r JOIN users u ON u.id = r.user_id WHERE r.id = ?', [r.target_id])
+          preview = rl || null
+        } else if (r.target_type === 'group') {
+          const [[g]] = await pool.query('SELECT name, slug, group_status FROM conversations WHERE id = ?', [r.target_id])
+          preview = g || null
         } else if (r.target_type === 'user') {
           const [[u]] = await pool.query('SELECT name, handle, status, strike_count FROM users WHERE id = ?', [r.target_id])
           preview = u || null
@@ -992,7 +998,7 @@ router.patch('/admin/moderation/:table/:id', authenticate, requireAdmin, async (
 
 router.post('/admin/moderation/content/remove', authenticate, requireModerator, async (req, res) => {
   const { type, target_id, report_id, reason } = req.body
-  if (!['post', 'comment', 'reel_comment'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })
+  if (!['post', 'comment', 'reel_comment', 'reel', 'message'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })
   try {
     // Business post moderation requires admin
     if (type === 'post') {
@@ -1001,7 +1007,7 @@ router.post('/admin/moderation/content/remove', authenticate, requireModerator, 
         return res.status(403).json({ error: 'admin_required_for_business_posts' })
       }
     }
-    const tableMap = { post: 'posts', comment: 'comments', reel_comment: 'reel_comments' }
+    const tableMap = { post: 'posts', comment: 'comments', reel_comment: 'reel_comments', reel: 'reels', message: 'messages' }
     await pool.query(`DELETE FROM ${tableMap[type]} WHERE id = ?`, [target_id])
     if (report_id) {
       await pool.query(

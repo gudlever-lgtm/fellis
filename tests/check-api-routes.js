@@ -1335,4 +1335,69 @@ if (!serverSrc.includes("GET /invite/:token error")) {
   console.log(`${GREEN}✓ GET /invite/:token catches DB errors and falls back gracefully (no 500).${RESET}\n`)
 }
 
+// ── 23. Age verification in POST /api/auth/register ──────────────────────────
+//
+// Registration must enforce a minimum age of 13 years via birth_year.
+//
+// Static invariants:
+//   (a) POST /api/auth/register rejects age < 13 with 400
+//   (b) POST /api/auth/register allows age = 13 (no rejection on that basis)
+//   (c) POST /api/auth/register rejects missing birth_year (validated by Zod schema)
+//   (d) birth_year is stored in the users INSERT
+
+const authRouteSrc = (() => {
+  try {
+    return readFileSync(resolve(root, 'server/routes/auth.js'), 'utf8')
+  } catch {
+    return combinedServerSrc
+  }
+})()
+
+const ageErrors = []
+
+// (a) age < 13 → 400: route must compute age and return 400 when age < 13
+if (!authRouteSrc.includes('age < 13')) {
+  ageErrors.push('POST /api/auth/register does not reject age < 13 — age < 13 check is missing')
+}
+if (!authRouteSrc.includes('res.status(400)') || !authRouteSrc.includes('13')) {
+  ageErrors.push('POST /api/auth/register does not return 400 for underage users')
+}
+
+// (b) age = 13 is allowed — verified by the < 13 (strict) check above (not ≤ 13)
+if (authRouteSrc.includes('age <= 13') || authRouteSrc.includes('age < 14')) {
+  ageErrors.push('POST /api/auth/register incorrectly rejects users exactly 13 years old (uses <= 13 or < 14 instead of < 13)')
+}
+
+// (c) birth_year required — must be in the Zod register schema
+const validationSrc = (() => {
+  try {
+    return readFileSync(resolve(root, 'server/validation.js'), 'utf8')
+  } catch {
+    return combinedServerSrc
+  }
+})()
+if (!validationSrc.includes('birth_year')) {
+  ageErrors.push('server/validation.js register schema does not include birth_year — missing birth_year would not return 400')
+}
+
+// (d) birth_year stored in INSERT
+if (!authRouteSrc.includes('birth_year') || !authRouteSrc.includes('INSERT INTO users')) {
+  ageErrors.push('POST /api/auth/register does not store birth_year in the users INSERT')
+}
+
+// (e) migration file exists
+const birthYearMigrationPath = resolve(root, 'server/migrate-add-birth-year.sql')
+if (!existsSync(birthYearMigrationPath)) {
+  ageErrors.push('server/migrate-add-birth-year.sql is missing — birth_year column is never added to users table')
+}
+
+if (ageErrors.length > 0) {
+  console.log(`${RED}✗ Age verification issues in POST /api/auth/register:${RESET}`)
+  for (const e of ageErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Age verification: POST /api/auth/register rejects age < 13 with 400, allows age = 13, requires birth_year (Zod), stores birth_year, migration file present.${RESET}\n`)
+}
+
 process.exit(0)

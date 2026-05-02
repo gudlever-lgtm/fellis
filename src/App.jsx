@@ -253,6 +253,23 @@ function PublicTermsPage() {
       </div>
 
       <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Alderskrav og mindreårige' : 'Age requirement and minors'}</h2>
+        <ul style={s.ul}>
+          {da ? <>
+            <li>Tjenesten er forbeholdt brugere på 13 år og derover.</li>
+            <li>Brugere under 13 år må ikke oprette en profil.</li>
+            <li>Hvis en bruger viser sig at være under 13 år, slettes kontoen uden varsel.</li>
+            <li>Forældre/værger der opdager at et barn har oprettet en konto, opfordres til at kontakte os på <span style={s.email}>privacy@fellis.eu</span>.</li>
+          </> : <>
+            <li>The service is restricted to users aged 13 and above.</li>
+            <li>Users under 13 years of age may not create a profile.</li>
+            <li>If a user is found to be under 13 years of age, the account will be deleted without notice.</li>
+            <li>Parents or guardians who discover that a child has created an account are encouraged to contact us at <span style={s.email}>privacy@fellis.eu</span>.</li>
+          </>}
+        </ul>
+      </div>
+
+      <div style={s.section}>
         <h2 style={s.h2}>{da ? 'Kontosuspension og sletning' : 'Account suspension and deletion'}</h2>
         <p style={s.p}>{da
           ? 'Vi forbeholder os retten til at suspendere eller slette konti, der overtræder disse vilkår. Du kan selv slette din konto og alle tilknyttede data til enhver tid via profilindstillingerne.'
