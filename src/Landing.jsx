@@ -128,18 +128,27 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     strip.scrollBy({ left: dir * cardWidth, behavior: 'smooth' })
   }, [])
 
+  const checkStripScroll = useCallback(() => {
+    const strip = stripRef.current
+    if (!strip) return
+    setStripAtStart(strip.scrollLeft <= 1)
+    setStripAtEnd(strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1)
+  }, [])
+
   useLayoutEffect(() => {
     const strip = stripRef.current
     if (!strip) return
-    const check = () => {
-      setStripAtStart(strip.scrollLeft <= 1)
-      setStripAtEnd(strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1)
-    }
-    check()
-    const ro = new ResizeObserver(check)
+    checkStripScroll()
+    const ro = new ResizeObserver(checkStripScroll)
     ro.observe(strip)
     return () => ro.disconnect()
-  }, [])
+  }, [checkStripScroll])
+
+  // Re-check when translation cards load (scrollWidth grows but strip outer size stays same)
+  useEffect(() => {
+    const raf = requestAnimationFrame(checkStripScroll)
+    return () => cancelAnimationFrame(raf)
+  }, [t.previewWhyCards, checkStripScroll])
 
   // ── Login handler ──
   const handleLogin = useCallback(async (e) => {
