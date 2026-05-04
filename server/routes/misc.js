@@ -2448,6 +2448,18 @@ router.get('/config', async (req, res) => {
 
 
 const CHANGELOG_ENTRIES = [
+  { date: '2026-05', icon: '📍', da: 'Check-ins-fane på profil — se fælles steder med dine forbindelser', en: 'Check-ins tab on profile — see places you share with your connections' },
+  { date: '2026-05', icon: '🗺️', da: 'Skiftet til OpenStreetMap/Nominatim — ingen Google- eller LinkedIn-afhængighed', en: 'Switched to OpenStreetMap/Nominatim — no Google or LinkedIn dependency' },
+  { date: '2026-05', icon: '📌', da: 'Stedvælger-popup ved check-in nær flere venues inden for 50 m', en: 'Venue picker popup on check-in when multiple places are within 50 m' },
+  { date: '2026-05', icon: '🖼️', da: 'Landingsside med screenshot-galleri og lysbox-visning', en: 'Landing page screenshot gallery with lightbox view' },
+  { date: '2026-05', icon: '🔞', da: 'Aldersverifikation ved registrering — minimumsalder 13 år', en: 'Age verification at registration — minimum age 13' },
+  { date: '2026-04', icon: '💬', da: 'Flydende feedback-knap på alle sider med admin-styring', en: 'Floating feedback button on all pages with admin control' },
+  { date: '2026-04', icon: '📍', da: 'Klikbar lokation på profil åbner kortpopup', en: 'Clickable location on profile opens a map popup' },
+  { date: '2026-04', icon: '✏️', da: 'Brugere kan redigere deres visningsnavn i profilindstillinger', en: 'Users can edit their display name in profile settings' },
+  { date: '2026-04', icon: '🚩', da: 'Red Flag-anmeldelsesfunktion på opslag, reels og grupper', en: 'Red Flag report feature on posts, reels and groups' },
+  { date: '2026-04', icon: '🤖', da: 'AI-moderation ved gruppeoprettelse via Mistral', en: 'AI moderation on group creation via Mistral' },
+  { date: '2026-04', icon: '🔗', da: 'Open Graph meta-tags og dynamisk invite-preview med OG-billede', en: 'Open Graph meta-tags and dynamic invite preview with OG image' },
+  { date: '2026-04', icon: '👥', da: 'Følg-knap på grupper og brugerprofiler med følger-antal', en: 'Follow button on groups and user profiles with follower counts' },
   { date: '2026-04', icon: '📰', da: 'Offentlig blog med AI-oversættelse — redaktører kan publicere nyheder og blogindlæg med automatisk dansk/engelsk-oversættelse via Mistral', en: 'Public blog with AI translation — editors can publish news and blog posts with automatic Danish/English translation via Mistral' },
   { date: '2026-04', icon: '🔀', da: 'Feed-opdeling — skift mellem Fællesskab- og Erhvervsfeed med ét klik; hvert opslag husker hvilken tilstand det blev skrevet i', en: 'Feed separation — switch between Community and Business feeds with one click; each post remembers which mode it was written in' },
   { date: '2026-04', icon: '👥', da: 'Følgere og du følger — se hvem der følger dig og hvem du følger under Forbindelser', en: 'Followers and following — see who follows you and who you follow under Connections' },
