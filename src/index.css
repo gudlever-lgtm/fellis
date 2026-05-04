@@ -71,27 +71,42 @@ button {
 
 /* ── New Design Layout (scoped to .design-new) ────────────────────────────── */
 
-/* Feed layout: tighter max-width og kortere gap */
+/* Topbar: grøn top-streg som tydelig markør for nyt design */
+.design-new .p-nav {
+  border-top: 3px solid var(--fellis);
+  border-bottom: var(--border);
+  height: 56px;
+}
+
+/* Aktiv nav-fane: grøn farve */
+.design-new .p-nav-tab.active {
+  color: var(--fellis);
+  background: var(--fellis-light);
+  border-radius: var(--radius-sm);
+}
+
+/* Platform baggrund: lidt lysere */
+.design-new .platform {
+  background: #F4F7F0;
+}
+
+/* Feed layout: tættere */
 .design-new .p-content-feed {
   max-width: 980px;
   gap: 16px;
 }
 
-/* Feed-kolonne: subtil border og afrundet kort-stil */
-.design-new .p-feed-main {
-  max-width: none;
-}
-
-/* Sidebar (<aside>): mere afgrænset */
+/* Sidebar: afgrænset med linje */
 .design-new .p-content-feed aside {
   border-left: var(--border);
   padding-left: 16px;
 }
 
-/* Feed-posts: ny kort-stil */
+/* Kort: tynd border, mere runding */
 .design-new .p-card {
   border: var(--border);
   border-radius: var(--radius);
+  box-shadow: none;
   margin-bottom: 10px;
 }
 
@@ -102,19 +117,13 @@ button {
   border-radius: var(--radius);
 }
 
-/* Action-knapper (like, del osv.) */
+/* Action-knapper */
 .design-new .p-action-btn {
   border-radius: var(--radius-sm);
   transition: background 0.12s;
 }
-
 .design-new .p-action-btn:hover {
-  background: rgba(0,0,0,0.04);
-}
-
-/* Nav-faner i topbar */
-.design-new .p-nav-tab.active {
-  color: var(--fellis);
+  background: var(--fellis-light);
 }
 
 /* Notifikations-badge */

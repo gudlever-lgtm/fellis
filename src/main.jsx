@@ -5,6 +5,10 @@ import './index.css'
 import App from './App.jsx'
 import { LanguageProvider } from './i18n/LanguageContext.jsx'
 
+// Apply design class before React renders to avoid flash of wrong layout
+const _d = localStorage.getItem('fellis_design') || 'classic'
+document.body.classList.toggle('design-new', _d === 'new')
+
 // Register Service Worker for PWA (offline shell + installability)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
