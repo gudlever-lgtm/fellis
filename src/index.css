@@ -104,9 +104,8 @@ button {
   }
 
   .design-new .p-nav-left {
-    padding: 10px 16px 8px;
+    padding: 10px 16px 4px;
     flex-shrink: 0;
-    border-bottom: var(--border);
   }
 
   .design-new .p-nav-hamburger { display: none; }
@@ -116,7 +115,7 @@ button {
     flex-direction: column;
     gap: 2px;
     flex: 1;
-    padding: 4px 8px 8px;
+    padding: 2px 8px 8px;
     align-items: stretch;
     overflow-y: auto;
     overflow-x: visible;
