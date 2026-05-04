@@ -383,7 +383,9 @@ export default function Platform({ onLogout, initialPostId }) {
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [moreMenuPos, setMoreMenuPos] = useState({ top: 0, left: 0 })
   const moreMenuRef = useRef(null)
+  const moreButtonRef = useRef(null)
   const [navFaded, setNavFaded] = useState(false)
 
   // 🏅 Badge system — evaluate and show toasts for newly earned badges
@@ -700,42 +702,21 @@ export default function Platform({ onLogout, initialPostId }) {
                       </button>
                     ))
                   : (
-                      <div ref={moreMenuRef} style={{ position: 'relative' }}>
+                      <div ref={moreMenuRef}>
                         <button
+                          ref={moreButtonRef}
                           className={`p-nav-tab${secondaryPages.includes(page) ? ' active' : ''}`}
-                          onClick={() => setShowMoreMenu(v => !v)}
+                          onClick={() => {
+                            if (!showMoreMenu && moreButtonRef.current) {
+                              const r = moreButtonRef.current.getBoundingClientRect()
+                              setMoreMenuPos({ top: r.bottom + 6, left: r.left })
+                            }
+                            setShowMoreMenu(v => !v)
+                          }}
                         >
                           <span className="p-nav-tab-icon">{'⋯'}</span>
                           <span className="p-nav-tab-label">{t.more}</span>
                         </button>
-                        {showMoreMenu && (
-                          <div style={{
-                            position: 'absolute', top: '100%', left: 0, zIndex: 200,
-                            background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
-                            border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
-                          }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
-                              {moreItems.map(item => (
-                                <button key={item.id}
-                                  onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    padding: '8px 10px', borderRadius: 8,
-                                    background: page === item.id ? '#f0f7f4' : 'none',
-                                    border: 'none', cursor: 'pointer', fontSize: 13,
-                                    fontWeight: page === item.id ? 700 : 400,
-                                    color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                                    transition: 'background 0.12s',
-                                  }}
-                                  onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
-                                  onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
-                                >
-                                  <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )
                 }
@@ -878,6 +859,53 @@ export default function Platform({ onLogout, initialPostId }) {
           </div>
         </div>
       </nav>
+
+      {showMoreMenu && (
+        <div onMouseDown={e => e.stopPropagation()} style={{
+          position: 'fixed', top: moreMenuPos.top, left: moreMenuPos.left, zIndex: 600,
+          background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
+          border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
+            {(() => {
+              const navItemIcons = {
+                messages: '💬', events: '📅', friends: '👥', 'business-hub': '🏢',
+                groups: '🫂', explore: '🔭', calendar: '🗓️', 'saved-posts': '🔖',
+                marketplace: '🛍️', jobs: '💼',
+              }
+              const { more: moreIds } = buildNavItems(navOrder, mode)
+              const moreItems = moreIds.map(id => ({
+                id, icon: navItemIcons[id],
+                label: {
+                  messages: t.messages, events: t.events,
+                  friends: mode === 'business' ? t.connectionsLabel : t.friends,
+                  'business-hub': t.businessHub, groups: t.navGroups, explore: t.explore,
+                  calendar: t.calendar, 'saved-posts': t.savedPosts,
+                  marketplace: t.marketplace, jobs: t.jobs,
+                }[id],
+              }))
+              return moreItems.map(item => (
+                <button key={item.id}
+                  onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 10px', borderRadius: 8,
+                    background: page === item.id ? '#f0f7f4' : 'none',
+                    border: 'none', cursor: 'pointer', fontSize: 13,
+                    fontWeight: page === item.id ? 700 : 400,
+                    color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
+                  onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
+                >
+                  <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
+                </button>
+              ))
+            })()}
+          </div>
+        </div>
+      )}
 
       <div className={page === 'feed' ? 'p-content p-content-feed' : 'p-content'}>
         <div style={{ display: page === 'feed' ? 'contents' : 'none' }}>
