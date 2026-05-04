@@ -6020,28 +6020,25 @@ body.mode-common .p-action-btn {
   display: none;
 }
 
-body.design-new .mobile-header-new {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  height: 52px;
-  background: #1C1C20;
-  border-bottom: 1px solid #2A2A30;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 120;
-}
-body.design-new .mobile-header-new + .p-nav,
-body.design-new .p-nav {
-  display: none;
-}
-/* Restore desktop nav on wider screens */
-@media (min-width: 481px) {
-  body.design-new .mobile-header-new { display: none; }
-  body.design-new .p-nav { display: flex; }
+/* On mobile screens only: show mobile header, hide desktop nav */
+@media (max-width: 480px) {
+  body.design-new .mobile-header-new {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 52px;
+    background: #1C1C20;
+    border-bottom: 1px solid #2A2A30;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 120;
+  }
+  body.design-new .p-nav {
+    display: none;
+  }
 }
 
 .mobile-header-new-logo {
@@ -6109,13 +6106,10 @@ body.design-new .p-nav {
   cursor: pointer;
 }
 
-/* Adjust platform padding when mobile new header is visible */
-body.design-new .platform {
-  padding-top: 52px;
-}
-@media (min-width: 481px) {
+/* Adjust platform padding when mobile header is visible */
+@media (max-width: 480px) {
   body.design-new .platform {
-    padding-top: 60px;
+    padding-top: 52px;
   }
 }
 
