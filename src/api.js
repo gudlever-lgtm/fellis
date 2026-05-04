@@ -1038,6 +1038,10 @@ export async function apiReverseGeocode(lat, lng, lang = 'da') {
   return await request(`/api/geocode/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&lang=${lang}`)
 }
 
+export async function apiNearbyPlaces(lat, lng) {
+  return await request(`/api/geocode/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`)
+}
+
 export async function apiGetPublicProfile(handle) {
   try {
     const res = await fetch(`${API_BASE}/api/public/profile/${encodeURIComponent(handle)}`)
