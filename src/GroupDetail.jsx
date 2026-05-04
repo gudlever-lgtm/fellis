@@ -57,6 +57,7 @@ function fmtTime(dateStr, lang) {
 export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const t = getTranslations(lang)
   const g = t?.groups || {}
+  const isNewDesign = localStorage.getItem('fellis_design') === 'new'
 
   const [group, setGroup] = useState(null)
   const [loadState, setLoadState] = useState('loading')
@@ -466,7 +467,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   }
 
   return (
-    <div style={s.page}>
+    <div style={isNewDesign ? { ...s.page, margin: 0 } : s.page}>
       {keywordWarning && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: '28px 28px 24px', maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>

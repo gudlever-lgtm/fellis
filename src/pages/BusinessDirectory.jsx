@@ -61,7 +61,7 @@ export default function BusinessDirectory({ lang, t, onViewProfile }) {
   }
 
   const s = {
-    wrap: { maxWidth: 900, margin: '0 auto', padding: '0 0 40px' },
+    wrap: { maxWidth: 900, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '0 0 40px' },
     header: { marginBottom: 20 },
     title: { fontSize: 22, fontWeight: 800, color: '#1a1a1a', margin: 0 },
     subtitle: { fontSize: 14, color: '#888', marginTop: 4 },
