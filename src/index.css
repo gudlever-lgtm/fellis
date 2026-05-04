@@ -104,7 +104,7 @@ button {
   }
 
   .design-new .p-nav-left {
-    padding: 18px 16px 10px;
+    padding: 10px 16px 8px;
     flex-shrink: 0;
     border-bottom: var(--border);
   }
@@ -116,7 +116,7 @@ button {
     flex-direction: column;
     gap: 2px;
     flex: 1;
-    padding: 8px;
+    padding: 4px 8px 8px;
     align-items: stretch;
     overflow-y: auto;
     overflow-x: visible;
