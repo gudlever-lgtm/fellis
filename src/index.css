@@ -70,131 +70,56 @@ button {
 }
 
 /* ── New Design Layout (scoped to .design-new) ────────────────────────────── */
-.design-new .platform-grid {
-  display: grid;
-  grid-template-columns: 220px 1fr 280px;
-  height: 100vh;
-  overflow: hidden;
+
+/* Feed layout: tighter max-width og kortere gap */
+.design-new .p-content-feed {
+  max-width: 980px;
+  gap: 16px;
 }
 
-.design-new .platform-sidebar {
-  border-right: var(--border);
-  padding: 16px 0;
-  overflow-y: auto;
+/* Feed-kolonne: subtil border og afrundet kort-stil */
+.design-new .p-feed-main {
+  max-width: none;
 }
 
-.design-new .nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 20px;
-  font-size: 13.5px;
-  color: #666;
-  border-left: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s;
+/* Sidebar (<aside>): mere afgrænset */
+.design-new .p-content-feed aside {
+  border-left: var(--border);
+  padding-left: 16px;
 }
 
-.design-new .nav-item:hover {
-  background: rgba(0,0,0,0.04);
-}
-
-.design-new .nav-item.active {
-  color: var(--fellis);
-  border-left-color: var(--fellis);
-  background: var(--fellis-light);
-  font-weight: 500;
-}
-
-.design-new .nav-section {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: #999;
-  padding: 16px 20px 6px;
-}
-
-.design-new .feed-card {
-  background: white;
+/* Feed-posts: ny kort-stil */
+.design-new .p-card {
   border: var(--border);
   border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.design-new .compose-bar {
+/* Compose-felt */
+.design-new .p-new-post-collapsed,
+.design-new .p-new-post-row {
   border: var(--border);
   border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
 }
 
-.design-new .compose-post-btn {
-  background: var(--fellis);
-  color: white;
-  border-radius: 20px;
-  border: none;
-  padding: 5px 14px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.design-new .card-actions {
-  border-top: var(--border);
-  padding-top: 10px;
-  display: flex;
-  gap: 4px;
-}
-
-.design-new .action-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+/* Action-knapper (like, del osv.) */
+.design-new .p-action-btn {
   border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: #666;
-  cursor: pointer;
-  border: none;
-  background: none;
   transition: background 0.12s;
 }
 
-.design-new .action-btn:hover { background: rgba(0,0,0,0.04); }
-.design-new .action-btn.liked { color: var(--fellis); }
-
-.design-new .platform-aside {
-  border-left: var(--border);
-  padding: 16px;
-  overflow-y: auto;
+.design-new .p-action-btn:hover {
+  background: rgba(0,0,0,0.04);
 }
 
-.design-new .panel-section {
-  background: white;
-  border: var(--border);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  margin-bottom: 12px;
+/* Nav-faner i topbar */
+.design-new .p-nav-tab.active {
+  color: var(--fellis);
 }
 
-.design-new .panel-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #999;
-  margin-bottom: 12px;
-}
-
+/* Notifikations-badge */
 .design-new .notif-badge {
-  position: absolute;
-  top: -2px; right: -2px;
-  width: 7px; height: 7px;
-  border-radius: 50%;
   background: var(--fellis);
-  border: 1.5px solid white;
 }
 
 /* ── Toast ────────────────────────────────────────────────────────────────── */
@@ -234,14 +159,11 @@ button {
 
 /* ── Mobile Layout (scoped to .design-new) ────────────────────────────────── */
 @media (max-width: 768px) {
-  .design-new .platform-sidebar { display: none; }
-  .design-new .platform-aside { display: none; }
-  .design-new .platform-grid { grid-template-columns: 1fr; }
-  .design-new .platform-feed { padding-bottom: 80px; }
-  .design-new .topbar { padding: 0 16px; height: 52px; }
-  .design-new .compose-bar { margin: 10px 12px; }
-  .design-new .platform-feed { padding: 0 12px 80px; }
-  .design-new .feed-card { border-radius: var(--radius); padding: 14px; }
+  .design-new .p-content-feed aside { display: none; }
+  .design-new .p-content { padding-bottom: 80px; }
+  .design-new .p-content-feed { padding-bottom: 80px; }
+  .design-new .p-nav { padding: 0 12px; }
+  .design-new .p-card { border-radius: var(--radius); padding: 14px; }
 }
 
 /* ── Bottom Navigation ────────────────────────────────────────────────────── */
