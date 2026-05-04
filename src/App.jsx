@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import Landing from './Landing.jsx'
 const Platform = lazy(() => import('./Platform.jsx'))
+const NewStyle = lazy(() => import('./NewStyle.jsx'))
 const PublicBlogPage = lazy(() => import('./BlogPage.jsx'))
 const ForBusiness = lazy(() => import('./ForBusiness.jsx'))
 import InstallPrompt from './components/InstallPrompt.jsx'
@@ -741,6 +742,7 @@ function AppRoot() {
       <Route path="/salgsbetingelser" element={<PublicSalgsbetingelserPage />} />
       <Route path="/blog/*" element={<Suspense fallback={null}><PublicBlogPage /></Suspense>} />
       <Route path="/for-business" element={<Suspense fallback={null}><ForBusiness /></Suspense>} />
+      <Route path="/newstyle" element={<Suspense fallback={null}><NewStyle lang="da" /></Suspense>} />
       <Route path="/*" element={<App />} />
     </Routes>
   )
