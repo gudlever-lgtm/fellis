@@ -102,6 +102,8 @@ import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
 import DiscoveryCard from './components/DiscoveryCard.jsx'
 import OnboardingChecklist from './OnboardingChecklist.jsx'
 import DesignToggle from './components/DesignToggle.jsx'
+import BottomNav from './components/BottomNav.jsx'
+import Stories from './components/Stories.jsx'
 const GroupsPage = lazy(() => import('./Groups.jsx'))
 const GroupDetail = lazy(() => import('./GroupDetail.jsx'))
 const GroupSettings = lazy(() => import('./GroupSettings.jsx'))
@@ -3290,6 +3292,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
           <StoryBar currentUser={currentUser} lang={lang} />
         </ModeGate>
       )}
+      <Stories currentUser={currentUser} />
 
       {/* Feed title — Shift+click / long-press 1.5s = Retro; 2/3/5-tap = Gravity/Flip/Party */}
       <div
@@ -23301,6 +23304,7 @@ function AdminPage({ lang, t }) {
           })}
         </div>
       )}
+      <BottomNav page={page} navigateTo={navigateTo} />
     </div>
   )
 }
