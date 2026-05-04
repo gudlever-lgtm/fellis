@@ -6013,6 +6013,191 @@ body.mode-common .p-action-btn {
   100% { background-position: 400px 0; }
 }
 
+/* ══════════════════════════════════
+   NEW DESIGN — MOBILE HEADER
+   ══════════════════════════════════ */
+.mobile-header-new {
+  display: none;
+}
+
+body.design-new .mobile-header-new {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 52px;
+  background: #1C1C20;
+  border-bottom: 1px solid #2A2A30;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 120;
+}
+body.design-new .mobile-header-new + .p-nav,
+body.design-new .p-nav {
+  display: none;
+}
+/* Restore desktop nav on wider screens */
+@media (min-width: 481px) {
+  body.design-new .mobile-header-new { display: none; }
+  body.design-new .p-nav { display: flex; }
+}
+
+.mobile-header-new-logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.mobile-header-new-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52B788;
+  flex-shrink: 0;
+}
+.mobile-header-new-brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.3px;
+}
+.mobile-header-new-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mobile-header-new-bell {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  position: relative;
+  line-height: 1;
+  color: #C0BCB8;
+}
+.mobile-header-new-bell-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #E74C3C;
+  border: 1.5px solid #1C1C20;
+}
+.mobile-header-new-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mobile-header-new-avatar-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+/* Adjust platform padding when mobile new header is visible */
+body.design-new .platform {
+  padding-top: 52px;
+}
+@media (min-width: 481px) {
+  body.design-new .platform {
+    padding-top: 60px;
+  }
+}
+
+/* ══════════════════════════════════
+   NEW DESIGN — BOTTOM NAV
+   ══════════════════════════════════ */
+.bottom-nav {
+  display: none;
+}
+@media (max-width: 480px) {
+  body.design-new .bottom-nav {
+    display: flex;
+    align-items: stretch;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 120;
+    background: #1C1C20;
+    border-top: 1px solid #2A2A30;
+    height: 60px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+.bottom-nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B6B72;
+  position: relative;
+  padding: 6px 4px;
+  transition: color 0.15s;
+  font-family: var(--font-ui, 'DM Sans', sans-serif);
+}
+.bottom-nav-tab:hover {
+  color: #9B9590;
+}
+.bottom-nav-tab.active {
+  color: #FFFFFF;
+}
+.bottom-nav-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.bottom-nav-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+.bottom-nav-badge {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  margin-left: 4px;
+  background: #52B788;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* Add bottom padding to content so it's not hidden behind bottom nav (mobile only) */
+@media (max-width: 480px) {
+  body.design-new .p-content {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .preview-scroll-strip::-webkit-scrollbar {
   display: none;
 }

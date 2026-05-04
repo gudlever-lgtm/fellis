@@ -356,10 +356,12 @@ export default function Platform({ onLogout, initialPostId }) {
   // Mobile tap triggers on global nav elements (work from any page)
   const navSearchRef = useRef(null)
   const navAvatarTapRef = useRef(null)
+  const mobileAvatarTapRef = useRef(null)
   const notifTitleRef = useRef(null)
-  useTapCount(navSearchRef,    { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
-  useTapCount(navAvatarTapRef, { 7: triggerMatrixGlobal }, 3000, 600)
-  useTapCount(notifTitleRef,   { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
+  useTapCount(navSearchRef,       { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
+  useTapCount(navAvatarTapRef,    { 7: triggerMatrixGlobal }, 3000, 600)
+  useTapCount(mobileAvatarTapRef, { 7: triggerMatrixGlobal }, 3000, 600)
+  useTapCount(notifTitleRef,      { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
   // ── New feature state ───────────────────────────────────────────────────────
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false)
   const [showQRCode, setShowQRCode] = useState(false)
@@ -381,6 +383,7 @@ export default function Platform({ onLogout, initialPostId }) {
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const [showOnboardingChecklist, setShowOnboardingChecklist] = useState(false)
   const avatarMenuRef = useRef(null)
+  const desktopAvatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const moreMenuRef = useRef(null)
@@ -396,6 +399,13 @@ export default function Platform({ onLogout, initialPostId }) {
     }).catch(() => {})
   }, [])
   const t = getTranslations(lang)
+
+  const design = localStorage.getItem('fellis_design') || 'classic'
+
+  useEffect(() => {
+    document.body.classList.toggle('design-new', design === 'new')
+    return () => document.body.classList.remove('design-new')
+  }, [design])
 
   useEffect(() => {
     document.body.classList.remove('dark', 'theme-nordic', 'theme-sunset', 'theme-forest')
@@ -573,8 +583,10 @@ export default function Platform({ onLogout, initialPostId }) {
   useEffect(() => {
     if (!showAvatarMenu && !showNotifPanel && !showMoreMenu) return
     const handleClick = (e) => {
-      if (showAvatarMenu && avatarMenuRef.current && !avatarMenuRef.current.contains(e.target)) {
-        setShowAvatarMenu(false)
+      if (showAvatarMenu) {
+        const inMobile  = avatarMenuRef.current?.contains(e.target)
+        const inDesktop = desktopAvatarMenuRef.current?.contains(e.target)
+        if (!inMobile && !inDesktop) setShowAvatarMenu(false)
       }
       if (showNotifPanel && notifRef.current && !notifRef.current.contains(e.target)) {
         setShowNotifPanel(false)
@@ -623,6 +635,62 @@ export default function Platform({ onLogout, initialPostId }) {
   return (
     <div className="platform">
       <EggHintsContextMenu lang={lang} />
+      {/* Mobile header — only visible on small screens in new design */}
+      {design === 'new' && (
+        <header className="mobile-header-new">
+          <div className="mobile-header-new-logo" onClick={() => navigateTo('feed')}>
+            <span className="mobile-header-new-dot" />
+            <span className="mobile-header-new-brand">fellis</span>
+          </div>
+          <div className="mobile-header-new-right">
+            <button className="mobile-header-new-bell" onClick={() => setShowNotifPanel(v => !v)}>
+              🔔
+              {unreadCount > 0 && <span className="mobile-header-new-bell-badge" />}
+            </button>
+            <div ref={avatarMenuRef} style={{ position: 'relative' }}>
+              <div ref={mobileAvatarTapRef} data-egg-hints onClick={() => setShowAvatarMenu(v => !v)}>
+                {avatarSrc ? (
+                  <img className="mobile-header-new-avatar-img" src={avatarSrc} alt="" />
+                ) : (
+                  <div className="mobile-header-new-avatar" style={{ background: nameToColor(currentUser.name) }}>
+                    {currentUser.initials || getInitials(currentUser.name)}
+                  </div>
+                )}
+              </div>
+              {showAvatarMenu && (
+                <div className="avatar-dropdown" style={{ top: 'calc(100% + 8px)', right: 0 }}>
+                  <div className="avatar-dropdown-header">
+                    <strong>{currentUser.name}</strong>
+                    <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
+                    <span style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                      {mode === 'privat' ? t.modeCommonTag : mode === 'network' ? t.modeNetworkTag : mode === 'business' ? t.modeBusinessTag : t.modeCommonTag}{adsFree ? ' · ✓ Ad-free' : ''}
+                    </span>
+                  </div>
+                  <div className="avatar-dropdown-divider" />
+                  <button className="avatar-dropdown-item" onClick={() => navigateTo('profile')}>
+                    <span>👤</span> {t.menuViewProfile}
+                  </button>
+                  <button className="avatar-dropdown-item" onClick={() => navigateTo('edit-profile')}>
+                    <span>✏️</span> {t.editProfile}
+                  </button>
+                  <button className="avatar-dropdown-item" onClick={() => navigateTo('settings')}>
+                    <span>⚙️</span> {t.settings}
+                  </button>
+                  {currentUser.is_admin && (
+                    <button className="avatar-dropdown-item" onClick={() => navigateTo('admin')}>
+                      <span>⚙️</span> {t.adminTitle}
+                    </button>
+                  )}
+                  <div className="avatar-dropdown-divider" />
+                  <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
+                    <span>🚪</span> {t.logout}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+      )}
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className={`p-nav${navFaded ? ' p-nav--faded' : ''}`} onMouseEnter={() => setNavFaded(false)} onClick={() => setNavFaded(false)}>
         <div className="p-nav-left">
@@ -808,7 +876,7 @@ export default function Platform({ onLogout, initialPostId }) {
             )}
           </div>
           {/* Avatar with dropdown menu */}
-          <div ref={avatarMenuRef} style={{ position: 'relative' }}>
+          <div ref={desktopAvatarMenuRef} style={{ position: 'relative' }}>
             {avatarSrc ? (
               <img ref={navAvatarTapRef} className="p-nav-avatar-img" src={avatarSrc} alt="" data-egg-hints onClick={() => setShowAvatarMenu(v => !v)} />
             ) : (
