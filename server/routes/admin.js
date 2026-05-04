@@ -810,7 +810,8 @@ router.get('/admin/feedback', authenticate, requireAdmin, async (req, res) => {
     const params = status ? [status] : []
     const [rows] = await pool.query(
       `SELECT f.id, f.type, f.title, f.description, f.status, f.admin_note,
-              f.created_at, f.updated_at, u.name AS user_name, u.handle AS user_handle
+              f.admin_reply, f.admin_reply_at, f.created_at, f.updated_at,
+              u.name AS user_name, u.handle AS user_handle
        FROM platform_feedback f
        JOIN users u ON u.id = f.user_id
        ${where}
@@ -841,6 +842,25 @@ router.patch('/admin/feedback/:id', authenticate, requireAdmin, async (req, res)
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/admin/feedback/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.post('/admin/feedback/:id/reply', authenticate, requireAdmin, async (req, res) => {
+  const { message_da, message_en } = req.body
+  if (!message_da || !message_en) return res.status(400).json({ error: 'message_da and message_en required' })
+  try {
+    const [[fb]] = await pool.query('SELECT user_id FROM platform_feedback WHERE id = ?', [req.params.id])
+    if (!fb) return res.status(404).json({ error: 'Not found' })
+    await pool.query(
+      'UPDATE platform_feedback SET admin_reply = ?, admin_reply_at = NOW() WHERE id = ?',
+      [message_da, req.params.id]
+    )
+    await createNotification(fb.user_id, 'system', message_da.trim(), message_en.trim())
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/feedback/:id/reply error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

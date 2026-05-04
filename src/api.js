@@ -1494,6 +1494,10 @@ export async function apiUpdateFeedbackStatus(id, status, admin_note) {
   return await request(`/api/admin/feedback/${id}`, { method: 'PATCH', body: JSON.stringify({ status, admin_note }) })
 }
 
+export async function apiAdminReplyToFeedback(id, message_da, message_en) {
+  return await request(`/api/admin/feedback/${id}/reply`, { method: 'POST', body: JSON.stringify({ message_da, message_en }) })
+}
+
 export async function apiGetNotifications() {
   return await request('/api/notifications')
 }

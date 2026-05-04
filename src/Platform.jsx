@@ -28,7 +28,7 @@ import {
   apiGetMyPortfolio, apiGetUserPortfolio, apiCreatePortfolioItem, apiUpdatePortfolioItem, apiDeletePortfolioItem,
   apiShareReelToFeed,
   apiConvertPostToReel,
-  apiGetAdminFeedback, apiUpdateFeedbackStatus,
+  apiGetAdminFeedback, apiUpdateFeedbackStatus, apiAdminReplyToFeedback,
   apiGetDiscovery,
 } from './api.js'
 import { siApplepay, siGooglepay, siVisa } from 'simple-icons'
@@ -20733,6 +20733,8 @@ function AdminPage({ lang, t }) {
   const [feedbackFilter, setFeedbackFilter] = useState('')
   const [feedbackNotes, setFeedbackNotes] = useState({}) // id → note string
   const [feedbackSaving, setFeedbackSaving] = useState({}) // id → bool
+  const [feedbackReplies, setFeedbackReplies] = useState({}) // id → { da, en }
+  const [feedbackReplySending, setFeedbackReplySending] = useState({}) // id → bool
   // Groups admin
   const [grpStats, setGrpStats] = useState(null)
   const [grpApproval, setGrpApproval] = useState(null)
@@ -22940,6 +22942,44 @@ function AdminPage({ lang, t }) {
                     }}
                     style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
                   >{feedbackSaving[fb.id] ? '…' : t.adminFeedbackSave}</button>
+                </div>
+
+                <div style={{ marginTop: 12, borderTop: '1px solid #E8E4DF', paddingTop: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 6 }}>{t.adminFeedbackReplyLabel}</div>
+                  {fb.admin_reply && (
+                    <div style={{ fontSize: 12, color: '#2D6A4F', marginBottom: 8 }}>
+                      {t.adminFeedbackReplySentAt} {new Date(fb.admin_reply_at).toLocaleString(getLocale(lang))} — {fb.admin_reply}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <input
+                      placeholder={t.adminFeedbackReplyPlaceholder}
+                      value={(feedbackReplies[fb.id] || {}).da || ''}
+                      onChange={e => setFeedbackReplies(prev => ({ ...prev, [fb.id]: { ...(prev[fb.id] || {}), da: e.target.value } }))}
+                      style={{ padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' }}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        placeholder={t.adminFeedbackReplyEnPlaceholder}
+                        value={(feedbackReplies[fb.id] || {}).en || ''}
+                        onChange={e => setFeedbackReplies(prev => ({ ...prev, [fb.id]: { ...(prev[fb.id] || {}), en: e.target.value } }))}
+                        style={{ flex: 1, padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' }}
+                      />
+                      <button
+                        disabled={!!feedbackReplySending[fb.id] || !((feedbackReplies[fb.id] || {}).da) || !((feedbackReplies[fb.id] || {}).en)}
+                        onClick={async () => {
+                          const { da: msgDa, en: msgEn } = feedbackReplies[fb.id] || {}
+                          if (!msgDa || !msgEn) return
+                          setFeedbackReplySending(prev => ({ ...prev, [fb.id]: true }))
+                          await apiAdminReplyToFeedback(fb.id, msgDa, msgEn)
+                          setFeedbackReplySending(prev => ({ ...prev, [fb.id]: false }))
+                          setFeedbackReplies(prev => ({ ...prev, [fb.id]: { da: '', en: '' } }))
+                          apiGetAdminFeedback(feedbackFilter || null).then(data => { if (data) setFeedbackList(data.feedback) })
+                        }}
+                        style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#3D6A9F', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >{feedbackReplySending[fb.id] ? t.adminFeedbackReplySending : t.adminFeedbackReplySend}</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )
