@@ -213,17 +213,78 @@ button {
 }
 
 
-/* ── Mobil: topbar med grøn streg (≤768px) ───────────────────────────────── */
+/* ── Mobil: komplet redesign (≤768px) ────────────────────────────────────── */
 @media (max-width: 768px) {
+  /* Minimalt topbar: kun logo + søg + klokke */
   .design-new .p-nav {
-    border-top: 3px solid var(--fellis);
+    height: 52px;
+    padding: 0 16px;
+    border-top: none;
     border-bottom: var(--border);
-    height: 56px;
+    background: white;
+    justify-content: space-between;
   }
-  .design-new .p-nav-tab.active {
-    color: var(--fellis);
-    background: var(--fellis-light);
-    border-radius: var(--radius-sm);
+
+  /* Skjul alle nav-tabs — bottom nav tager over */
+  .design-new .p-nav-tabs { display: none; }
+
+  /* Skjul hamburger — ikke nødvendig med bottom nav */
+  .design-new .p-nav-hamburger { display: none; }
+
+  /* Skjul tunge elementer i nav-right */
+  .design-new .p-nav-right .lang-toggle { display: none; }
+  .design-new .p-nav-right .design-toggle-btn { display: none; }
+  .design-new .nav-adfree-indicator { display: none; }
+  .design-new .p-nav-right .p-nav-avatar,
+  .design-new .p-nav-right .p-nav-avatar-img { display: none; }
+
+  /* Nav-right: kun søg + klokke, kompakt */
+  .design-new .p-nav-right {
+    flex: 0;
+    gap: 8px;
+  }
+
+  /* Platform: ingen top-padding (nav er kun 52px) */
+  .design-new .platform {
+    padding-top: 52px;
+    padding-left: 0;
+    background: #F4F7F0;
+  }
+
+  /* Content: kant-til-kant, plads til bottom nav */
+  .design-new .p-content,
+  .design-new .p-content-feed {
+    padding: 0;
+    padding-bottom: 80px;
+    max-width: none;
+    margin-top: 0;
+  }
+
+  /* Skjul højre sidebar */
+  .design-new .p-feed-sidebar { display: none; }
+
+  /* Kort: fuld bredde, touchvenlige */
+  .design-new .p-card {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin-bottom: 8px;
+    padding: 14px 16px;
+    box-shadow: none;
+  }
+
+  /* Compose-felt: fuld bredde, større tap-target */
+  .design-new .p-new-post-collapsed {
+    margin: 10px 16px;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    background: white;
+  }
+
+  /* Reels og andre sektioner */
+  .design-new .p-feed-main {
+    max-width: none;
+    width: 100%;
   }
 }
 
@@ -319,6 +380,34 @@ button {
   height: 2px;
   border-radius: 0 0 2px 2px;
   background: var(--fellis);
+}
+
+/* Central compose button — visually elevated */
+.design-new .nav-tab-compose {
+  flex: 0 0 64px;
+}
+
+.design-new .nav-compose-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--fellis);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(59, 109, 17, 0.35);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.design-new .nav-tab-compose:active .nav-compose-btn {
+  transform: scale(0.93);
+  box-shadow: 0 1px 4px rgba(59, 109, 17, 0.25);
+}
+
+.design-new .nav-tab-compose .nav-label {
+  color: var(--fellis);
+  font-weight: 500;
 }
 
 .design-new .msg-badge {
