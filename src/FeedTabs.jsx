@@ -5,16 +5,16 @@ const SKELETON_COUNT = 3
 
 function SkeletonCard() {
   return (
-    <div style={s.skeleton}>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-        <div style={{ ...s.skel, width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ ...s.skel, width: '40%', height: 13, marginBottom: 6 }} />
-          <div style={{ ...s.skel, width: '25%', height: 10 }} />
+    <div className="feedtabs-skeleton">
+      <div className="feedtabs-skel-header">
+        <div className="feedtabs-skel feedtabs-skel-avatar" />
+        <div className="feedtabs-skel-name-wrap">
+          <div className="feedtabs-skel feedtabs-skel-name" />
+          <div className="feedtabs-skel feedtabs-skel-time" />
         </div>
       </div>
-      <div style={{ ...s.skel, width: '90%', height: 12, marginBottom: 6 }} />
-      <div style={{ ...s.skel, width: '70%', height: 12 }} />
+      <div className="feedtabs-skel feedtabs-skel-line1" />
+      <div className="feedtabs-skel feedtabs-skel-line2" />
     </div>
   )
 }
@@ -31,8 +31,10 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
 
   if (viewerMode === 'privat') {
     return (
-      <div style={s.labelRow}>
-        <span style={s.modeLabel}>{t?.feedModePrivat || 'Community'}</span>
+      <div className="feedtabs-label-row">
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#6B7280', letterSpacing: '0.02em' }}>
+          {t?.feedModePrivat || 'Community'}
+        </span>
       </div>
     )
   }
@@ -40,8 +42,12 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
   if (viewerMode === 'business') {
     const biz = getTheme('business')
     return (
-      <div style={s.tabBar}>
-        <button style={{ ...s.tab, background: biz.color, color: '#fff', borderBottom: `3px solid ${biz.color}` }} disabled>
+      <div className="feedtabs-bar">
+        <button
+          className="feedtabs-tab"
+          style={{ background: biz.color, color: '#fff', borderBottom: `3px solid ${biz.color}` }}
+          disabled
+        >
           {t?.feedTab?.network || 'Network'}
         </button>
       </div>
@@ -52,7 +58,7 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
 
   return (
     <>
-      <div style={s.tabBar}>
+      <div className="feedtabs-bar">
         {tabs.map(tab => {
           const theme = getTheme(tab)
           const isActive = activeTab === tab
@@ -60,9 +66,8 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
             <button
               key={tab}
               onClick={() => handleTabChange(tab)}
+              className="feedtabs-tab"
               style={{
-                ...s.tab,
-                flex: 1,
                 background: isActive ? theme.color : '#fff',
                 color: isActive ? '#fff' : theme.color,
                 borderBottom: `3px solid ${isActive ? theme.color : 'transparent'}`,
@@ -74,61 +79,10 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
         })}
       </div>
       {switching && (
-        <div style={s.skeletonWrap}>
+        <div className="feedtabs-skeleton-wrap">
           {Array.from({ length: SKELETON_COUNT }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       )}
     </>
   )
-}
-
-const s = {
-  labelRow: {
-    display: 'flex',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  modeLabel: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#6B7280',
-    letterSpacing: '0.02em',
-  },
-  tabBar: {
-    display: 'flex',
-    gap: 4,
-    marginBottom: 12,
-    borderBottom: '2px solid #E5E7EB',
-    paddingBottom: 0,
-  },
-  tab: {
-    flex: 1,
-    padding: '7px 18px',
-    borderRadius: '8px 8px 0 0',
-    border: 'none',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.12s',
-    outline: 'none',
-    marginBottom: -2,
-  },
-  skeletonWrap: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    marginBottom: 16,
-  },
-  skeleton: {
-    background: '#F9FAFB',
-    border: '1px solid #E5E7EB',
-    borderRadius: 12,
-    padding: '16px 20px',
-  },
-  skel: {
-    background: 'linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%)',
-    backgroundSize: '200% 100%',
-    animation: 'shimmer 1.4s infinite',
-    borderRadius: 4,
-  },
 }
