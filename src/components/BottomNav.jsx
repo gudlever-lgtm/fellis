@@ -3,11 +3,12 @@ import { apiFetchConversations } from '../api.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import { getTranslations } from '../data.js'
 
-const TABS = [
+const LEFT_TABS  = [
   { id: 'feed',     icon: '🏠' },
   { id: 'explore',  icon: '🔍' },
+]
+const RIGHT_TABS = [
   { id: 'messages', icon: '💬' },
-  { id: 'groups',   icon: '👥' },
   { id: 'profile',  icon: '👤' },
 ]
 
@@ -32,26 +33,40 @@ export default function BottomNav({ page, navigateTo }) {
     feed:     t.bottomNav?.feed     || 'Feed',
     explore:  t.bottomNav?.discover || 'Opdag',
     messages: t.bottomNav?.messages || 'Beskeder',
-    groups:   t.bottomNav?.groups   || 'Grupper',
     profile:  t.bottomNav?.me       || 'Mig',
+  }
+
+  function Tab({ tab }) {
+    return (
+      <button
+        className={`nav-tab${page === tab.id ? ' active' : ''}`}
+        onClick={() => navigateTo(tab.id)}
+        style={{ background: 'none', border: 'none', outline: 'none' }}
+      >
+        <span style={{ fontSize: 22 }}>{tab.icon}</span>
+        <span className="nav-label">{labels[tab.id]}</span>
+        {tab.id === 'messages' && msgUnread > 0 && (
+          <span className="msg-badge">{msgUnread > 99 ? '99+' : msgUnread}</span>
+        )}
+      </button>
+    )
   }
 
   return (
     <nav className="bottom-nav">
-      {TABS.map(tab => (
-        <button
-          key={tab.id}
-          className={`nav-tab${page === tab.id ? ' active' : ''}`}
-          onClick={() => navigateTo(tab.id)}
-          style={{ background: 'none', border: 'none', outline: 'none' }}
-        >
-          <span style={{ fontSize: 20 }}>{tab.icon}</span>
-          <span className="nav-label">{labels[tab.id]}</span>
-          {tab.id === 'messages' && msgUnread > 0 && (
-            <span className="msg-badge">{msgUnread > 99 ? '99+' : msgUnread}</span>
-          )}
-        </button>
-      ))}
+      {LEFT_TABS.map(tab => <Tab key={tab.id} tab={tab} />)}
+
+      {/* Centralt opret-element */}
+      <button
+        className="nav-tab nav-tab-compose"
+        onClick={() => navigateTo('feed')}
+        style={{ background: 'none', border: 'none', outline: 'none' }}
+      >
+        <span className="nav-compose-btn">✏️</span>
+        <span className="nav-label">{t.bottomNav?.compose || 'Opret'}</span>
+      </button>
+
+      {RIGHT_TABS.map(tab => <Tab key={tab.id} tab={tab} />)}
     </nav>
   )
 }
