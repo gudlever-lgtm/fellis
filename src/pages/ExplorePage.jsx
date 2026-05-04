@@ -14,7 +14,7 @@ function timeAgo(dateStr, lang) {
   return `${d}${d !== 1 ? t.timeAgoDaysPlural : t.timeAgoDays}`
 }
 
-function PostCard({ post, lang, onViewProfile, onReport }) {
+function PostCard({ post, lang, onViewProfile, onReport, onImageClick }) {
   const text = post.text?.[lang] || post.text?.da || ''
   const time = post.created_at ? timeAgo(post.created_at, lang) : (post.time?.[lang] || post.time?.da || '')
   const media = post.media || []
@@ -58,7 +58,7 @@ function PostCard({ post, lang, onViewProfile, onReport }) {
             <div key={i} className="p-media-item">
               {m.type === 'video'
                 ? <video src={m.url} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                : <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} onClick={() => onImageClick && onImageClick(m.url)} />}
             </div>
           ))}
         </div>
@@ -106,7 +106,7 @@ function SuggestedCard({ user, lang, onViewProfile }) {
   )
 }
 
-function GroupPostCard({ post, lang, onViewProfile, onNavigate, onReport }) {
+function GroupPostCard({ post, lang, onViewProfile, onNavigate, onReport, onImageClick }) {
   const text = post.text?.[lang] || post.text?.da || ''
   const time = post.created_at ? timeAgo(post.created_at, lang) : ''
   const media = post.media || []
@@ -159,7 +159,7 @@ function GroupPostCard({ post, lang, onViewProfile, onNavigate, onReport }) {
             <div key={i} className="p-media-item">
               {m.type === 'video'
                 ? <video src={m.url} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                : <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} onClick={() => onImageClick && onImageClick(m.url)} />}
             </div>
           ))}
         </div>
@@ -206,6 +206,9 @@ export default function ExplorePage({ lang, currentUser, onViewProfile, onNaviga
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const sentinelRef = useRef(null)
+
+  // Lightbox state
+  const [lightboxUrl, setLightboxUrl] = useState(null)
 
   // Red flag modal state
   const [reportPostId, setReportPostId] = useState(null)
@@ -315,7 +318,7 @@ export default function ExplorePage({ lang, currentUser, onViewProfile, onNaviga
         <>
           <div className="explore-section-title">{t.groupPosts}</div>
           {groupPosts.map(post => (
-            <GroupPostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} onNavigate={onNavigate} onReport={openReport} />
+            <GroupPostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} onNavigate={onNavigate} onReport={openReport} onImageClick={setLightboxUrl} />
           ))}
         </>
       )}
@@ -335,7 +338,7 @@ export default function ExplorePage({ lang, currentUser, onViewProfile, onNaviga
 
       {/* Explore feed */}
       {posts.map(post => (
-        <PostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} onReport={openReport} />
+        <PostCard key={post.id} post={post} lang={lang} onViewProfile={onViewProfile} onReport={openReport} onImageClick={setLightboxUrl} />
       ))}
 
       {loading && (
@@ -349,6 +352,25 @@ export default function ExplorePage({ lang, currentUser, onViewProfile, onNaviga
         </div>
       )}
       <div ref={sentinelRef} style={{ height: 4 }} />
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img
+            src={lightboxUrl}
+            alt=""
+            style={{ maxWidth: '92vw', maxHeight: '88vh', borderRadius: 8, objectFit: 'contain', boxShadow: '0 8px 48px rgba(0,0,0,0.5)' }}
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setLightboxUrl(null)}
+            style={{ position: 'fixed', top: 20, right: 24, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 40, height: 40, fontSize: 20, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >✕</button>
+        </div>
+      )}
 
       {/* Red Flag modal */}
       {reportPostId !== null && (

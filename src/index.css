@@ -297,6 +297,11 @@ button {
   color: var(--fellis-dark);
 }
 
+/* Skjul original StoryBar på mobil i nyt design — Stories.jsx tager over */
+@media (max-width: 768px) {
+  .design-new .classic-story-bar { display: none; }
+}
+
 /* Wrapper der giver StoryBar et horisontalt strip-udseende på mobil */
 .design-new .stories-strip-wrapper {
   display: none;
