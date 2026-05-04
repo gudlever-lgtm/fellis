@@ -52,7 +52,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiNearbyPlaces, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiNearbyPlaces, apiGetUserCheckins, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
   apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
   apiGetFlaggedGroups, apiUpdateGroupModerationStatus,
@@ -4830,6 +4830,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [earnedBadges, setEarnedBadges] = useState(null) // null = not loaded
   const [adfreeBank, setAdfreeBank] = useState(null) // null = not loaded
   const [adfreeAssignments, setAdfreeAssignments] = useState(null) // null = not loaded
+  const [myCheckins, setMyCheckins] = useState(null) // null = not loaded
   const [photos, setPhotos] = useState([])
   const [lightbox, setLightbox] = useState(null)
   const [locationPopup, setLocationPopup] = useState(null)
@@ -4857,6 +4858,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         setAdfreeBank(0)
         setAdfreeAssignments([])
       })
+    }
+    if (profileTab === 'checkins' && myCheckins === null) {
+      apiGetUserCheckins(currentUser.id).then(data => setMyCheckins(Array.isArray(data) ? data : [])).catch(() => setMyCheckins([]))
     }
   }, [profileTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -5056,6 +5060,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         </button>
         <button className={`p-filter-tab${profileTab === 'hashtags' ? ' active' : ''}`} onClick={() => setProfileTab('hashtags')}>
           🏷️ {t.topics}
+        </button>
+        <button className={`p-filter-tab${profileTab === 'checkins' ? ' active' : ''}`} onClick={() => setProfileTab('checkins')}>
+          📌 {t.profileTabCheckIns}{myCheckins !== null ? ` (${myCheckins.length})` : ''}
         </button>
       </div>
 
@@ -5439,6 +5446,38 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       {profileTab === 'hashtags' && (
         <div className="p-card" style={{ padding: '20px 24px' }}>
           <HashtagFollows lang={lang} />
+        </div>
+      )}
+
+      {profileTab === 'checkins' && (
+        <div className="p-card" style={{ padding: '20px 24px' }}>
+          <h3 className="p-section-title" style={{ marginTop: 0 }}>📌 {t.profileTabCheckIns}</h3>
+          {myCheckins === null ? (
+            <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>…</p>
+          ) : myCheckins.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{t.noCheckIns}</p>
+          ) : (
+            <div>
+              {myCheckins.map((c, i) => {
+                const label = c.place_name || `${Number(c.geo_lat).toFixed(4)}, ${Number(c.geo_lng).toFixed(4)}`
+                const date = new Date(c.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                return (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: i < myCheckins.length - 1 ? '1px solid #f0ede8' : 'none' }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>📍</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#222' }}>{label}</div>
+                      <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{date}</div>
+                      {c.connection_count > 0 && (
+                        <div style={{ fontSize: 12, color: '#2D6A4F', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          👥 {c.connection_count} {c.connection_count === 1 ? t.connectionAlsoHere : t.connectionsAlsoHere}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -8800,6 +8839,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
   const [watcherPop, setWatcherPop] = useState(false)
+  const [friendCheckins, setFriendCheckins] = useState([])
   // Business profile extras
   const [bizServices, setBizServices] = useState([])
   const [bizJobs, setBizJobs] = useState([])
@@ -8846,6 +8886,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
     apiFetchUserPosts(userId).then(data => {
       if (Array.isArray(data)) setUserPosts(data)
     })
+    apiGetUserCheckins(userId).then(data => {
+      if (Array.isArray(data)) setFriendCheckins(data)
+    }).catch(() => {})
     apiGetContactNote(userId).then(data => {
       if (data) { setCrmNote(data.note || ''); setCrmNoteUpdatedAt(data.updatedAt) }
     }).catch(() => {})
@@ -9375,6 +9418,35 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                         </button>
                       )}
                     </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Check-ins */}
+      {friendCheckins.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
+            📌 {t.profileTabCheckIns} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({friendCheckins.length})</span>
+          </h3>
+          <div>
+            {friendCheckins.map((c, i) => {
+              const label = c.place_name || `${Number(c.geo_lat).toFixed(4)}, ${Number(c.geo_lng).toFixed(4)}`
+              const date = new Date(c.created_at).toLocaleDateString(getLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })
+              return (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: i < friendCheckins.length - 1 ? '1px solid #f0ede8' : 'none' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>📍</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#222' }}>{label}</div>
+                    <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{date}</div>
+                    {c.connection_count > 0 && (
+                      <div style={{ fontSize: 12, color: '#2D6A4F', marginTop: 4 }}>
+                        👥 {c.connection_count} {c.connection_count === 1 ? t.connectionAlsoHere : t.connectionsAlsoHere}
+                      </div>
+                    )}
                   </div>
                 </div>
               )

@@ -1640,4 +1640,48 @@ router.delete('/me/partners/:partnerId', authenticate, writeLimit, async (req, r
 })
 
 
+router.get('/profile/:id/checkins', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  const authId = req.userId
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.place_name, p.geo_lat, p.geo_lng, p.created_at, p.text_da, p.text_en,
+              (
+                SELECT COUNT(DISTINCT p2.author_id)
+                FROM posts p2
+                JOIN friendships f ON f.friend_id = p2.author_id AND f.user_id = ?
+                WHERE p2.geo_lat IS NOT NULL
+                  AND p2.geo_lng IS NOT NULL
+                  AND p2.scheduled_at IS NULL
+                  AND ABS(p2.geo_lat - p.geo_lat) < 0.001
+                  AND ABS(p2.geo_lng - p.geo_lng) < 0.0016
+                  AND ABS(TIMESTAMPDIFF(MINUTE, p2.created_at, p.created_at)) <= 120
+                  AND p2.author_id != p.author_id
+              ) AS connection_count
+       FROM posts p
+       WHERE p.author_id = ?
+         AND p.geo_lat IS NOT NULL
+         AND p.geo_lng IS NOT NULL
+         AND p.scheduled_at IS NULL
+       ORDER BY p.created_at DESC
+       LIMIT 30`,
+      [authId, targetId]
+    )
+    res.json(rows.map(r => ({
+      id: r.id,
+      place_name: r.place_name || null,
+      geo_lat: r.geo_lat,
+      geo_lng: r.geo_lng,
+      created_at: r.created_at,
+      text_da: r.text_da || null,
+      text_en: r.text_en || null,
+      connection_count: Number(r.connection_count),
+    })))
+  } catch (err) {
+    console.error('GET /api/profile/:id/checkins error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
 export default router

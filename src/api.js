@@ -1042,6 +1042,10 @@ export async function apiNearbyPlaces(lat, lng) {
   return await request(`/api/geocode/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`)
 }
 
+export async function apiGetUserCheckins(userId) {
+  return await request(`/api/profile/${userId}/checkins`)
+}
+
 export async function apiGetPublicProfile(handle) {
   try {
     const res = await fetch(`${API_BASE}/api/public/profile/${encodeURIComponent(handle)}`)
