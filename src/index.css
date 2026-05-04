@@ -85,13 +85,12 @@ button {
 
 /* ── Desktop: vertikal venstremenu (≥769px) ──────────────────────────────── */
 @media (min-width: 769px) {
-  /* Platform: ingen top-padding, venstremarginen giver plads til sidebar */
   .design-new .platform {
     padding-top: 0;
     padding-left: 220px;
   }
 
-  /* p-nav: fra horisontal topbar til vertikal venstresøjle */
+  /* p-nav: vertikal søjle — overflow:visible så "Mere"-dropdown kan stikke ud */
   .design-new .p-nav {
     flex-direction: column;
     align-items: stretch;
@@ -101,99 +100,118 @@ button {
     border-top: none;
     border-bottom: none;
     border-right: var(--border);
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: visible;
   }
 
-  /* Logo øverst */
   .design-new .p-nav-left {
-    padding: 20px 16px 12px;
+    padding: 18px 16px 10px;
     flex-shrink: 0;
+    border-bottom: var(--border);
   }
 
-  /* Hamburger-knap skjules på desktop i nyt design */
   .design-new .p-nav-hamburger { display: none; }
 
-  /* Tab-liste: lodret */
+  /* Tab-liste: lodret og scrollbar */
   .design-new .p-nav-tabs {
     flex-direction: column;
     gap: 2px;
     flex: 1;
-    padding: 4px 8px;
+    padding: 8px;
     align-items: stretch;
+    overflow-y: auto;
+    overflow-x: visible;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.12) transparent;
   }
 
-  /* Nav-faner: venstrejusteret med aktiv-streg */
   .design-new .p-nav-tab {
     border-radius: var(--radius-sm);
-    padding: 9px 12px;
+    padding: 8px 12px;
     justify-content: flex-start;
-    font-size: 13.5px;
+    font-size: 13px;
     width: 100%;
     border-left: 2px solid transparent;
     color: #555;
+    font-weight: 400;
   }
   .design-new .p-nav-tab:hover {
     background: rgba(0,0,0,0.04);
-    color: #333;
+    color: #222;
   }
   .design-new .p-nav-tab.active {
     background: var(--fellis-light);
     color: var(--fellis);
     border-left-color: var(--fellis);
-    border-radius: var(--radius-sm);
+    font-weight: 600;
   }
 
-  /* Højre-sektion (søg, notif, avatar): skubbes til bunden */
+  /* "Mere"-dropdown: flyttes til højre for sidebar med CSS transform */
+  .design-new .p-nav-tabs > div > div {
+    transform: translateX(216px) translateY(-40px);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+  }
+
+  /* Bund: kompakt række med toggle + sprog + ikoer + avatar */
   .design-new .p-nav-right {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     justify-content: flex-start;
-    align-items: stretch;
+    align-items: center;
     flex: 0;
-    padding: 8px 12px 20px;
-    gap: 6px;
+    padding: 8px 10px 14px;
+    gap: 4px;
     border-top: var(--border);
     margin-top: auto;
   }
 
-  /* Design toggle-knap i sidebar */
+  /* Design-toggle: diskret, fuld bredde øverst i bund-sektionen */
   .design-new .p-nav-right .design-toggle-btn {
     width: 100%;
     text-align: center;
+    font-size: 11px;
+    padding: 4px 10px;
+    margin-bottom: 2px;
+    opacity: 0.7;
   }
+  .design-new .p-nav-right .design-toggle-btn:hover { opacity: 1; }
 
-  /* Sprog-selector: fuld bredde i sidebar */
+  /* Sprogvælger: smal, fylder resten */
   .design-new .p-nav-right .lang-toggle {
-    width: 100%;
-    padding: 6px 8px;
+    flex: 1;
+    padding: 5px 6px;
     border-radius: var(--radius-sm);
     border: var(--border);
     font-size: 12px;
+    min-width: 0;
   }
 
-  /* Ad-free indikator: skjult i sidebar (fylder for meget) */
   .design-new .nav-adfree-indicator { display: none; }
 
-  /* Content: ingen top-margin (nav er ikke over mere) */
+  /* Avatar-dropdown åbner opad og til højre for sidebar */
+  .design-new .avatar-dropdown {
+    top: auto;
+    bottom: calc(100% + 8px);
+    left: 220px;
+    right: auto;
+  }
+
   .design-new .p-content,
   .design-new .p-content-feed {
     margin-top: 0;
     padding-top: 24px;
     max-width: none;
   }
-
-  /* Feed + højre sidebar */
   .design-new .p-content-feed {
     gap: 16px;
     padding-left: 16px;
     padding-right: 16px;
   }
-
   .design-new .p-feed-sidebar {
     border-left: var(--border);
     padding-left: 16px;
   }
 }
+
 
 /* ── Mobil: topbar med grøn streg (≤768px) ───────────────────────────────── */
 @media (max-width: 768px) {
