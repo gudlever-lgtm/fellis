@@ -21,6 +21,7 @@ const ROLE_STYLE = {
 export default function GroupsPage({ lang, currentUser, onNavigate }) {
   const t = getTranslations(lang)
   const g = t?.groups || {}
+  const isNewDesign = localStorage.getItem('fellis_design') === 'new'
 
   const isAdmin = Boolean(currentUser?.is_admin)
 
@@ -90,10 +91,10 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
   const TAB_LABEL = { discover: g.discover, myGroups: g.myGroups, pending: g.pending }
 
   return (
-    <div className="grp-page">
-      <div className="grp-header">
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a', margin: 0 }}>{g.pageTitle}</h1>
-        <button style={sCreateBtn} onClick={() => setShowCreate(true)}>
+    <div style={isNewDesign ? { ...s.page, margin: 0 } : s.page}>
+      <div style={s.header}>
+        <h1 style={s.title}>{g.pageTitle}</h1>
+        <button style={s.createBtn} onClick={() => setShowCreate(true)}>
           {'+ '}{g.createTitle}
         </button>
       </div>

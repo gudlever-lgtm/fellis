@@ -210,6 +210,17 @@ button {
     border-left: var(--border);
     padding-left: 16px;
   }
+
+  /* Left-align all content containers in sidebar layout */
+  .design-new .p-events,
+  .design-new .p-marketplace,
+  .design-new .p-analytics,
+  .design-new .p-search-page,
+  .design-new .p-profile,
+  .design-new .p-friends-page {
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
 
 

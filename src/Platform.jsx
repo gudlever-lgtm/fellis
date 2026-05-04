@@ -940,7 +940,7 @@ export default function Platform({ onLogout, initialPostId }) {
         {page === 'business-hub' && mode === 'business' && <Suspense fallback={null}><BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => navigate('/profile/' + id)} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} /></Suspense>}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={location.pathname.split('/')[2] ? parseInt(location.pathname.split('/')[2]) : null} />}
         {page === 'company-profile-form' && mode === 'business' && (
-          <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 8px' }}>
+          <div style={{ maxWidth: 600, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '16px 8px' }}>
             <CompanyProfileForm
               lang={lang}
               currentUser={currentUser}
@@ -961,7 +961,7 @@ export default function Platform({ onLogout, initialPostId }) {
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'saved-posts' && (
-          <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 4px' }}>
+          <div style={{ maxWidth: 680, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '0 4px' }}>
             <SavedPosts lang={lang} onViewPost={(id) => { setHighlightPostId(id); navigate('/') }} />
           </div>
         )}
@@ -5705,7 +5705,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   ]
 
   return (
-    <div className="p-profile" style={{ maxWidth: 800, margin: '0 auto' }}>
+    <div className="p-profile" style={{ maxWidth: 800, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
         {/* Avatar — always visible above tabs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
@@ -16939,7 +16939,7 @@ function AdsManagementPage({ lang, t }) {
   const labelStyle = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 12 }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 16px 80px' }}>
+    <div style={{ maxWidth: 800, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '0 16px 80px' }}>
       {/* Payment modal for ad activation */}
       {paymentAd && (
         <div className="modal-backdrop" onClick={() => setPaymentAd(null)}>
@@ -18000,7 +18000,7 @@ function CalendarPage({ lang, t, currentUser }) {
   const hasSelected = selectedHolidays.length > 0 || selectedBirthdays.length > 0 || selectedEvents.length > 0 || selectedReminders.length > 0
 
   const s = {
-    page: { maxWidth: 800, margin: '0 auto', padding: '24px 16px' },
+    page: { maxWidth: 800, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '24px 16px' },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
     title: { fontSize: 22, fontWeight: 700, margin: 0 },
     navBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 18, color: 'var(--text, #111)' },
@@ -18479,7 +18479,7 @@ function ModeratorPage({ lang, t, currentUser }) {
   }
 
   const s = {
-    page: { maxWidth: 900, margin: '0 auto', padding: '24px 16px' },
+    page: { maxWidth: 900, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '24px 16px' },
     title: { fontSize: 22, fontWeight: 700, margin: '0 0 20px' },
     tabs: { display: 'flex', gap: 8, marginBottom: 20 },
     tab: (active) => ({ padding: '8px 18px', borderRadius: 8, border: '1px solid var(--border, #ddd)', background: active ? '#1877F2' : 'var(--card-bg, #fff)', color: active ? '#fff' : 'var(--text, #111)', fontWeight: 600, cursor: 'pointer', fontSize: 14 }),
@@ -21027,7 +21027,7 @@ function AdminPage({ lang, t }) {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px' }}>
+    <div style={{ maxWidth: 800, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '24px 16px' }}>
       <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700 }}>⚙️ {t.adminTitle}</h2>
 
       {/* Admin navigation — grouped into categories */}

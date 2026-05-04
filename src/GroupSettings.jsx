@@ -92,6 +92,30 @@ export default function GroupSettings({ slug, lang, onNavigate }) {
     }
   }
 
+  const s = {
+    wrap: { maxWidth: 600, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '20px 16px' },
+    back: { background: 'none', border: 'none', cursor: 'pointer', color: '#555', fontSize: 14, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 },
+    title: { fontSize: 20, fontWeight: 700, color: '#1A1A1A', marginBottom: 24 },
+    section: { background: '#fff', borderRadius: 12, border: '1px solid #E8E4DF', padding: '20px', marginBottom: 16 },
+    label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 6 },
+    input: { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, outline: 'none', boxSizing: 'border-box' },
+    textarea: { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, outline: 'none', resize: 'vertical', minHeight: 80, boxSizing: 'border-box' },
+    select: { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, outline: 'none', background: '#fff', boxSizing: 'border-box' },
+    row: { marginBottom: 16 },
+    saveBtn: { padding: '10px 20px', borderRadius: 8, border: 'none', background: '#5B4FCF', color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
+    savedMsg: { color: '#2E7D32', fontSize: 13, marginLeft: 12 },
+    errorMsg: { color: '#C62828', fontSize: 13, marginTop: 8 },
+    dangerSection: { background: '#FFF5F5', borderRadius: 12, border: '1.5px solid #FECACA', padding: '20px', marginBottom: 16 },
+    dangerTitle: { fontSize: 15, fontWeight: 700, color: '#991B1B', marginBottom: 12 },
+    deleteBtn: { padding: '10px 20px', borderRadius: 8, border: 'none', background: '#DC2626', color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: deleting ? 0.6 : 1 },
+    coverPreview: { width: '100%', height: 120, borderRadius: 8, objectFit: 'cover', marginBottom: 8, display: 'block' },
+    coverPlaceholder: { width: '100%', height: 120, borderRadius: 8, background: 'linear-gradient(135deg,#5B4FCF 0%,#8B7FE8 100%)', marginBottom: 8 },
+    coverBtn: { padding: '8px 16px', borderRadius: 8, border: '1.5px solid #5B4FCF', background: '#fff', color: '#5B4FCF', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
+    labelRow: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
+    infoBtn: { background: 'none', border: '1.5px solid #aaa', borderRadius: '50%', width: 18, height: 18, fontSize: 11, cursor: 'pointer', color: '#777', lineHeight: '15px', padding: 0, flexShrink: 0 },
+    tooltip: { position: 'absolute', top: 'calc(100% + 6px)', left: 0, background: '#111', color: '#eee', fontSize: 12, lineHeight: 1.5, padding: '8px 12px', borderRadius: 8, zIndex: 50, pointerEvents: 'none', width: 240, boxShadow: '0 4px 16px rgba(0,0,0,0.4)', whiteSpace: 'pre-wrap' },
+  }
+
   if (loadState === 'loading') {
     return <div style={{ padding: 32, textAlign: 'center', color: '#888' }}>{g.loading}</div>
   }
