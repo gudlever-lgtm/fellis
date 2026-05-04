@@ -93,7 +93,7 @@ export default function GroupSettings({ slug, lang, onNavigate }) {
   }
 
   const s = {
-    wrap: { maxWidth: 600, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '20px 16px' },
+    wrap: { maxWidth: 600, margin: '0 auto', padding: '20px 16px' },
     back: { background: 'none', border: 'none', cursor: 'pointer', color: '#555', fontSize: 14, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 },
     title: { fontSize: 20, fontWeight: 700, color: '#1A1A1A', marginBottom: 24 },
     section: { background: '#fff', borderRadius: 12, border: '1px solid #E8E4DF', padding: '20px', marginBottom: 16 },

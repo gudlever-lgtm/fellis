@@ -108,7 +108,7 @@ export default function InterestGraphPage({ lang, t, currentUser }) {
   }
 
   const s = {
-    page: { maxWidth: 680, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '24px 16px' },
+    page: { maxWidth: 680, margin: '0 auto', padding: '24px 16px' },
     header: { marginBottom: 24 },
     title: { fontSize: 22, fontWeight: 700, color: '#1a1a1a', margin: 0 },
     subtitle: { fontSize: 14, color: '#666', marginTop: 4, lineHeight: 1.5 },

@@ -57,7 +57,6 @@ function fmtTime(dateStr, lang) {
 export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const t = getTranslations(lang)
   const g = t?.groups || {}
-  const isNewDesign = localStorage.getItem('fellis_design') === 'new'
 
   const [group, setGroup] = useState(null)
   const [loadState, setLoadState] = useState('loading')
@@ -467,7 +466,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   }
 
   return (
-    <div style={isNewDesign ? { ...s.page, margin: 0 } : s.page}>
+    <div style={s.page}>
       {keywordWarning && (
         <div className="gd-kw-overlay">
           <div className="gd-kw-modal">
