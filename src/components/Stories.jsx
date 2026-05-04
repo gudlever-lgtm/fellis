@@ -37,7 +37,7 @@ export default function Stories({ currentUser }) {
   }
 
   return (
-    <div className="design-new stories-strip">
+    <div className="stories-strip">
       {/* Your story */}
       <div className="story-item" onClick={() => {}}>
         <div className="story-ring">

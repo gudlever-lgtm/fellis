@@ -2261,7 +2261,7 @@ function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
   }, [])
 
   return (
-    <aside style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <aside className="p-feed-sidebar" style={{ width: 280, flexShrink: 0, flexDirection: 'column', gap: 12 }}>
       {/* Sidebar ad */}
       <AdBanner placement="sidebar" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />
 
