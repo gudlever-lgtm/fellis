@@ -37,7 +37,7 @@ export default function BottomNav({ page, navigateTo }) {
   }
 
   return (
-    <nav className="design-new bottom-nav">
+    <nav className="bottom-nav">
       {TABS.map(tab => (
         <button
           key={tab.id}

@@ -96,8 +96,12 @@ button {
   gap: 16px;
 }
 
-/* Sidebar: afgrænset med linje */
-.design-new .p-content-feed aside {
+/* Sidebar: display styres via CSS så vi kan skjule den på mobil */
+.p-feed-sidebar {
+  display: flex;
+}
+
+.design-new .p-feed-sidebar {
   border-left: var(--border);
   padding-left: 16px;
 }
@@ -168,11 +172,11 @@ button {
 
 /* ── Mobile Layout (scoped to .design-new) ────────────────────────────────── */
 @media (max-width: 768px) {
-  .design-new .p-content-feed aside { display: none; }
+  .design-new .p-feed-sidebar { display: none; }
   .design-new .p-content { padding-bottom: 80px; }
   .design-new .p-content-feed { padding-bottom: 80px; }
   .design-new .p-nav { padding: 0 12px; }
-  .design-new .p-card { border-radius: var(--radius); padding: 14px; }
+  .design-new .p-card { padding: 14px; }
 }
 
 /* ── Bottom Navigation ────────────────────────────────────────────────────── */
