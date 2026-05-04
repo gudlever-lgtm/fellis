@@ -5,7 +5,7 @@ API=request() | AUTH=CSRF | I18N=EXT
 
 ## STACK
 FE: React19/Vite7 | BE: Node/Express (ESM) | DB: MariaDB 11.8+ | SRV: lighttpd
-Auth: session+cookie, Google/LinkedIn OAuth | Payments: Mollie | Uploads: Multer | SMS: 46elks | AI: Mistral
+Auth: session+cookie, Payments: Mollie | Uploads: Multer | SMS: 46elks | AI: Mistral
 
 ## TASKS
 - Keep tasks small and focused — one feature or fix at a time
