@@ -626,6 +626,14 @@ export default function NewStyle({ lang = 'da' }) {
 
       {/* ── Center feed ───────────────────────────────────────────────────── */}
       <main style={s.feed}>
+        <div style={{ marginBottom: 18 }}>
+          <button
+            onClick={() => { window.location.href = '/' }}
+            style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, background: C.white, border: `0.5px solid ${C.sandBorder}`, borderRadius: 20, padding: '4px 12px', cursor: 'pointer' }}
+          >
+            ← Gammelt design
+          </button>
+        </div>
         <div style={s.feedHeader}>
           <div>
             <div style={s.feedTitle}>{t.nsYourMatches}</div>
