@@ -69,70 +69,144 @@ button {
   color: white;
 }
 
-/* ── New Design Layout (scoped to .design-new) ────────────────────────────── */
+/* ── New Design — delt på desktop og mobil ───────────────────────────────── */
 
-/* Topbar: grøn top-streg som tydelig markør for nyt design */
-.design-new .p-nav {
-  border-top: 3px solid var(--fellis);
-  border-bottom: var(--border);
-  height: 56px;
-}
-
-/* Aktiv nav-fane: grøn farve */
-.design-new .p-nav-tab.active {
-  color: var(--fellis);
-  background: var(--fellis-light);
-  border-radius: var(--radius-sm);
-}
-
-/* Platform baggrund: lidt lysere */
-.design-new .platform {
-  background: #F4F7F0;
-}
-
-/* Feed layout: tættere */
-.design-new .p-content-feed {
-  max-width: 980px;
-  gap: 16px;
-}
-
-/* Sidebar: display styres via CSS så vi kan skjule den på mobil */
-.p-feed-sidebar {
-  display: flex;
-}
-
-.design-new .p-feed-sidebar {
-  border-left: var(--border);
-  padding-left: 16px;
-}
-
-/* Kort: tynd border, mere runding */
-.design-new .p-card {
-  border: var(--border);
-  border-radius: var(--radius);
-  box-shadow: none;
-  margin-bottom: 10px;
-}
-
-/* Compose-felt */
+/* Baggrund og kort (alle skærmstørrelser) */
+.design-new .platform { background: #F4F7F0; }
+.design-new .p-card { border: var(--border); border-radius: var(--radius); box-shadow: none; margin-bottom: 10px; }
 .design-new .p-new-post-collapsed,
-.design-new .p-new-post-row {
-  border: var(--border);
-  border-radius: var(--radius);
+.design-new .p-new-post-row { border: var(--border); border-radius: var(--radius); }
+.design-new .p-action-btn { border-radius: var(--radius-sm); transition: background 0.12s; }
+.design-new .p-action-btn:hover { background: var(--fellis-light); }
+.design-new .notif-badge { background: var(--fellis); }
+
+/* Sidebar display styres via CSS */
+.p-feed-sidebar { display: flex; }
+
+/* ── Desktop: vertikal venstremenu (≥769px) ──────────────────────────────── */
+@media (min-width: 769px) {
+  /* Platform: ingen top-padding, venstremarginen giver plads til sidebar */
+  .design-new .platform {
+    padding-top: 0;
+    padding-left: 220px;
+  }
+
+  /* p-nav: fra horisontal topbar til vertikal venstresøjle */
+  .design-new .p-nav {
+    flex-direction: column;
+    align-items: stretch;
+    width: 220px;
+    height: 100vh;
+    padding: 0;
+    border-top: none;
+    border-bottom: none;
+    border-right: var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Logo øverst */
+  .design-new .p-nav-left {
+    padding: 20px 16px 12px;
+    flex-shrink: 0;
+  }
+
+  /* Hamburger-knap skjules på desktop i nyt design */
+  .design-new .p-nav-hamburger { display: none; }
+
+  /* Tab-liste: lodret */
+  .design-new .p-nav-tabs {
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    padding: 4px 8px;
+    align-items: stretch;
+  }
+
+  /* Nav-faner: venstrejusteret med aktiv-streg */
+  .design-new .p-nav-tab {
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    justify-content: flex-start;
+    font-size: 13.5px;
+    width: 100%;
+    border-left: 2px solid transparent;
+    color: #555;
+  }
+  .design-new .p-nav-tab:hover {
+    background: rgba(0,0,0,0.04);
+    color: #333;
+  }
+  .design-new .p-nav-tab.active {
+    background: var(--fellis-light);
+    color: var(--fellis);
+    border-left-color: var(--fellis);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Højre-sektion (søg, notif, avatar): skubbes til bunden */
+  .design-new .p-nav-right {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    flex: 0;
+    padding: 8px 12px 20px;
+    gap: 6px;
+    border-top: var(--border);
+    margin-top: auto;
+  }
+
+  /* Design toggle-knap i sidebar */
+  .design-new .p-nav-right .design-toggle-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Sprog-selector: fuld bredde i sidebar */
+  .design-new .p-nav-right .lang-toggle {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    border: var(--border);
+    font-size: 12px;
+  }
+
+  /* Ad-free indikator: skjult i sidebar (fylder for meget) */
+  .design-new .nav-adfree-indicator { display: none; }
+
+  /* Content: ingen top-margin (nav er ikke over mere) */
+  .design-new .p-content,
+  .design-new .p-content-feed {
+    margin-top: 0;
+    padding-top: 24px;
+    max-width: none;
+  }
+
+  /* Feed + højre sidebar */
+  .design-new .p-content-feed {
+    gap: 16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .design-new .p-feed-sidebar {
+    border-left: var(--border);
+    padding-left: 16px;
+  }
 }
 
-/* Action-knapper */
-.design-new .p-action-btn {
-  border-radius: var(--radius-sm);
-  transition: background 0.12s;
-}
-.design-new .p-action-btn:hover {
-  background: var(--fellis-light);
-}
-
-/* Notifikations-badge */
-.design-new .notif-badge {
-  background: var(--fellis);
+/* ── Mobil: topbar med grøn streg (≤768px) ───────────────────────────────── */
+@media (max-width: 768px) {
+  .design-new .p-nav {
+    border-top: 3px solid var(--fellis);
+    border-bottom: var(--border);
+    height: 56px;
+  }
+  .design-new .p-nav-tab.active {
+    color: var(--fellis);
+    background: var(--fellis-light);
+    border-radius: var(--radius-sm);
+  }
 }
 
 /* ── Toast ────────────────────────────────────────────────────────────────── */
@@ -170,13 +244,15 @@ button {
   50% { opacity: 0.35; }
 }
 
-/* ── Mobile Layout (scoped to .design-new) ────────────────────────────────── */
+/* ── Mobil specifikt (max-width: 768px) ───────────────────────────────────── */
 @media (max-width: 768px) {
   .design-new .p-feed-sidebar { display: none; }
   .design-new .p-content { padding-bottom: 80px; }
   .design-new .p-content-feed { padding-bottom: 80px; }
   .design-new .p-nav { padding: 0 12px; }
   .design-new .p-card { padding: 14px; }
+  /* Sikrer ingen venstremarginen på mobil */
+  .design-new .platform { padding-left: 0; }
 }
 
 /* ── Bottom Navigation ────────────────────────────────────────────────────── */
