@@ -3746,4 +3746,49 @@ router.get('/company/profile/:userId', async (req, res) => {
   }
 })
 
+// ── Feedback chat (user side) ─────────────────────────────────────────────────
+
+router.get('/me/feedback-chat', authenticate, async (req, res) => {
+  try {
+    const [[chat]] = await pool.query(
+      "SELECT id, feedback_id FROM feedback_chats WHERE user_id = ? AND status = 'active'",
+      [req.userId]
+    )
+    if (!chat) return res.json({ chat: null })
+    const [messages] = await pool.query(
+      `SELECT m.id, m.sender_id, m.message, m.created_at, u.name AS sender_name
+       FROM feedback_chat_messages m JOIN users u ON u.id = m.sender_id
+       WHERE m.chat_id = ? ORDER BY m.created_at ASC`,
+      [chat.id]
+    )
+    res.json({ chat: { id: chat.id, feedback_id: chat.feedback_id, messages } })
+  } catch (err) {
+    console.error('GET /api/me/feedback-chat error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/me/feedback-chat/message', authenticate, writeLimit, async (req, res) => {
+  const { message } = req.body
+  if (!message || !message.trim()) return res.status(400).json({ error: 'message required' })
+  try {
+    const [[chat]] = await pool.query(
+      "SELECT id, admin_id FROM feedback_chats WHERE user_id = ? AND status = 'active'",
+      [req.userId]
+    )
+    if (!chat) return res.status(404).json({ error: 'No active chat' })
+    const [result] = await pool.query(
+      'INSERT INTO feedback_chat_messages (chat_id, sender_id, message) VALUES (?, ?, ?)',
+      [chat.id, req.userId, message.trim()]
+    )
+    const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const msg = { id: result.insertId, sender_id: req.userId, sender_name: user.name, message: message.trim(), created_at: new Date() }
+    sseBroadcast(chat.admin_id, { type: 'feedback_chat_message', chat_id: chat.id, msg })
+    res.json({ ok: true, msg })
+  } catch (err) {
+    console.error('POST /api/me/feedback-chat/message error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 export default router

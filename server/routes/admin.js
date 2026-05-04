@@ -810,7 +810,8 @@ router.get('/admin/feedback', authenticate, requireAdmin, async (req, res) => {
     const params = status ? [status] : []
     const [rows] = await pool.query(
       `SELECT f.id, f.type, f.title, f.description, f.status, f.admin_note,
-              f.created_at, f.updated_at, u.name AS user_name, u.handle AS user_handle
+              f.admin_reply, f.admin_reply_at, f.created_at, f.updated_at,
+              u.name AS user_name, u.handle AS user_handle
        FROM platform_feedback f
        JOIN users u ON u.id = f.user_id
        ${where}
@@ -841,6 +842,107 @@ router.patch('/admin/feedback/:id', authenticate, requireAdmin, async (req, res)
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/admin/feedback/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.post('/admin/feedback/:id/reply', authenticate, requireAdmin, async (req, res) => {
+  const { message_da, message_en } = req.body
+  if (!message_da || !message_en) return res.status(400).json({ error: 'message_da and message_en required' })
+  try {
+    const [[fb]] = await pool.query('SELECT user_id FROM platform_feedback WHERE id = ?', [req.params.id])
+    if (!fb) return res.status(404).json({ error: 'Not found' })
+    await pool.query(
+      'UPDATE platform_feedback SET admin_reply = ?, admin_reply_at = NOW() WHERE id = ?',
+      [message_da, req.params.id]
+    )
+    await createNotification(fb.user_id, 'system', message_da.trim(), message_en.trim())
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/feedback/:id/reply error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+// ── Feedback chat (admin side) ────────────────────────────────────────────────
+
+router.post('/admin/feedback/:id/chat', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[fb]] = await pool.query('SELECT user_id FROM platform_feedback WHERE id = ?', [req.params.id])
+    if (!fb) return res.status(404).json({ error: 'Not found' })
+    const [[existing]] = await pool.query(
+      "SELECT id FROM feedback_chats WHERE feedback_id = ? AND status = 'active'", [req.params.id]
+    )
+    if (existing) return res.json({ chat_id: existing.id })
+    const [result] = await pool.query(
+      'INSERT INTO feedback_chats (feedback_id, user_id, admin_id) VALUES (?, ?, ?)',
+      [req.params.id, fb.user_id, req.userId]
+    )
+    const chatId = result.insertId
+    const [[admin]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    sseBroadcast(fb.user_id, { type: 'feedback_chat_open', chat_id: chatId, admin_name: admin.name })
+    res.json({ chat_id: chatId })
+  } catch (err) {
+    console.error('POST /api/admin/feedback/:id/chat error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.get('/admin/feedback/:id/chat', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[chat]] = await pool.query(
+      'SELECT id, status FROM feedback_chats WHERE feedback_id = ?', [req.params.id]
+    )
+    if (!chat) return res.json({ chat: null })
+    const [messages] = await pool.query(
+      `SELECT m.id, m.sender_id, m.message, m.created_at, u.name AS sender_name
+       FROM feedback_chat_messages m JOIN users u ON u.id = m.sender_id
+       WHERE m.chat_id = ? ORDER BY m.created_at ASC`,
+      [chat.id]
+    )
+    res.json({ chat: { id: chat.id, status: chat.status, messages } })
+  } catch (err) {
+    console.error('GET /api/admin/feedback/:id/chat error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/admin/feedback/:id/chat/message', authenticate, requireAdmin, async (req, res) => {
+  const { message } = req.body
+  if (!message || !message.trim()) return res.status(400).json({ error: 'message required' })
+  try {
+    const [[chat]] = await pool.query(
+      "SELECT id, user_id FROM feedback_chats WHERE feedback_id = ? AND status = 'active'", [req.params.id]
+    )
+    if (!chat) return res.status(404).json({ error: 'No active chat' })
+    const [result] = await pool.query(
+      'INSERT INTO feedback_chat_messages (chat_id, sender_id, message) VALUES (?, ?, ?)',
+      [chat.id, req.userId, message.trim()]
+    )
+    const [[admin]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const msg = { id: result.insertId, sender_id: req.userId, sender_name: admin.name, message: message.trim(), created_at: new Date() }
+    sseBroadcast(chat.user_id, { type: 'feedback_chat_message', chat_id: chat.id, msg })
+    res.json({ ok: true, msg })
+  } catch (err) {
+    console.error('POST /api/admin/feedback/:id/chat/message error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.delete('/admin/feedback/:id/chat', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[chat]] = await pool.query(
+      'SELECT id, user_id FROM feedback_chats WHERE feedback_id = ?', [req.params.id]
+    )
+    if (!chat) return res.status(404).json({ error: 'Not found' })
+    await pool.query('DELETE FROM feedback_chat_messages WHERE chat_id = ?', [chat.id])
+    await pool.query('DELETE FROM feedback_chats WHERE id = ?', [chat.id])
+    sseBroadcast(chat.user_id, { type: 'feedback_chat_close', chat_id: chat.id })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/admin/feedback/:id/chat error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

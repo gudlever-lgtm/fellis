@@ -28,7 +28,9 @@ import {
   apiGetMyPortfolio, apiGetUserPortfolio, apiCreatePortfolioItem, apiUpdatePortfolioItem, apiDeletePortfolioItem,
   apiShareReelToFeed,
   apiConvertPostToReel,
-  apiGetAdminFeedback, apiUpdateFeedbackStatus,
+  apiGetAdminFeedback, apiUpdateFeedbackStatus, apiAdminReplyToFeedback,
+  apiAdminStartFeedbackChat, apiAdminGetFeedbackChat, apiAdminSendFeedbackChatMessage, apiAdminEndFeedbackChat,
+  apiGetMyFeedbackChat, apiSendFeedbackChatMessage,
   apiGetDiscovery,
 } from './api.js'
 import { siApplepay, siGooglepay, siVisa } from 'simple-icons'
@@ -307,6 +309,10 @@ export default function Platform({ onLogout, initialPostId }) {
   const [notifTestResult, setNotifTestResult] = useState(null)
   const [friendsRefreshKey, setFriendsRefreshKey] = useState(0)
   const [msgSsePayload, setMsgSsePayload] = useState(null)
+  const [supportChat, setSupportChat] = useState(null) // { id, messages } | null — active support chat for this user
+  const [supportChatInput, setSupportChatInput] = useState('')
+  const [supportChatSending, setSupportChatSending] = useState(false)
+  const [supportChatClosed, setSupportChatClosed] = useState(false) // shown briefly after admin ends chat
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
   const [activeFeatures, setActiveFeatures] = useState([])
@@ -505,6 +511,11 @@ export default function Platform({ onLogout, initialPostId }) {
     return () => clearInterval(interval)
   }, [reloadNotifs])
 
+  // Restore active support chat on mount (e.g. after page refresh)
+  useEffect(() => {
+    apiGetMyFeedbackChat().then(data => { if (data?.chat) setSupportChat(data.chat) })
+  }, [])
+
   // Lightweight unread badge poll every 30s (catches missed SSE events)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -527,6 +538,25 @@ export default function Platform({ onLogout, initialPostId }) {
         }
         if (payload.type === 'message' || payload.type === 'read_receipt') {
           setMsgSsePayload({ ts: Date.now(), ...payload })
+        }
+        if (payload.type === 'feedback_chat_open') {
+          apiGetMyFeedbackChat().then(data => { if (data?.chat) setSupportChat(data.chat) })
+          setSupportChatClosed(false)
+        }
+        if (payload.type === 'feedback_chat_message') {
+          // could be for admin or user side
+          setSupportChat(prev => prev ? { ...prev, messages: [...prev.messages, payload.msg] } : prev)
+          setFeedbackChats(prev => {
+            const entry = Object.entries(prev).find(([, c]) => c?.id === payload.chat_id)
+            if (!entry) return prev
+            const [fbId, chat] = entry
+            return { ...prev, [fbId]: { ...chat, messages: [...(chat.messages || []), payload.msg] } }
+          })
+        }
+        if (payload.type === 'feedback_chat_close') {
+          setSupportChat(null)
+          setSupportChatClosed(true)
+          setTimeout(() => setSupportChatClosed(false), 5000)
         }
       } catch {}
     }
@@ -1033,6 +1063,74 @@ export default function Platform({ onLogout, initialPostId }) {
 
       {/* 💬 Floating feedback button */}
       {feedbackPlacement === 'floating' && <FeedbackButton t={t} />}
+
+      {/* 🎧 Support chat window — appears when admin opens a chat with this user */}
+      {(supportChat || supportChatClosed) && (
+        <div style={{
+          position: 'fixed', bottom: 50, right: 20, width: 300, zIndex: 1500,
+          background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.13)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
+          <div style={{ background: '#2D6A4F', color: '#fff', padding: '10px 14px', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>{t.feedbackChatTitle}</span>
+            {supportChatClosed && <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.85 }}>✓</span>}
+          </div>
+          {supportChatClosed ? (
+            <div style={{ padding: '16px 14px', fontSize: 13, color: '#666', textAlign: 'center' }}>{t.feedbackChatClosed}</div>
+          ) : (
+            <>
+              <div style={{ flex: 1, maxHeight: 200, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, background: '#fafaf8' }}>
+                {(!supportChat.messages || supportChat.messages.length === 0) ? (
+                  <div style={{ fontSize: 12, color: '#aaa', textAlign: 'center', padding: '8px 0' }}>…</div>
+                ) : supportChat.messages.map(m => {
+                  const isMe = m.sender_id === currentUser?.id
+                  return (
+                    <div key={m.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                      <div style={{
+                        maxWidth: '80%', padding: '6px 10px', borderRadius: 10, fontSize: 13, lineHeight: 1.4,
+                        background: isMe ? '#2D6A4F' : '#E8E4DF', color: isMe ? '#fff' : '#222',
+                      }}>{m.message}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', borderTop: '1px solid #E8E4DF' }}>
+                <input
+                  placeholder={t.feedbackChatInputPlaceholder}
+                  value={supportChatInput}
+                  onChange={e => setSupportChatInput(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      const msg = supportChatInput.trim()
+                      if (!msg || supportChatSending) return
+                      setSupportChatSending(true)
+                      setSupportChatInput('')
+                      const data = await apiSendFeedbackChatMessage(msg)
+                      if (data?.msg) setSupportChat(prev => prev ? { ...prev, messages: [...prev.messages, data.msg] } : prev)
+                      setSupportChatSending(false)
+                    }
+                  }}
+                  style={{ flex: 1, padding: '8px 10px', border: 'none', outline: 'none', fontSize: 13, fontFamily: 'inherit' }}
+                />
+                <button
+                  disabled={supportChatSending || !supportChatInput.trim()}
+                  onClick={async () => {
+                    const msg = supportChatInput.trim()
+                    if (!msg || supportChatSending) return
+                    setSupportChatSending(true)
+                    setSupportChatInput('')
+                    const data = await apiSendFeedbackChatMessage(msg)
+                    if (data?.msg) setSupportChat(prev => prev ? { ...prev, messages: [...prev.messages, data.msg] } : prev)
+                    setSupportChatSending(false)
+                  }}
+                  style={{ padding: '8px 12px', border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                >{supportChatSending ? '…' : t.feedbackChatSend}</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* 💬 Feedback modal for menu placement */}
       {feedbackPlacement === 'menu' && (
@@ -20733,6 +20831,11 @@ function AdminPage({ lang, t }) {
   const [feedbackFilter, setFeedbackFilter] = useState('')
   const [feedbackNotes, setFeedbackNotes] = useState({}) // id → note string
   const [feedbackSaving, setFeedbackSaving] = useState({}) // id → bool
+  const [feedbackReplies, setFeedbackReplies] = useState({}) // id → { da, en }
+  const [feedbackReplySending, setFeedbackReplySending] = useState({}) // id → bool
+  const [feedbackChats, setFeedbackChats] = useState({}) // feedbackId → { id, status, messages }
+  const [feedbackChatInputs, setFeedbackChatInputs] = useState({}) // feedbackId → string
+  const [feedbackChatSending, setFeedbackChatSending] = useState({}) // feedbackId → bool
   // Groups admin
   const [grpStats, setGrpStats] = useState(null)
   const [grpApproval, setGrpApproval] = useState(null)
@@ -22941,6 +23044,127 @@ function AdminPage({ lang, t }) {
                     style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
                   >{feedbackSaving[fb.id] ? '…' : t.adminFeedbackSave}</button>
                 </div>
+
+                <div style={{ marginTop: 12, borderTop: '1px solid #E8E4DF', paddingTop: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 6 }}>{t.adminFeedbackReplyLabel}</div>
+                  {fb.admin_reply && (
+                    <div style={{ fontSize: 12, color: '#2D6A4F', marginBottom: 8 }}>
+                      {t.adminFeedbackReplySentAt} {new Date(fb.admin_reply_at).toLocaleString(getLocale(lang))} — {fb.admin_reply}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <input
+                      placeholder={t.adminFeedbackReplyPlaceholder}
+                      value={(feedbackReplies[fb.id] || {}).da || ''}
+                      onChange={e => setFeedbackReplies(prev => ({ ...prev, [fb.id]: { ...(prev[fb.id] || {}), da: e.target.value } }))}
+                      style={{ padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' }}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        placeholder={t.adminFeedbackReplyEnPlaceholder}
+                        value={(feedbackReplies[fb.id] || {}).en || ''}
+                        onChange={e => setFeedbackReplies(prev => ({ ...prev, [fb.id]: { ...(prev[fb.id] || {}), en: e.target.value } }))}
+                        style={{ flex: 1, padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' }}
+                      />
+                      <button
+                        disabled={!!feedbackReplySending[fb.id] || !((feedbackReplies[fb.id] || {}).da) || !((feedbackReplies[fb.id] || {}).en)}
+                        onClick={async () => {
+                          const { da: msgDa, en: msgEn } = feedbackReplies[fb.id] || {}
+                          if (!msgDa || !msgEn) return
+                          setFeedbackReplySending(prev => ({ ...prev, [fb.id]: true }))
+                          await apiAdminReplyToFeedback(fb.id, msgDa, msgEn)
+                          setFeedbackReplySending(prev => ({ ...prev, [fb.id]: false }))
+                          setFeedbackReplies(prev => ({ ...prev, [fb.id]: { da: '', en: '' } }))
+                          apiGetAdminFeedback(feedbackFilter || null).then(data => { if (data) setFeedbackList(data.feedback) })
+                        }}
+                        style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#3D6A9F', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >{feedbackReplySending[fb.id] ? t.adminFeedbackReplySending : t.adminFeedbackReplySend}</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live chat section */}
+                {(() => {
+                  const chat = feedbackChats[fb.id]
+                  const isActive = chat && chat.status === 'active'
+                  return (
+                    <div style={{ marginTop: 12, borderTop: '1px solid #E8E4DF', paddingTop: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isActive ? 10 : 0 }}>
+                        {isActive && <span style={{ fontSize: 12, fontWeight: 700, color: '#2D6A4F' }}>{t.adminFeedbackChatActive}</span>}
+                        <button
+                          onClick={async () => {
+                            if (isActive) {
+                              await apiAdminEndFeedbackChat(fb.id)
+                              setFeedbackChats(prev => { const n = { ...prev }; delete n[fb.id]; return n })
+                            } else {
+                              const data = await apiAdminStartFeedbackChat(fb.id)
+                              if (data) {
+                                const chatData = await apiAdminGetFeedbackChat(fb.id)
+                                if (chatData) setFeedbackChats(prev => ({ ...prev, [fb.id]: { ...chatData.chat, status: 'active' } }))
+                              }
+                            }
+                          }}
+                          style={{
+                            padding: '5px 14px', borderRadius: 7, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                            background: isActive ? '#E07A5F' : '#3D6A9F', color: '#fff',
+                          }}
+                        >{isActive ? t.adminFeedbackChatEnd : t.adminFeedbackChatStart}</button>
+                      </div>
+                      {isActive && (
+                        <div style={{ border: '1px solid #E8E4DF', borderRadius: 8, overflow: 'hidden' }}>
+                          <div style={{ maxHeight: 180, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, background: '#fafaf8' }}>
+                            {(!chat.messages || chat.messages.length === 0) ? (
+                              <div style={{ fontSize: 12, color: '#aaa', textAlign: 'center', padding: '8px 0' }}>{t.adminFeedbackChatNoMessages}</div>
+                            ) : chat.messages.map(m => {
+                              const isAdmin = m.sender_id !== fb.user_id
+                              return (
+                                <div key={m.id} style={{ display: 'flex', justifyContent: isAdmin ? 'flex-end' : 'flex-start' }}>
+                                  <div style={{
+                                    maxWidth: '75%', padding: '6px 10px', borderRadius: 10, fontSize: 13, lineHeight: 1.4,
+                                    background: isAdmin ? '#2D6A4F' : '#E8E4DF', color: isAdmin ? '#fff' : '#222',
+                                  }}>{m.message}</div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div style={{ display: 'flex', borderTop: '1px solid #E8E4DF' }}>
+                            <input
+                              placeholder={t.adminFeedbackChatInputPlaceholder}
+                              value={feedbackChatInputs[fb.id] || ''}
+                              onChange={e => setFeedbackChatInputs(prev => ({ ...prev, [fb.id]: e.target.value }))}
+                              onKeyDown={async e => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault()
+                                  const msg = (feedbackChatInputs[fb.id] || '').trim()
+                                  if (!msg || feedbackChatSending[fb.id]) return
+                                  setFeedbackChatSending(prev => ({ ...prev, [fb.id]: true }))
+                                  setFeedbackChatInputs(prev => ({ ...prev, [fb.id]: '' }))
+                                  const data = await apiAdminSendFeedbackChatMessage(fb.id, msg)
+                                  if (data?.msg) setFeedbackChats(prev => ({ ...prev, [fb.id]: { ...prev[fb.id], messages: [...(prev[fb.id]?.messages || []), data.msg] } }))
+                                  setFeedbackChatSending(prev => ({ ...prev, [fb.id]: false }))
+                                }
+                              }}
+                              style={{ flex: 1, padding: '8px 10px', border: 'none', outline: 'none', fontSize: 13, fontFamily: 'inherit' }}
+                            />
+                            <button
+                              disabled={!!feedbackChatSending[fb.id] || !(feedbackChatInputs[fb.id] || '').trim()}
+                              onClick={async () => {
+                                const msg = (feedbackChatInputs[fb.id] || '').trim()
+                                if (!msg || feedbackChatSending[fb.id]) return
+                                setFeedbackChatSending(prev => ({ ...prev, [fb.id]: true }))
+                                setFeedbackChatInputs(prev => ({ ...prev, [fb.id]: '' }))
+                                const data = await apiAdminSendFeedbackChatMessage(fb.id, msg)
+                                if (data?.msg) setFeedbackChats(prev => ({ ...prev, [fb.id]: { ...prev[fb.id], messages: [...(prev[fb.id]?.messages || []), data.msg] } }))
+                                setFeedbackChatSending(prev => ({ ...prev, [fb.id]: false }))
+                              }}
+                              style={{ padding: '8px 14px', border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                            >{feedbackChatSending[fb.id] ? '…' : t.adminFeedbackChatSend}</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}
