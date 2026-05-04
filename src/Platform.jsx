@@ -308,12 +308,6 @@ export default function Platform({ onLogout, initialPostId }) {
     document.body.classList.toggle('mode-business', mode === 'business')
   }, [mode])
 
-  // Apply design class to body on mount
-  useEffect(() => {
-    const design = localStorage.getItem('fellis_design') || 'classic'
-    document.body.classList.toggle('design-new', design === 'new')
-    document.body.classList.toggle('design-classic', design === 'classic')
-  }, [])
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState([])
   const [notifTestResult, setNotifTestResult] = useState(null)
