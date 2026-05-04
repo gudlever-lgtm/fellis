@@ -16,7 +16,7 @@ import {
   sseBroadcast, sseAdd, sseRemove, sseClients,
   parseBrowser, getGeoForIp,
   UPLOADS_DIR, MISTRAL_API_KEY, UPLOAD_FILES_CEILING,
-  mailer, oauthStateTokens,
+  mailer,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
 } from '../middleware.js'
@@ -255,7 +255,7 @@ router.get('/profile', authenticate, async (req, res) => {
     try {
       ;[users] = await pool.query(
         `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url, u.cover_photo_url,
-          u.email, u.google_id, u.linkedin_id,
+          u.email,
           (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
           u.created_at, u.birthday, u.gender,
           u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
@@ -275,7 +275,7 @@ router.get('/profile', authenticate, async (req, res) => {
         // Fallback: without business_* columns
         ;[users] = await pool.query(
           `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url, NULL AS cover_photo_url,
-            u.email, u.google_id, u.linkedin_id,
+            u.email,
             (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
             u.created_at, u.birthday, u.gender,
             u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
@@ -294,7 +294,7 @@ router.get('/profile', authenticate, async (req, res) => {
         // Final fallback: without gender/mobilepay (migration not yet applied)
         ;[users] = await pool.query(
           `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url, NULL AS cover_photo_url,
-            u.email, u.google_id, u.linkedin_id,
+            u.email,
             (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
             u.created_at, u.birthday,
             NULL AS gender,
@@ -342,10 +342,6 @@ router.get('/profile', authenticate, async (req, res) => {
       interests, tags,
       relationship_status: u.relationship_status || null,
       website: u.website || null,
-      connectedProviders: {
-        google: !!u.google_id,
-        linkedin: !!u.linkedin_id,
-      },
       phone: u.phone || null,
       mobilepay: u.mobilepay || null,
       mfaEnabled: !!u.mfa_enabled,

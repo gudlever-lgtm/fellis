@@ -75,6 +75,12 @@
       "name": "Mistral AI",
       "role": "AI (ansioluettelo / saatekirje)",
       "url": "https://mistral.ai/"
+    },
+    {
+      "flag": "🇩🇪",
+      "name": "OpenStreetMap",
+      "role": "Kartat & sijainti",
+      "url": "https://www.openstreetmap.org/"
     }
   ],
   "inviteTitle": "Kutsu ystäväsi",

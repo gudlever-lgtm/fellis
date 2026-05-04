@@ -84,6 +84,13 @@ export default {
         role: 'AI-assistance til CV og ansøgning',
         why: 'Fransk AI-virksomhed grundlagt i 2023, med modeller hostet i EU. Bruges til at hjælpe dig med at skrive CV og ansøgningsbreve. Din profildata sendes kun, når du aktivt bruger generatoren, og Mistral gemmer den ikke efter svaret er leveret. Funktionen er valgfri og kræver en API-nøgle — uden nøgle bruges lokale skabeloner i stedet.',
       },
+      {
+        name: 'OpenStreetMap / Nominatim',
+        flag: '🌍', country: 'EU',
+        url: 'https://www.openstreetmap.org/',
+        role: 'Kort & adressesøgning',
+        why: 'Open source kortprojekt drevet af OpenStreetMap Foundation. Bruges til kortvisning i opslag og events, samt adressesøgning (Nominatim-API). Ingen brugerdata sendes — kun stednavne og koordinater til geo-opslag.',
+      },
     ],
   },
   en: {
@@ -170,6 +177,13 @@ export default {
         url: 'https://mistral.ai/',
         role: 'AI assistance for CV and cover letters',
         why: 'French AI company founded in 2023, with models hosted in the EU. Used to help you write CVs and cover letters. Your profile data is only sent when you actively use the generator, and Mistral does not retain it after the response is delivered. The feature is optional and requires an API key — without one, local templates are used instead.',
+      },
+      {
+        name: 'OpenStreetMap / Nominatim',
+        flag: '🌍', country: 'EU',
+        url: 'https://www.openstreetmap.org/',
+        role: 'Maps & address search',
+        why: 'Open source mapping project run by the OpenStreetMap Foundation. Used for map display in posts and events, and for address search (Nominatim API). No user data is sent — only place names and coordinates for geo lookups.',
       },
     ],
   },

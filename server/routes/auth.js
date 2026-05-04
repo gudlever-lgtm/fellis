@@ -16,7 +16,7 @@ import {
   sseBroadcast, sseAdd, sseRemove, sseClients,
   parseBrowser, getGeoForIp,
   UPLOADS_DIR, MISTRAL_API_KEY, UPLOAD_FILES_CEILING,
-  mailer, oauthStateTokens,
+  mailer,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
 } from '../middleware.js'
@@ -36,16 +36,6 @@ setInterval(() => {
   const now = Date.now()
   for (const [k, v] of _mfaAttempts) if (now > v.resetAt) _mfaAttempts.delete(k)
 }, 5 * 60_000)
-
-// ── Google OAuth constants ──
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'https://fellis.eu/api/auth/google/callback'
-
-// ── LinkedIn OAuth constants ──
-const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID
-const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET
-const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'https://fellis.eu/api/auth/linkedin/callback'
 
 // ── Email translations ──────────────────────────────────────────────────────
 const EMAIL_LANGS = new Set(['da','en','de','fr','es','fi','pl','it','no','nl','sv','pt'])
@@ -721,181 +711,6 @@ router.get('/auth/session', authenticate, async (req, res) => {
   }
 })
 
-
-router.get('/auth/google', (req, res) => {
-  if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: 'Google integration not configured' })
-  const state = crypto.randomBytes(16).toString('hex')
-  // Store state with 10-minute expiry to validate in callback
-  oauthStateTokens.set(state, { provider: 'google', createdAt: Date.now() })
-  const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: GOOGLE_REDIRECT_URI,
-    response_type: 'code',
-    scope: 'openid email profile',
-    state,
-    access_type: 'offline',
-    prompt: 'select_account',
-  })
-  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
-})
-
-
-router.get('/auth/google/callback', async (req, res) => {
-  if (!GOOGLE_CLIENT_ID) return res.redirect('/?error=google_not_configured')
-  const { code, error, state } = req.query
-  if (error || !code) return res.redirect('/?error=google_denied')
-  // Validate OAuth state to prevent CSRF account-linking attacks
-  const stateData = oauthStateTokens.get(state)
-  if (!stateData || stateData.provider !== 'google' || Date.now() - stateData.createdAt > 10 * 60 * 1000) {
-    oauthStateTokens.delete(state)
-    return res.redirect('/?error=google_state_invalid')
-  }
-  oauthStateTokens.delete(state)
-  try {
-    // Exchange code for tokens
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: GOOGLE_REDIRECT_URI, grant_type: 'authorization_code',
-      }),
-    })
-    const tokens = await tokenRes.json()
-    if (!tokens.access_token) return res.redirect('/?error=google_token_failed')
-    // Get user info
-    const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    })
-    const gUser = await userRes.json()
-    if (!gUser.sub) return res.redirect('/?error=google_userinfo_failed')
-
-    const sessionId = getSessionIdFromRequest(req)
-    if (sessionId) {
-      // Logged-in user: connect Google to existing account
-      const [[sess]] = await pool.query('SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()', [sessionId])
-      if (sess) {
-        await pool.query('UPDATE users SET google_id = ? WHERE id = ?', [gUser.sub, sess.user_id])
-        return res.redirect('/?google_connected=1')
-      }
-    }
-    // Not logged in: login or register via Google
-    const [[existing]] = await pool.query('SELECT id FROM users WHERE google_id = ?', [gUser.sub])
-    let userId
-    if (existing) {
-      userId = existing.id
-    } else if (gUser.email) {
-      const [[byEmail]] = await pool.query('SELECT id FROM users WHERE email = ?', [gUser.email])
-      if (byEmail) {
-        await pool.query('UPDATE users SET google_id = ? WHERE id = ?', [gUser.sub, byEmail.id])
-        userId = byEmail.id
-      } else {
-        // Create new account
-        const handle = (gUser.email.split('@')[0] + Math.floor(Math.random() * 1000)).toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 30)
-        const name = gUser.name || gUser.email.split('@')[0]
-        const [ins] = await pool.query(
-          'INSERT INTO users (name, handle, email, google_id, avatar_url, interests, created_at) VALUES (?,?,?,?,?,?,NOW())',
-          [name, handle, gUser.email, gUser.sub, gUser.picture || null, JSON.stringify([])]
-        )
-        userId = ins.insertId
-      }
-    } else {
-      return res.redirect('/?error=google_no_email')
-    }
-    // Create session
-    const newSessId = crypto.randomBytes(32).toString('hex')
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    await pool.query('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)', [newSessId, userId, expiresAt])
-    res.redirect(`/?google_session=${newSessId}`)
-  } catch (err) {
-    console.error('Google OAuth callback error:', err.message)
-    res.redirect('/?error=google_error')
-  }
-})
-
-
-router.get('/auth/linkedin', (req, res) => {
-  if (!LINKEDIN_CLIENT_ID) return res.status(500).json({ error: 'LinkedIn integration not configured' })
-  const state = crypto.randomBytes(16).toString('hex')
-  // Store state with 10-minute expiry to validate in callback
-  oauthStateTokens.set(state, { provider: 'linkedin', createdAt: Date.now() })
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: LINKEDIN_CLIENT_ID,
-    redirect_uri: LINKEDIN_REDIRECT_URI,
-    scope: 'openid profile email',
-    state,
-  })
-  res.redirect(`https://www.linkedin.com/oauth/v2/authorization?${params}`)
-})
-
-
-router.get('/auth/linkedin/callback', async (req, res) => {
-  if (!LINKEDIN_CLIENT_ID) return res.redirect('/?error=linkedin_not_configured')
-  const { code, error, state } = req.query
-  if (error || !code) return res.redirect('/?error=linkedin_denied')
-  // Validate OAuth state to prevent CSRF account-linking attacks
-  const liStateData = oauthStateTokens.get(state)
-  if (!liStateData || liStateData.provider !== 'linkedin' || Date.now() - liStateData.createdAt > 10 * 60 * 1000) {
-    oauthStateTokens.delete(state)
-    return res.redirect('/?error=linkedin_state_invalid')
-  }
-  oauthStateTokens.delete(state)
-  try {
-    const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code', code,
-        client_id: LINKEDIN_CLIENT_ID, client_secret: LINKEDIN_CLIENT_SECRET,
-        redirect_uri: LINKEDIN_REDIRECT_URI,
-      }),
-    })
-    const tokens = await tokenRes.json()
-    if (!tokens.access_token) return res.redirect('/?error=linkedin_token_failed')
-    const userRes = await fetch('https://api.linkedin.com/v2/userinfo', {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    })
-    const lUser = await userRes.json()
-    if (!lUser.sub) return res.redirect('/?error=linkedin_userinfo_failed')
-
-    const sessionId = getSessionIdFromRequest(req)
-    if (sessionId) {
-      const [[sess]] = await pool.query('SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()', [sessionId])
-      if (sess) {
-        await pool.query('UPDATE users SET linkedin_id = ? WHERE id = ?', [lUser.sub, sess.user_id])
-        return res.redirect('/?linkedin_connected=1')
-      }
-    }
-    const [[existing]] = await pool.query('SELECT id FROM users WHERE linkedin_id = ?', [lUser.sub])
-    let userId
-    if (existing) {
-      userId = existing.id
-    } else if (lUser.email) {
-      const [[byEmail]] = await pool.query('SELECT id FROM users WHERE email = ?', [lUser.email])
-      if (byEmail) {
-        await pool.query('UPDATE users SET linkedin_id = ? WHERE id = ?', [lUser.sub, byEmail.id])
-        userId = byEmail.id
-      } else {
-        const handle = (lUser.email.split('@')[0] + Math.floor(Math.random() * 1000)).toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 30)
-        const [ins] = await pool.query(
-          'INSERT INTO users (name, handle, email, linkedin_id, avatar_url, interests, created_at) VALUES (?,?,?,?,?,?,NOW())',
-          [lUser.name || lUser.email.split('@')[0], handle, lUser.email, lUser.sub, lUser.picture || null, JSON.stringify([])]
-        )
-        userId = ins.insertId
-      }
-    } else {
-      return res.redirect('/?error=linkedin_no_email')
-    }
-    const newSessId = crypto.randomBytes(32).toString('hex')
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    await pool.query('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)', [newSessId, userId, expiresAt])
-    res.redirect(`/?linkedin_session=${newSessId}`)
-  } catch (err) {
-    console.error('LinkedIn OAuth callback error:', err.message)
-    res.redirect('/?error=linkedin_error')
-  }
-})
 
 
 export default router

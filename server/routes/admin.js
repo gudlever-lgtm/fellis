@@ -16,7 +16,7 @@ import {
   sseBroadcast, sseAdd, sseRemove, sseClients,
   parseBrowser, getGeoForIp,
   UPLOADS_DIR, MISTRAL_API_KEY, UPLOAD_FILES_CEILING,
-  mailer, oauthStateTokens,
+  mailer,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
 } from '../middleware.js'
@@ -242,9 +242,6 @@ router.get('/admin/env-status', authenticate, requireAdmin, async (req, res) => 
   ]
   const status = {}
   for (const v of ENV_VARS) status[v] = !!process.env[v]
-  // OAuth providers: require both ID and secret to be considered configured
-  status['GOOGLE_OAUTH'] = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
-  status['LINKEDIN_OAUTH'] = !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)
   res.json({ status })
 })
 

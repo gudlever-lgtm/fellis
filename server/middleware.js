@@ -816,13 +816,6 @@ const coverUpload = multer({
   },
 })
 
-const oauthStateTokens = new Map()
-setInterval(() => {
-  const cutoff = Date.now() - 10 * 60 * 1000 // 10-minute TTL
-  for (const [k, v] of oauthStateTokens) {
-    if (v.createdAt < cutoff) oauthStateTokens.delete(k)
-  }
-}, 15 * 60 * 1000)
 
 
 // ── Mollie ───────────────────────────────────────────────────────────────────
@@ -937,7 +930,7 @@ export {
   COOKIE_NAME, SERVER_START,
   
   // State
-  visitedSessions, visitedAnonIps, oauthStateTokens,
+  visitedSessions, visitedAnonIps,
   
   // Mailer
   mailer,
