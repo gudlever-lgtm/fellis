@@ -787,14 +787,6 @@ export default function Platform({ onLogout, initialPostId }) {
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
-          {/* New design preview toggle */}
-          <button
-            onClick={() => { window.location.href = '/newstyle' }}
-            title="Prøv nyt design"
-            style={{ fontSize: 11, fontWeight: 600, color: '#3B6E5A', background: '#EAF4EF', border: '1px solid #B8DDD0', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap', cursor: 'pointer' }}
-          >
-            ✨ Nyt design
-          </button>
           {/* Ad-free badge / upgrade prompt — hidden on small screens so avatar stays visible */}
           <div className="nav-adfree-indicator">
             {adsFree ? (
@@ -871,6 +863,9 @@ export default function Platform({ onLogout, initialPostId }) {
                 )}
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacyMenu}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); window.location.href = '/newstyle' }}>
+                  <span>✨</span> {lang === 'da' ? 'Prøv nyt design' : 'Try new design'}
                 </button>
                 <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
