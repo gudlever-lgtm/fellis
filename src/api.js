@@ -1498,6 +1498,25 @@ export async function apiAdminReplyToFeedback(id, message_da, message_en) {
   return await request(`/api/admin/feedback/${id}/reply`, { method: 'POST', body: JSON.stringify({ message_da, message_en }) })
 }
 
+export async function apiAdminStartFeedbackChat(id) {
+  return await request(`/api/admin/feedback/${id}/chat`, { method: 'POST' })
+}
+export async function apiAdminGetFeedbackChat(id) {
+  return await request(`/api/admin/feedback/${id}/chat`)
+}
+export async function apiAdminSendFeedbackChatMessage(id, message) {
+  return await request(`/api/admin/feedback/${id}/chat/message`, { method: 'POST', body: JSON.stringify({ message }) })
+}
+export async function apiAdminEndFeedbackChat(id) {
+  return await request(`/api/admin/feedback/${id}/chat`, { method: 'DELETE' })
+}
+export async function apiGetMyFeedbackChat() {
+  return await request('/api/me/feedback-chat')
+}
+export async function apiSendFeedbackChatMessage(message) {
+  return await request('/api/me/feedback-chat/message', { method: 'POST', body: JSON.stringify({ message }) })
+}
+
 export async function apiGetNotifications() {
   return await request('/api/notifications')
 }
