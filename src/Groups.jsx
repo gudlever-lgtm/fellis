@@ -251,6 +251,14 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
   )
 }
 
+const s = {
+  page:      { maxWidth: 900, margin: '0 auto', padding: '24px 16px' },
+  header:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  title:     { fontSize: 24, fontWeight: 800, color: '#1a1a2e', margin: 0 },
+  createBtn: { fontSize: 14, fontWeight: 700, padding: '9px 20px', borderRadius: 22,
+               border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff', cursor: 'pointer' },
+}
+
 const sCreateBtn = {
   fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 20,
   border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff',
