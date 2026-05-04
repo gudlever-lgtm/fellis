@@ -3280,10 +3280,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
           </div>
         </div>
       )}
-      {/* Story bar — Common mode only */}
+      {/* Story bar — Common mode only. Skjult på mobil i nyt design (Stories.jsx tager over) */}
       {mode !== 'business' && (
         <ModeGate mode="privat" currentMode={mode}>
-          <StoryBar currentUser={currentUser} lang={lang} />
+          <div className="classic-story-bar">
+            <StoryBar currentUser={currentUser} lang={lang} />
+          </div>
         </ModeGate>
       )}
       <Stories currentUser={currentUser} lang={lang} />
