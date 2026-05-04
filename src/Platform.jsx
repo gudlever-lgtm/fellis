@@ -3286,7 +3286,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
           <StoryBar currentUser={currentUser} lang={lang} />
         </ModeGate>
       )}
-      <Stories currentUser={currentUser} />
+      <Stories currentUser={currentUser} lang={lang} />
 
       {/* Feed title — Shift+click / long-press 1.5s = Retro; 2/3/5-tap = Gravity/Flip/Party */}
       <div
