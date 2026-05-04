@@ -54,7 +54,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiNearbyPlaces, apiGetUserCheckins, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats, apiGetTrendingTags,
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiNearbyPlaces, apiGetUserCheckins, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
   apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
   apiGetFlaggedGroups, apiUpdateGroupModerationStatus,
@@ -101,9 +101,6 @@ import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
 import DiscoveryCard from './components/DiscoveryCard.jsx'
 import OnboardingChecklist from './OnboardingChecklist.jsx'
-import DesignToggle from './components/DesignToggle.jsx'
-import BottomNav from './components/BottomNav.jsx'
-import Stories from './components/Stories.jsx'
 const GroupsPage = lazy(() => import('./Groups.jsx'))
 const GroupDetail = lazy(() => import('./GroupDetail.jsx'))
 const GroupSettings = lazy(() => import('./GroupSettings.jsx'))
@@ -307,7 +304,6 @@ export default function Platform({ onLogout, initialPostId }) {
     document.body.classList.toggle('mode-common', mode === 'privat' || mode === 'common')
     document.body.classList.toggle('mode-business', mode === 'business')
   }, [mode])
-
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState([])
   const [notifTestResult, setNotifTestResult] = useState(null)
@@ -356,12 +352,10 @@ export default function Platform({ onLogout, initialPostId }) {
   // Mobile tap triggers on global nav elements (work from any page)
   const navSearchRef = useRef(null)
   const navAvatarTapRef = useRef(null)
-  const mobileAvatarTapRef = useRef(null)
   const notifTitleRef = useRef(null)
-  useTapCount(navSearchRef,       { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
-  useTapCount(navAvatarTapRef,    { 7: triggerMatrixGlobal }, 3000, 600)
-  useTapCount(mobileAvatarTapRef, { 7: triggerMatrixGlobal }, 3000, 600)
-  useTapCount(notifTitleRef,      { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
+  useTapCount(navSearchRef,    { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
+  useTapCount(navAvatarTapRef, { 7: triggerMatrixGlobal }, 3000, 600)
+  useTapCount(notifTitleRef,   { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
   // ── New feature state ───────────────────────────────────────────────────────
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false)
   const [showQRCode, setShowQRCode] = useState(false)
@@ -383,12 +377,9 @@ export default function Platform({ onLogout, initialPostId }) {
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const [showOnboardingChecklist, setShowOnboardingChecklist] = useState(false)
   const avatarMenuRef = useRef(null)
-  const desktopAvatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
-  const [moreMenuPos, setMoreMenuPos] = useState({ top: 0, left: 0 })
   const moreMenuRef = useRef(null)
-  const moreButtonRef = useRef(null)
   const [navFaded, setNavFaded] = useState(false)
 
   // 🏅 Badge system — evaluate and show toasts for newly earned badges
@@ -401,13 +392,6 @@ export default function Platform({ onLogout, initialPostId }) {
     }).catch(() => {})
   }, [])
   const t = getTranslations(lang)
-
-  const design = localStorage.getItem('fellis_design') || 'classic'
-
-  useEffect(() => {
-    document.body.classList.toggle('design-new', design === 'new')
-    return () => document.body.classList.remove('design-new')
-  }, [design])
 
   useEffect(() => {
     document.body.classList.remove('dark', 'theme-nordic', 'theme-sunset', 'theme-forest')
@@ -585,10 +569,8 @@ export default function Platform({ onLogout, initialPostId }) {
   useEffect(() => {
     if (!showAvatarMenu && !showNotifPanel && !showMoreMenu) return
     const handleClick = (e) => {
-      if (showAvatarMenu) {
-        const inMobile  = avatarMenuRef.current?.contains(e.target)
-        const inDesktop = desktopAvatarMenuRef.current?.contains(e.target)
-        if (!inMobile && !inDesktop) setShowAvatarMenu(false)
+      if (showAvatarMenu && avatarMenuRef.current && !avatarMenuRef.current.contains(e.target)) {
+        setShowAvatarMenu(false)
       }
       if (showNotifPanel && notifRef.current && !notifRef.current.contains(e.target)) {
         setShowNotifPanel(false)
@@ -637,62 +619,6 @@ export default function Platform({ onLogout, initialPostId }) {
   return (
     <div className="platform">
       <EggHintsContextMenu lang={lang} />
-      {/* Mobile header — only visible on small screens in new design */}
-      {design === 'new' && (
-        <header className="mobile-header-new">
-          <div className="mobile-header-new-logo" onClick={() => navigateTo('feed')}>
-            <span className="mobile-header-new-dot" />
-            <span className="mobile-header-new-brand">fellis</span>
-          </div>
-          <div className="mobile-header-new-right">
-            <button className="mobile-header-new-bell" onClick={() => setShowNotifPanel(v => !v)}>
-              🔔
-              {unreadCount > 0 && <span className="mobile-header-new-bell-badge" />}
-            </button>
-            <div ref={avatarMenuRef} style={{ position: 'relative' }}>
-              <div ref={mobileAvatarTapRef} data-egg-hints onClick={() => setShowAvatarMenu(v => !v)}>
-                {avatarSrc ? (
-                  <img className="mobile-header-new-avatar-img" src={avatarSrc} alt="" />
-                ) : (
-                  <div className="mobile-header-new-avatar" style={{ background: nameToColor(currentUser.name) }}>
-                    {currentUser.initials || getInitials(currentUser.name)}
-                  </div>
-                )}
-              </div>
-              {showAvatarMenu && (
-                <div className="avatar-dropdown" style={{ top: 'calc(100% + 8px)', right: 0 }}>
-                  <div className="avatar-dropdown-header">
-                    <strong>{currentUser.name}</strong>
-                    <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
-                    <span style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-                      {mode === 'privat' ? t.modeCommonTag : mode === 'network' ? t.modeNetworkTag : mode === 'business' ? t.modeBusinessTag : t.modeCommonTag}{adsFree ? ' · ✓ Ad-free' : ''}
-                    </span>
-                  </div>
-                  <div className="avatar-dropdown-divider" />
-                  <button className="avatar-dropdown-item" onClick={() => navigateTo('profile')}>
-                    <span>👤</span> {t.menuViewProfile}
-                  </button>
-                  <button className="avatar-dropdown-item" onClick={() => navigateTo('edit-profile')}>
-                    <span>✏️</span> {t.editProfile}
-                  </button>
-                  <button className="avatar-dropdown-item" onClick={() => navigateTo('settings')}>
-                    <span>⚙️</span> {t.settings}
-                  </button>
-                  {currentUser.is_admin && (
-                    <button className="avatar-dropdown-item" onClick={() => navigateTo('admin')}>
-                      <span>⚙️</span> {t.adminTitle}
-                    </button>
-                  )}
-                  <div className="avatar-dropdown-divider" />
-                  <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
-                    <span>🚪</span> {t.logout}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-      )}
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className={`p-nav${navFaded ? ' p-nav--faded' : ''}`} onMouseEnter={() => setNavFaded(false)} onClick={() => setNavFaded(false)}>
         <div className="p-nav-left">
@@ -712,9 +638,6 @@ export default function Platform({ onLogout, initialPostId }) {
           {showMobileMenu ? '✕' : '☰'}
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
-          {localStorage.getItem('fellis_design') === 'new' && (
-            <div className="p-nav-section-header">{t.newSidebar?.navSectionNavigate || 'Navigér'}</div>
-          )}
           {/* Feed — always pinned first */}
           <button
             className={`p-nav-tab${page === 'feed' ? ' active' : ''}`}
@@ -773,55 +696,48 @@ export default function Platform({ onLogout, initialPostId }) {
                       </button>
                     ))
                   : (
-                      <div ref={moreMenuRef}>
+                      <div ref={moreMenuRef} style={{ position: 'relative' }}>
                         <button
-                          ref={moreButtonRef}
                           className={`p-nav-tab${secondaryPages.includes(page) ? ' active' : ''}`}
-                          onClick={() => {
-                            if (!showMoreMenu && moreButtonRef.current) {
-                              const r = moreButtonRef.current.getBoundingClientRect()
-                              setMoreMenuPos({ top: r.bottom + 6, left: r.left })
-                            }
-                            setShowMoreMenu(v => !v)
-                          }}
+                          onClick={() => setShowMoreMenu(v => !v)}
                         >
                           <span className="p-nav-tab-icon">{'⋯'}</span>
                           <span className="p-nav-tab-label">{t.more}</span>
                         </button>
+                        {showMoreMenu && (
+                          <div style={{
+                            position: 'absolute', top: '100%', left: 0, zIndex: 200,
+                            background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
+                            border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
+                          }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
+                              {moreItems.map(item => (
+                                <button key={item.id}
+                                  onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '8px 10px', borderRadius: 8,
+                                    background: page === item.id ? '#f0f7f4' : 'none',
+                                    border: 'none', cursor: 'pointer', fontSize: 13,
+                                    fontWeight: page === item.id ? 700 : 400,
+                                    color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                                    transition: 'background 0.12s',
+                                  }}
+                                  onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
+                                  onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
+                                >
+                                  <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )
                 }
               </>
             )
           })()}
-          {localStorage.getItem('fellis_design') === 'new' && (
-            <>
-              <div className="p-nav-section-header" style={{ marginTop: 8 }}>{t.newSidebar?.navSectionMe || 'Mig'}</div>
-              <button
-                className={`p-nav-tab${page === 'profile' ? ' active' : ''}`}
-                onClick={() => { navigateTo('profile'); setShowMobileMenu(false) }}
-              >
-                <span className="p-nav-tab-icon">👤</span>
-                <span className="p-nav-tab-label">{t.profile}</span>
-              </button>
-              <button
-                className="p-nav-tab"
-                onClick={() => { setShowNotifPanel(v => { if (!v) reloadNotifs(); return !v }); setShowMobileMenu(false) }}
-              >
-                <span className="p-nav-tab-icon" style={{ position: 'relative' }}>
-                  🔔{unreadCount > 0 && <span className="notif-badge" style={{ top: -4, right: -6 }}>{unreadCount}</span>}
-                </span>
-                <span className="p-nav-tab-label">{t.notifications}</span>
-              </button>
-              <button
-                className={`p-nav-tab${page === 'settings' ? ' active' : ''}`}
-                onClick={() => { navigateTo('settings'); setShowMobileMenu(false) }}
-              >
-                <span className="p-nav-tab-icon">⚙️</span>
-                <span className="p-nav-tab-label">{t.settings}</span>
-              </button>
-            </>
-          )}
         </div>
         <div className="p-nav-right">
           <button
@@ -868,7 +784,6 @@ export default function Platform({ onLogout, initialPostId }) {
             )}
           </div>
 
-          <DesignToggle />
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
@@ -888,7 +803,7 @@ export default function Platform({ onLogout, initialPostId }) {
             )}
           </div>
           {/* Avatar with dropdown menu */}
-          <div ref={desktopAvatarMenuRef} style={{ position: 'relative' }}>
+          <div ref={avatarMenuRef} style={{ position: 'relative' }}>
             {avatarSrc ? (
               <img ref={navAvatarTapRef} className="p-nav-avatar-img" src={avatarSrc} alt="" data-egg-hints onClick={() => setShowAvatarMenu(v => !v)} />
             ) : (
@@ -959,53 +874,6 @@ export default function Platform({ onLogout, initialPostId }) {
         </div>
       </nav>
 
-      {showMoreMenu && (
-        <div onMouseDown={e => e.stopPropagation()} style={{
-          position: 'fixed', top: moreMenuPos.top, left: moreMenuPos.left, zIndex: 600,
-          background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
-          border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
-            {(() => {
-              const navItemIcons = {
-                messages: '💬', events: '📅', friends: '👥', 'business-hub': '🏢',
-                groups: '🫂', explore: '🔭', calendar: '🗓️', 'saved-posts': '🔖',
-                marketplace: '🛍️', jobs: '💼',
-              }
-              const { more: moreIds } = buildNavItems(navOrder, mode)
-              const moreItems = moreIds.map(id => ({
-                id, icon: navItemIcons[id],
-                label: {
-                  messages: t.messages, events: t.events,
-                  friends: mode === 'business' ? t.connectionsLabel : t.friends,
-                  'business-hub': t.businessHub, groups: t.navGroups, explore: t.explore,
-                  calendar: t.calendar, 'saved-posts': t.savedPosts,
-                  marketplace: t.marketplace, jobs: t.jobs,
-                }[id],
-              }))
-              return moreItems.map(item => (
-                <button key={item.id}
-                  onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 10px', borderRadius: 8,
-                    background: page === item.id ? '#f0f7f4' : 'none',
-                    border: 'none', cursor: 'pointer', fontSize: 13,
-                    fontWeight: page === item.id ? 700 : 400,
-                    color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                    transition: 'background 0.12s',
-                  }}
-                  onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
-                  onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
-                >
-                  <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
-                </button>
-              ))
-            })()}
-          </div>
-        </div>
-      )}
-
       <div className={page === 'feed' ? 'p-content p-content-feed' : 'p-content'}>
         <div style={{ display: page === 'feed' ? 'contents' : 'none' }}>
           <div className="p-feed-main">
@@ -1067,7 +935,7 @@ export default function Platform({ onLogout, initialPostId }) {
         {page === 'business-hub' && mode === 'business' && <Suspense fallback={null}><BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => navigate('/profile/' + id)} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} /></Suspense>}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={location.pathname.split('/')[2] ? parseInt(location.pathname.split('/')[2]) : null} />}
         {page === 'company-profile-form' && mode === 'business' && (
-          <div style={{ maxWidth: 600, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '16px 8px' }}>
+          <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 8px' }}>
             <CompanyProfileForm
               lang={lang}
               currentUser={currentUser}
@@ -1088,7 +956,7 @@ export default function Platform({ onLogout, initialPostId }) {
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'saved-posts' && (
-          <div style={{ maxWidth: 680, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '0 4px' }}>
+          <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 4px' }}>
             <SavedPosts lang={lang} onViewPost={(id) => { setHighlightPostId(id); navigate('/') }} />
           </div>
         )}
@@ -2371,110 +2239,24 @@ function LinkedContentCard({ type, id, lang, onNavigate }) {
 // ── FeedSidebar ───────────────────────────────────────────────────────────────
 function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
   const da = lang === 'da'
-  const isNew = localStorage.getItem('fellis_design') === 'new'
   const [events, setEvents] = useState(null)
   const [suggestedFriends, setSuggestedFriends] = useState(null)
   const [boostedListings, setBoostedListings] = useState(null)
-  const [locationPopup, setLocationPopup] = useState(null)
-  const [trendingTags, setTrendingTags] = useState(null)
-  const [followed, setFollowed] = useState({})
+  const [locationPopup, setLocationPopup] = useState(null) // { loc: string }
 
   useEffect(() => {
-    if (isNew) {
-      apiGetTrendingTags().then(d => { if (Array.isArray(d)) setTrendingTags(d.slice(0, 4)) })
-      apiGetSuggestedUsers(3).then(d => { if (Array.isArray(d)) setSuggestedFriends(d) })
-    } else {
-      apiFetchEvents(lang).then(d => {
-        if (d?.events) {
-          const today = new Date(); today.setHours(0, 0, 0, 0)
-          setEvents(d.events.filter(ev => new Date(ev.date) >= today).slice(0, 3))
-        }
-      })
-      apiGetSuggestedUsers(4).then(d => { if (Array.isArray(d)) setSuggestedFriends(d) })
-      apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
-    }
+    apiFetchEvents(lang).then(d => {
+      if (d?.events) {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        setEvents(d.events.filter(ev => new Date(ev.date) >= today).slice(0, 3))
+      }
+    })
+    apiGetSuggestedUsers(4).then(d => { if (d?.users) setSuggestedFriends(d.users) })
+    apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
   }, [])
 
-  const ns = t.newSidebar || {}
-
-  if (isNew) {
-    const formatCount = (n) => n >= 1000 ? `${(n / 1000).toFixed(1).replace('.0', '')}k` : String(n)
-    const year = new Date().getFullYear()
-    return (
-      <aside className="p-feed-sidebar" style={{ width: 260, flexShrink: 0, flexDirection: 'column', gap: 0 }}>
-        {/* Trending */}
-        <div className="p-new-sidebar-card">
-          <div className="p-new-sidebar-section-label">{ns.trending || 'Trending'}</div>
-          {!trendingTags
-            ? <div className="p-new-sidebar-loading">…</div>
-            : trendingTags.length === 0
-              ? <div className="p-new-sidebar-empty">{da ? 'Ingen trending emner' : 'Nothing trending'}</div>
-              : trendingTags.map((tag, i) => (
-                <div key={tag.tag} className="p-new-sidebar-trending-row">
-                  <span className="p-new-sidebar-trending-rank">{i + 1}</span>
-                  <span className="p-new-sidebar-trending-tag">#{tag.tag}</span>
-                  <span className="p-new-sidebar-trending-count">{formatCount(tag.count)}</span>
-                </div>
-              ))
-          }
-        </div>
-
-        {/* Suggestions */}
-        {suggestedFriends && suggestedFriends.length > 0 && (
-          <div className="p-new-sidebar-card">
-            <div className="p-new-sidebar-section-label">{ns.suggestions || 'Forslag til dig'}</div>
-            {suggestedFriends.map(u => {
-              const isFollowed = !!followed[u.id]
-              return (
-                <div key={u.id} className="p-new-sidebar-user-row">
-                  <div className="p-new-sidebar-avatar" style={{ background: u.avatar_url ? 'none' : nameToColor(u.name) }}>
-                    {u.avatar_url
-                      ? <img src={u.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                      : (u.initials || getInitials(u.name))
-                    }
-                  </div>
-                  <div className="p-new-sidebar-user-info" onClick={() => onNavigate('view-profile', { userId: u.id })}>
-                    <div className="p-new-sidebar-user-name">{u.name}</div>
-                    {u.location && <div className="p-new-sidebar-user-meta">{u.location}</div>}
-                  </div>
-                  <button
-                    className={`p-new-sidebar-follow-btn${isFollowed ? ' followed' : ''}`}
-                    onClick={async () => {
-                      if (isFollowed) {
-                        await apiUnfollowUser(u.id)
-                        setFollowed(prev => ({ ...prev, [u.id]: false }))
-                      } else {
-                        await apiFollowUser(u.id)
-                        setFollowed(prev => ({ ...prev, [u.id]: true }))
-                      }
-                    }}
-                  >
-                    {isFollowed ? (ns.following || 'Følger') : (ns.follow || 'Følg')}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="p-new-sidebar-footer">
-          <div className="p-new-sidebar-footer-links">
-            <button onClick={() => onNavigate('about')} className="p-new-sidebar-footer-link">{ns.footerAbout || 'Om'}</button>
-            <span className="p-new-sidebar-footer-sep">·</span>
-            <button onClick={() => onNavigate('privacy')} className="p-new-sidebar-footer-link">{ns.footerPrivacy || 'Privatlivspolitik'}</button>
-            <span className="p-new-sidebar-footer-sep">·</span>
-            <button onClick={() => onNavigate('terms')} className="p-new-sidebar-footer-link">{ns.footerTerms || 'Vilkår'}</button>
-          </div>
-          <div className="p-new-sidebar-footer-gdpr">{ns.footerGdpr || 'GDPR-compliant · Hosted i EU'}</div>
-          <div className="p-new-sidebar-footer-copy">© {year} Fellis</div>
-        </div>
-      </aside>
-    )
-  }
-
   return (
-    <aside className="p-feed-sidebar" style={{ width: 280, flexShrink: 0, flexDirection: 'column', gap: 12 }}>
+    <aside style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Sidebar ad */}
       <AdBanner placement="sidebar" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />
 
@@ -3493,15 +3275,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
           </div>
         </div>
       )}
-      {/* Story bar — Common mode only. Skjult på mobil i nyt design (Stories.jsx tager over) */}
+      {/* Story bar — Common mode only */}
       {mode !== 'business' && (
         <ModeGate mode="privat" currentMode={mode}>
-          <div className="classic-story-bar">
-            <StoryBar currentUser={currentUser} lang={lang} />
-          </div>
+          <StoryBar currentUser={currentUser} lang={lang} />
         </ModeGate>
       )}
-      <Stories currentUser={currentUser} lang={lang} />
 
       {/* Feed title — Shift+click / long-press 1.5s = Retro; 2/3/5-tap = Gravity/Flip/Party */}
       <div
@@ -5918,7 +5697,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   ]
 
   return (
-    <div className="p-profile" style={{ maxWidth: 800, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto' }}>
+    <div className="p-profile" style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
         {/* Avatar — always visible above tabs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
@@ -7038,6 +6817,57 @@ function SettingsLeverandoerer({ lang, t }) {
           {da
             ? 'Svensk telekomoperatør brugt til afsendelse af SMS-engangskoder ved to-faktor-login (MFA). Ingen SMS-data opbevares på fellis.eu — kun din telefonnummer, som du selv angiver.'
             : 'Swedish telecom provider used to send SMS one-time codes during two-factor login (MFA). No SMS data is stored on fellis.eu — only your phone number, which you provide yourself.'}
+        </p>
+      </div>
+
+      {sectionTitle(da ? 'Login & identitet' : 'Login & identity')}
+      <p style={{ fontSize: 13, color: '#666', margin: '-4px 0 16px' }}>
+        {da ? 'Forbind din konto med andre login-udbydere. Du kan altid logge ind med din fellis-konto uanset.' : 'Connect your account to other login providers. You can always log in with your fellis account regardless.'}
+      </p>
+
+      {/* Google */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#fff', border: '1px solid #e8e8e8' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Google</div>
+            <span style={badgeStyle(!!profile?.connectedProviders?.google)}>
+              {profile?.connectedProviders?.google ? (da ? 'Tilknyttet' : 'Connected') : (da ? 'Ikke tilknyttet' : 'Not connected')}
+            </span>
+          </div>
+          {!profile?.connectedProviders?.google && (
+            <a href="/api/auth/google" style={{ padding: '6px 14px', borderRadius: 8, background: '#4285F4', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              {da ? 'Forbind' : 'Connect'}
+            </a>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da ? 'Log ind eller opret konto med din Google-konto. Kræver GOOGLE_CLIENT_ID i serverkonfigurationen.' : 'Log in or sign up with your Google account. Requires GOOGLE_CLIENT_ID in server configuration.'}
+        </p>
+      </div>
+
+      {/* LinkedIn */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#0A66C2' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>LinkedIn</div>
+            <span style={badgeStyle(!!profile?.connectedProviders?.linkedin)}>
+              {profile?.connectedProviders?.linkedin ? (da ? 'Tilknyttet' : 'Connected') : (da ? 'Ikke tilknyttet' : 'Not connected')}
+            </span>
+          </div>
+          {!profile?.connectedProviders?.linkedin && (
+            <a href="/api/auth/linkedin" style={{ padding: '6px 14px', borderRadius: 8, background: '#0A66C2', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              {da ? 'Forbind' : 'Connect'}
+            </a>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da ? 'Forbind din LinkedIn-profil til fellis-kontoen. Særligt nyttigt i business-tilstand. Kræver LINKEDIN_CLIENT_ID i serverkonfigurationen.' : 'Connect your LinkedIn profile to your fellis account. Especially useful in business mode. Requires LINKEDIN_CLIENT_ID in server configuration.'}
         </p>
       </div>
 
@@ -17152,7 +16982,7 @@ function AdsManagementPage({ lang, t }) {
   const labelStyle = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 12 }
 
   return (
-    <div style={{ maxWidth: 800, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '0 16px 80px' }}>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 16px 80px' }}>
       {/* Payment modal for ad activation */}
       {paymentAd && (
         <div className="modal-backdrop" onClick={() => setPaymentAd(null)}>
@@ -18213,7 +18043,7 @@ function CalendarPage({ lang, t, currentUser }) {
   const hasSelected = selectedHolidays.length > 0 || selectedBirthdays.length > 0 || selectedEvents.length > 0 || selectedReminders.length > 0
 
   const s = {
-    page: { maxWidth: 800, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '24px 16px' },
+    page: { maxWidth: 800, margin: '0 auto', padding: '24px 16px' },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
     title: { fontSize: 22, fontWeight: 700, margin: 0 },
     navBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 18, color: 'var(--text, #111)' },
@@ -18692,7 +18522,7 @@ function ModeratorPage({ lang, t, currentUser }) {
   }
 
   const s = {
-    page: { maxWidth: 900, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '24px 16px' },
+    page: { maxWidth: 900, margin: '0 auto', padding: '24px 16px' },
     title: { fontSize: 22, fontWeight: 700, margin: '0 0 20px' },
     tabs: { display: 'flex', gap: 8, marginBottom: 20 },
     tab: (active) => ({ padding: '8px 18px', borderRadius: 8, border: '1px solid var(--border, #ddd)', background: active ? '#1877F2' : 'var(--card-bg, #fff)', color: active ? '#fff' : 'var(--text, #111)', fontWeight: 600, cursor: 'pointer', fontSize: 14 }),
@@ -21240,7 +21070,7 @@ function AdminPage({ lang, t }) {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '24px 16px' }}>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px' }}>
       <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700 }}>⚙️ {t.adminTitle}</h2>
 
       {/* Admin navigation — grouped into categories */}
@@ -23513,7 +23343,6 @@ function AdminPage({ lang, t }) {
           })}
         </div>
       )}
-      <BottomNav page={page} navigateTo={navigateTo} />
     </div>
   )
 }

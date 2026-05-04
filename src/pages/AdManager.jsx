@@ -263,7 +263,7 @@ export default function AdManager({ lang, t, currentUser }) {
   }
 
   const s = {
-    wrap: { maxWidth: 900, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', paddingBottom: 40 },
+    wrap: { maxWidth: 900, margin: '0 auto', paddingBottom: 40 },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
     title: { fontSize: 22, fontWeight: 800, color: '#1a1a1a', margin: 0 },
     subtitle: { fontSize: 14, color: '#888', marginTop: 4 },

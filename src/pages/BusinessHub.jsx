@@ -626,7 +626,7 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNav
   const cvrName    = currentUser?.cvr_company_name
 
   return (
-    <div style={{ maxWidth: 820, margin: localStorage.getItem('fellis_design') === 'new' ? 0 : '0 auto', padding: '0 16px 40px' }}>
+    <div style={{ maxWidth: 820, margin: '0 auto', padding: '0 16px 40px' }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>{t.businessHub}</h2>
