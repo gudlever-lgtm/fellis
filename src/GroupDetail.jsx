@@ -95,8 +95,8 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [pollSaving, setPollSaving] = useState(false)
   const [modReports, setModReports] = useState([])
   const [modLoading, setModLoading] = useState(false)
-  const [reportTarget, setReportTarget] = useState(null) // { type: 'post'|'group', id: number } | null
-  const [redFlagStatus, setRedFlagStatus] = useState('idle') // idle | submitting | done | duplicate
+  const [reportTarget, setReportTarget] = useState(null)
+  const [redFlagStatus, setRedFlagStatus] = useState('idle')
   const [redFlagReason, setRedFlagReason] = useState('')
   const [redFlagDetails, setRedFlagDetails] = useState('')
   const [likePopup, setLikePopup] = useState(null)
@@ -406,16 +406,16 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   // ── Status screens ────────────────────────────────────────────────────────
 
   if (loadState === 'loading') {
-    return <div style={s.center}><span style={s.loadingText}>{g.loading}</span></div>
+    return <div className="gd-center"><span style={{ fontSize: 14, color: '#aaa' }}>{g.loading}</span></div>
   }
 
   if (loadState === 'forbidden') {
     return (
-      <div style={s.center}>
-        <div style={s.statusBox}>
+      <div className="gd-center">
+        <div className="gd-status-box">
           <span style={{ fontSize: 36 }}>🔒</span>
-          <p style={s.statusText}>{g.forbidden}</p>
-          <button style={s.backBtn} onClick={() => onNavigate?.('/groups')}>{g.back}</button>
+          <p style={{ fontSize: 15, color: '#555', margin: 0 }}>{g.forbidden}</p>
+          <button style={sBackBtn} onClick={() => onNavigate?.('/groups')}>{g.back}</button>
         </div>
       </div>
     )
@@ -423,10 +423,10 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
 
   if (loadState === 'not_found' || !group) {
     return (
-      <div style={s.center}>
-        <div style={s.statusBox}>
-          <p style={s.statusText}>{g.notFound}</p>
-          <button style={s.backBtn} onClick={() => onNavigate?.('/groups')}>{g.back}</button>
+      <div className="gd-center">
+        <div className="gd-status-box">
+          <p style={{ fontSize: 15, color: '#555', margin: 0 }}>{g.notFound}</p>
+          <button style={sBackBtn} onClick={() => onNavigate?.('/groups')}>{g.back}</button>
         </div>
       </div>
     )
@@ -466,14 +466,14 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   }
 
   return (
-    <div style={s.page}>
+    <div className="gd-page">
       {keywordWarning && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '28px 28px 24px', maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+        <div className="gd-kw-overlay">
+          <div className="gd-kw-modal">
             <div style={{ fontSize: 22, marginBottom: 10 }}>⚠️</div>
             <h3 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>{t.keywordWarnTitle}</h3>
             {keywordWarning.category && (
-              <div style={{ marginBottom: 10 }}>
+              <div className="gd-kw-cat-row">
                 <span style={{ background: '#F4C26A', color: '#5a3e00', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>
                   {t.kwCategories?.[keywordWarning.category] || keywordWarning.category}
                 </span>
@@ -487,7 +487,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 {keywordWarning.notes}
               </p>
             )}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <div className="gd-kw-actions">
               <button
                 onClick={() => setKeywordWarning(null)}
                 style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
@@ -511,40 +511,40 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
         </div>
       )}
       {/* Header */}
-      <div style={s.headerWrap}>
+      <div className="gd-header-wrap">
         {coverSrc
-          ? <img src={coverSrc} alt="" style={s.cover} />
-          : <div style={s.coverPlaceholder} />
+          ? <img src={coverSrc} alt="" className="gd-cover" />
+          : <div className="gd-cover-placeholder" />
         }
-        <button style={s.backBtnFloat} onClick={() => onNavigate?.('/groups')}>
+        <button className="gd-back-float" onClick={() => onNavigate?.('/groups')}>
           ← {g.back}
         </button>
-        <div style={s.headerBody}>
-          <div style={s.headerRow}>
+        <div className="gd-header-body">
+          <div className="gd-header-row">
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={s.headerTop}>
-                <h1 style={s.groupName}>{group.name}</h1>
-                <span style={{ ...s.typePill, background: typeMeta.bg, color: typeMeta.color }}>
+              <div className="gd-header-top">
+                <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1a1a1a', margin: 0, lineHeight: 1.2 }}>{group.name}</h1>
+                <span className="gd-type-pill" style={{ background: typeMeta.bg, color: typeMeta.color }}>
                   {typeLabel}
                 </span>
               </div>
-              <div style={s.headerMeta}>
+              <div className="gd-header-meta">
                 {group.category && (
-                  <span style={s.categoryPill}>
+                  <span className="gd-cat-pill">
                     {g.category?.[group.category] || group.category}
                   </span>
                 )}
-                <span style={s.metaText}>
+                <span style={{ fontSize: 12, color: '#888' }}>
                   {'👥 '}{group.member_count}{' '}{group.member_count === 1 ? g.member : g.members}
                 </span>
-                <span style={s.metaText}>
+                <span style={{ fontSize: 12, color: '#888' }}>
                   {'· '}{groupFollowerCount}{' '}{g.followers || 'followers'}
                 </span>
               </div>
             </div>
-            <div style={s.headerActions}>
+            <div className="gd-header-actions">
               {isAdmin && (
-                <button style={s.settingsBtn} onClick={() => onNavigate?.(`/groups/${slug}/settings`)}>
+                <button style={sSettingsBtn} onClick={() => onNavigate?.(`/groups/${slug}/settings`)}>
                   {'⚙️ '}{g.settings}
                 </button>
               )}
@@ -559,7 +559,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               )}
               {membership.isMember && (
                 <button
-                  style={s.muteBtn}
+                  style={sMuteBtn}
                   onClick={() => setMuteOpen(true)}
                   title={isMuted ? g.unmuteGroup : g.muteGroup}
                 >
@@ -594,13 +594,13 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 </button>
               )}
               {membership.isMember ? (
-                <button style={s.leaveBtn} onClick={handleLeave}>{g.leave}</button>
+                <button style={sLeaveBtn} onClick={handleLeave}>{g.leave}</button>
               ) : membership.hasRequested ? (
-                <button style={{ ...s.joinBtn, opacity: 0.6 }} disabled>{g.requestSent}</button>
+                <button style={{ ...sJoinBtn, opacity: 0.6 }} disabled>{g.requestSent}</button>
               ) : !groupFollowing && group.type === 'public' ? (
-                <button style={s.joinBtn} onClick={handleJoin}>{g.join}</button>
+                <button style={sJoinBtn} onClick={handleJoin}>{g.join}</button>
               ) : !groupFollowing && group.type === 'private' ? (
-                <button style={s.joinBtn} onClick={handleRequestAccess}>{g.requestAccess}</button>
+                <button style={sJoinBtn} onClick={handleRequestAccess}>{g.requestAccess}</button>
               ) : null}
             </div>
           </div>
@@ -608,11 +608,11 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       </div>
 
       {/* Tab bar */}
-      <div style={s.tabBar}>
+      <div className="gd-tab-bar">
         {TABS.map(key => (
           <button
             key={key}
-            style={{ ...s.tabBtn, ...(tab === key ? s.tabActive : {}) }}
+            className={`gd-tab-btn${tab === key ? ' active' : ''}`}
             onClick={() => setTab(key)}
           >
             {TAB_LABEL[key] || key}
@@ -626,7 +626,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       </div>
 
       {/* Tab content */}
-      <div style={s.tabContent}>
+      <div className="gd-tab-content">
         {tab === 'feed' && (
           <div>
             {membership.isMember && (
@@ -709,13 +709,13 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
             )}
 
             {membership.hasRequested && !membership.isMember && (
-              <div style={s.pendingBanner}>{g.pendingApproval}</div>
+              <div className="gd-pending-banner">{g.pendingApproval}</div>
             )}
 
             {feedLoading ? (
-              <div style={s.feedEmpty}>{g.loading}</div>
+              <div className="gd-feed-empty">{g.loading}</div>
             ) : posts.length === 0 ? (
-              <div style={s.feedEmpty}>{g.noFeed}</div>
+              <div className="gd-feed-empty">{g.noFeed}</div>
             ) : posts.map(post => {
               const text = lang === 'da' ? post.text_da : (post.text_en || post.text_da)
               const isOwn = post.author_id === currentUser?.id
@@ -744,20 +744,20 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                     ...(post.is_pinned ? { background: '#F5F3FF' } : {}),
                   }}
                 >
-                  {!!post.is_pinned && <div style={s.pinLabel}>{'📌 '}{g.pinPost}</div>}
+                  {!!post.is_pinned && <div className="gd-pin-label">{'📌 '}{g.pinPost}</div>}
                   <div className="p-post-header">
                     <div className="p-avatar-sm" style={{ background: nameToColor(post.author_name) }}>
                       {getInitials(post.author_name)}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="gd-post-meta-col">
                       <div className="p-post-author">{post.author_name}</div>
                       <div className="p-post-time">{fmtTime(post.created_at, lang)}</div>
                     </div>
                     {(canPin || canDelete || canReport) && (
-                      <div style={{ position: 'relative' }}>
+                      <div className="gd-post-actions-col">
                         {(canPin || canDelete) && (
                           <button
-                            style={s.iconBtn}
+                            className="gd-icon-btn"
                             title={post.is_pinned ? g.unpinPost : g.pinPost}
                             onClick={() => handlePinPost(post)}
                           >
@@ -766,7 +766,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                         )}
                         {canDelete && (
                           <button
-                            style={s.iconBtn}
+                            className="gd-icon-btn"
                             title={g.deletePost}
                             onClick={() => handleDeletePost(post.id)}
                           >
@@ -775,7 +775,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                         )}
                         {canReport && (
                           <button
-                            style={s.iconBtn}
+                            className="gd-icon-btn"
                             title={t.redFlagTitlePost}
                             onClick={() => openReport('post', post.id)}
                           >
@@ -787,17 +787,17 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                   </div>
                   <p className="p-post-text">{text}</p>
                   {media.length > 0 && (
-                    <div style={s.mediaGrid}>
+                    <div className="gd-media-grid">
                       {media.map((m, i) => {
                         const src = m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`
                         return m.type === 'video'
-                          ? <video key={i} src={src} style={s.mediaImg} controls />
-                          : <img key={i} src={src} alt="" style={s.mediaImg} />
+                          ? <video key={i} src={src} className="gd-media-img" controls />
+                          : <img key={i} src={src} alt="" className="gd-media-img" />
                       })}
                     </div>
                   )}
                   {REACTIONS.some(r => (post.reactions?.[r] || 0) > 0) && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 8px', borderBottom: '1px solid #F0EDE8', flexWrap: 'wrap' }}>
+                    <div className="gd-reactions-row">
                       {REACTIONS.filter(r => (post.reactions?.[r] || 0) > 0).map(r => (
                         <span key={r} style={{ fontSize: 14 }}>
                           {REACTION_EMOJI[r]} <span style={{ fontSize: 12, color: '#888' }}>{post.reactions[r]}</span>
@@ -855,7 +855,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                     </button>
                   </div>
                   {expandedComments.has(post.id) && (
-                    <div style={{ borderTop: '1px solid #F0EDE8', paddingTop: 10, marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div className="gd-comment-row">
                       <div className="p-avatar-sm" style={{ background: nameToColor(currentUser?.name || ''), flexShrink: 0, fontSize: 11 }}>
                         {getInitials(currentUser?.name || '')}
                       </div>
@@ -877,25 +877,25 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
         {tab === 'members' && (
           <div>
             {isMod && (pendingLoading || pendingMembers.length > 0) && (
-              <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+              <div className="gd-pending-requests">
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>
                   {g.pendingRequests}{pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}
                 </div>
                 {pendingLoading ? (
                   <div style={{ fontSize: 13, color: '#aaa' }}>{g.loading}</div>
                 ) : pendingMembers.map(pm => (
-                  <div key={pm.id} style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: nameToColor(pm.name), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, overflow: 'hidden' }}>
+                  <div key={pm.id} className="gd-pending-member-row">
+                    <div className="gd-pending-avatar" style={{ background: nameToColor(pm.name) }}>
                       {pm.avatar_url
-                        ? <img src={pm.avatar_url.startsWith('http') ? pm.avatar_url : `${API_BASE}${pm.avatar_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ? <img src={pm.avatar_url.startsWith('http') ? pm.avatar_url : `${API_BASE}${pm.avatar_url}`} alt="" />
                         : getInitials(pm.name)
                       }
                     </div>
-                    <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{pm.name}</div>
-                    <button style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: '#5B4FCF', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={() => handleApproveMember(pm.id)}>
+                    <div className="gd-pending-member-name">{pm.name}</div>
+                    <button style={sApproveMemberBtn} onClick={() => handleApproveMember(pm.id)}>
                       {g.approveMember}
                     </button>
-                    <button style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #DC2626', background: '#fff', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={() => handleRejectMember(pm.id)}>
+                    <button style={sRejectMemberBtn} onClick={() => handleRejectMember(pm.id)}>
                       {g.rejectMember}
                     </button>
                   </div>
@@ -903,9 +903,9 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               </div>
             )}
             {membersLoading ? (
-              <div style={s.feedEmpty}>{g.loading}</div>
+              <div className="gd-feed-empty">{g.loading}</div>
             ) : members.length === 0 ? (
-              <div style={s.feedEmpty}>{g.noMembers}</div>
+              <div className="gd-feed-empty">{g.noMembers}</div>
             ) : members.map(member => {
               const isMe = member.id === currentUser?.id
               const roleMeta = ROLE_STYLE[member.role] || ROLE_STYLE.member
@@ -916,41 +916,36 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 isAdmin || (isMod && member.role === 'member')
               )
               return (
-                <div key={member.id} style={s.memberRow}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                    background: nameToColor(member.name), color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 14, fontWeight: 700, overflow: 'hidden',
-                  }}>
+                <div key={member.id} className="gd-member-row">
+                  <div className="gd-member-avatar" style={{ background: nameToColor(member.name) }}>
                     {member.avatar_url
-                      ? <img src={member.avatar_url.startsWith('http') ? member.avatar_url : `${API_BASE}${member.avatar_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ? <img src={member.avatar_url.startsWith('http') ? member.avatar_url : `${API_BASE}${member.avatar_url}`} alt="" />
                       : getInitials(member.name)
                     }
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={s.memberName}>
+                  <div className="gd-member-info">
+                    <div className="gd-member-name">
                       {member.name}
-                      {isMe && <span style={s.meTag}> (me)</span>}
+                      {isMe && <span className="gd-me-tag"> (me)</span>}
                     </div>
-                    <span style={{ ...s.roleBadge, background: roleMeta.bg, color: roleMeta.color }}>
+                    <span className="gd-role-badge" style={{ background: roleMeta.bg, color: roleMeta.color }}>
                       {roleLabel}
                     </span>
                   </div>
                   {(canPromote || canDemote || canRemove) && (
-                    <div style={s.memberActions}>
+                    <div className="gd-member-actions">
                       {canPromote && (
-                        <button style={s.memberBtn} onClick={() => handlePromote(member.id)}>
+                        <button className="gd-member-btn" onClick={() => handlePromote(member.id)}>
                           {g.promote}
                         </button>
                       )}
                       {canDemote && (
-                        <button style={s.memberBtn} onClick={() => handleDemote(member.id)}>
+                        <button className="gd-member-btn" onClick={() => handleDemote(member.id)}>
                           {g.demote}
                         </button>
                       )}
                       {canRemove && (
-                        <button style={{ ...s.memberBtn, ...s.memberBtnDanger }} onClick={() => handleRemoveMember(member.id)}>
+                        <button className="gd-member-btn gd-member-btn-danger" onClick={() => handleRemoveMember(member.id)}>
                           {g.removeMember}
                         </button>
                       )}
@@ -967,9 +962,9 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
             {isMod && (
               <div style={{ marginBottom: 16 }}>
                 {showEventForm ? (
-                  <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: 16 }}>
+                  <div className="gd-event-form">
                     <input
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+                      className="gd-form-input"
                       placeholder={g.eventTitlePlaceholder}
                       value={eventTitle}
                       onChange={e => setEventTitle(e.target.value)}
@@ -978,7 +973,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                     <input
                       type="datetime-local"
                       lang={getLocale(lang)}
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+                      className="gd-form-input"
                       value={eventDate}
                       onChange={e => setEventDate(e.target.value)}
                     />
@@ -990,57 +985,57 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                       placeholder={g.eventLocationPlaceholder}
                       inputStyle={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}
                     />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#5B4FCF', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: (!eventTitle.trim() || eventSaving) ? 0.6 : 1 }} onClick={handleCreateEvent} disabled={!eventTitle.trim() || eventSaving}>
+                    <div className="gd-form-actions">
+                      <button style={{ ...sFormSubmitBtn, opacity: (!eventTitle.trim() || eventSaving) ? 0.6 : 1 }} onClick={handleCreateEvent} disabled={!eventTitle.trim() || eventSaving}>
                         {eventSaving ? '...' : g.createEventSubmit}
                       </button>
-                      <button style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }} onClick={() => setShowEventForm(false)}>
+                      <button style={sFormCancelBtn} onClick={() => setShowEventForm(false)}>
                         {g.cancel}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <button style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px dashed #C7C0F5', background: '#F5F3FF', color: '#5B4FCF', fontWeight: 600, fontSize: 13, cursor: 'pointer' }} onClick={() => setShowEventForm(true)}>
+                  <button style={sAddDashedBtn} onClick={() => setShowEventForm(true)}>
                     {'+ '}{g.createEvent}
                   </button>
                 )}
               </div>
             )}
             {eventsLoading ? (
-              <div style={s.feedEmpty}>{g.loading}</div>
+              <div className="gd-feed-empty">{g.loading}</div>
             ) : events.length === 0 ? (
-              <div style={s.feedEmpty}>{g.noEvents}</div>
+              <div className="gd-feed-empty">{g.noEvents}</div>
             ) : events.map(ev => {
               const goingCount = Number(ev.going_count) || 0
               const isExpired = ev.date && new Date(ev.date) < new Date()
               return (
-                <div key={ev.id} style={{ ...s.eventCard, ...(isExpired ? { opacity: 0.6 } : {}) }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <div style={s.eventTitle}>{ev.title}</div>
+                <div key={ev.id} className="gd-event-card" style={isExpired ? { opacity: 0.6 } : {}}>
+                  <div className="gd-event-header">
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>{ev.title}</div>
                     {isExpired && (
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#f5e6e6', color: '#c0392b' }}>
                         {t.expired}
                       </span>
                     )}
                   </div>
-                  <div style={s.eventMeta}>
+                  <div className="gd-event-meta">
                     {ev.date && <span>{'📅 '}{fmtDate(ev.date, lang)}</span>}
                     {ev.location && <span>{'📍 '}{ev.location}</span>}
                     {goingCount > 0 && (
-                      <span style={s.goingBadge}>
+                      <span className="gd-going-badge">
                         {goingCount}{' '}{g.rsvpGoing.toLowerCase()}
                       </span>
                     )}
                   </div>
                   {!isExpired && (
-                    <div style={s.rsvpRow}>
+                    <div className="gd-rsvp-row">
                       {RSVP_STATUSES.map(status => {
                         const active = ev.my_rsvp === status
                         const label = g[`rsvp${status.charAt(0).toUpperCase()}${status.slice(1)}`] || status
                         return (
                           <button
                             key={status}
-                            style={{ ...s.rsvpBtn, ...(active ? s.rsvpBtnActive : {}) }}
+                            className={`gd-rsvp-btn${active ? ' active' : ''}`}
                             onClick={() => handleRsvp(ev, status)}
                           >
                             {label}
@@ -1060,16 +1055,16 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
             {isMod && (
               <div style={{ marginBottom: 16 }}>
                 {showPollForm ? (
-                  <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: 16 }}>
+                  <div className="gd-event-form">
                     <input
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+                      className="gd-form-input"
                       placeholder={g.pollQuestionPlaceholder}
                       value={pollQuestion}
                       onChange={e => setPollQuestion(e.target.value)}
                       maxLength={500}
                     />
                     {pollOptions.map((opt, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                      <div key={i} className="gd-poll-option-input-row">
                         <input
                           style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 13, boxSizing: 'border-box' }}
                           placeholder={`${g.pollOptionPlaceholder} ${i + 1}`}
@@ -1087,51 +1082,51 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                         {'+ '}{g.pollAddOption}
                       </button>
                     )}
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <button style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#5B4FCF', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: (!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2 || pollSaving) ? 0.6 : 1 }} onClick={handleCreatePoll} disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2 || pollSaving}>
+                    <div className="gd-form-actions" style={{ marginTop: 4 }}>
+                      <button style={{ ...sFormSubmitBtn, opacity: (!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2 || pollSaving) ? 0.6 : 1 }} onClick={handleCreatePoll} disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2 || pollSaving}>
                         {pollSaving ? '...' : g.createPollSubmit}
                       </button>
-                      <button style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }} onClick={() => setShowPollForm(false)}>
+                      <button style={sFormCancelBtn} onClick={() => setShowPollForm(false)}>
                         {g.cancel}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <button style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px dashed #C7C0F5', background: '#F5F3FF', color: '#5B4FCF', fontWeight: 600, fontSize: 13, cursor: 'pointer' }} onClick={() => setShowPollForm(true)}>
+                  <button style={sAddDashedBtn} onClick={() => setShowPollForm(true)}>
                     {'+ '}{g.createPoll}
                   </button>
                 )}
               </div>
             )}
             {pollsLoading ? (
-              <div style={s.feedEmpty}>{g.loading}</div>
+              <div className="gd-feed-empty">{g.loading}</div>
             ) : polls.length === 0 ? (
-              <div style={s.feedEmpty}>{g.noPolls}</div>
+              <div className="gd-feed-empty">{g.noPolls}</div>
             ) : polls.map(poll => {
               const voted = poll.user_vote !== null && poll.user_vote !== undefined
               const ended = poll.ends_at && new Date(poll.ends_at) < new Date()
               const totalVotes = (poll.options || []).reduce((sum, o) => sum + (o.vote_count || 0), 0)
               return (
-                <div key={poll.id} style={s.pollCard}>
-                  <div style={s.pollQuestion}>{poll.question}</div>
-                  {ended && <div style={s.pollStatusTag}>{g.pollEnded}</div>}
-                  {voted && !ended && <div style={{ ...s.pollStatusTag, ...s.pollVotedTag }}>{g.pollVoted}</div>}
-                  <div style={s.pollOptions}>
+                <div key={poll.id} className="gd-poll-card">
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>{poll.question}</div>
+                  {ended && <div className="gd-poll-status-tag">{g.pollEnded}</div>}
+                  {voted && !ended && <div className="gd-poll-status-tag gd-poll-voted-tag">{g.pollVoted}</div>}
+                  <div className="gd-poll-options">
                     {(poll.options || []).map((opt, i) => {
                       const label = lang === 'da' ? opt.text_da : (opt.text_en || opt.text_da)
                       const pct = totalVotes > 0 ? Math.round(((opt.vote_count || 0) / totalVotes) * 100) : 0
                       const isChosen = poll.user_vote === i
                       if (voted || ended) {
                         return (
-                          <div key={i} style={s.pollResultRow}>
-                            <div style={s.pollResultLabelRow}>
-                              <span style={{ ...s.pollResultLabel, ...(isChosen ? s.pollResultLabelChosen : {}) }}>{label}</span>
-                              <span style={s.pollResultPct}>{pct}%</span>
+                          <div key={i} className="gd-poll-result-row">
+                            <div className="gd-poll-result-label-row">
+                              <span style={{ fontSize: 13, color: '#555', fontWeight: isChosen ? 700 : 500, ...(isChosen ? { color: '#4338CA' } : {}) }}>{label}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{pct}%</span>
                             </div>
-                            <div style={s.pollBarWrap}>
-                              <div style={{ ...s.pollBar, width: `${pct}%`, ...(isChosen ? s.pollBarChosen : {}) }} />
+                            <div className="gd-poll-bar-wrap">
+                              <div className={`gd-poll-bar${isChosen ? ' chosen' : ''}`} style={{ width: `${pct}%` }} />
                             </div>
-                            <div style={s.pollVoteCount}>
+                            <div style={{ fontSize: 11, color: '#aaa' }}>
                               {opt.vote_count || 0} {(opt.vote_count || 0) === 1 ? g.pollVote : g.pollVotes}
                             </div>
                           </div>
@@ -1140,7 +1135,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                       return (
                         <button
                           key={i}
-                          style={s.pollOptionBtn}
+                          className="gd-poll-option-btn"
                           disabled={!!ended}
                           onClick={() => handleVote(poll, i)}
                         >
@@ -1156,45 +1151,45 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
         )}
 
         {tab === 'about' && (
-          <div style={s.aboutSection}>
+          <div className="gd-about-section">
             {(group.description_da || group.description_en) && (
-              <div style={s.aboutBlock}>
-                <div style={s.aboutLabel}>{g.descLabel}</div>
-                <p style={s.aboutText}>
+              <div>
+                <div className="gd-about-label">{g.descLabel}</div>
+                <p className="gd-about-text">
                   {lang === 'da' ? group.description_da : (group.description_en || group.description_da)}
                 </p>
               </div>
             )}
-            <div style={s.aboutBlock}>
-              <div style={s.aboutLabel}>{g.typeLabel}</div>
-              <span style={{ ...s.typePill, background: typeMeta.bg, color: typeMeta.color, fontSize: 12, padding: '4px 12px' }}>
+            <div>
+              <div className="gd-about-label">{g.typeLabel}</div>
+              <span className="gd-type-pill" style={{ background: typeMeta.bg, color: typeMeta.color, fontSize: 12, padding: '4px 12px' }}>
                 {typeLabel}
               </span>
             </div>
             {group.category && (
-              <div style={s.aboutBlock}>
-                <div style={s.aboutLabel}>{g.categoryLabel}</div>
-                <span style={s.categoryPill}>{g.category?.[group.category] || group.category}</span>
+              <div>
+                <div className="gd-about-label">{g.categoryLabel}</div>
+                <span className="gd-cat-pill">{g.category?.[group.category] || group.category}</span>
               </div>
             )}
             {group.tags && group.tags.length > 0 && (
-              <div style={s.aboutBlock}>
-                <div style={s.aboutLabel}>{g.tagsLabel}</div>
-                <div style={s.tagList}>
+              <div>
+                <div className="gd-about-label">{g.tagsLabel}</div>
+                <div className="gd-tag-list">
                   {group.tags.map((tag, i) => (
-                    <span key={i} style={s.tagPill}>{tag}</span>
+                    <span key={i} className="gd-tag-pill">{tag}</span>
                   ))}
                 </div>
               </div>
             )}
-            <div style={s.aboutBlock}>
-              <div style={s.aboutLabel}>{group.member_count === 1 ? g.member : g.members}</div>
-              <div style={s.aboutText}>{'👥 '}{group.member_count}</div>
+            <div>
+              <div className="gd-about-label">{group.member_count === 1 ? g.member : g.members}</div>
+              <div className="gd-about-text">{'👥 '}{group.member_count}</div>
             </div>
             {group.created_at && (
-              <div style={s.aboutBlock}>
-                <div style={s.aboutLabel}>{g.createdLabel}</div>
-                <div style={s.aboutText}>
+              <div>
+                <div className="gd-about-label">{g.createdLabel}</div>
+                <div className="gd-about-text">
                   {new Date(group.created_at).toLocaleDateString(
                     getLocale(lang),
                     { day: 'numeric', month: 'long', year: 'numeric' }
@@ -1203,13 +1198,13 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
               </div>
             )}
             {membership.isMember && (
-              <div style={s.aboutBlock}>
-                <div style={s.aboutLabel}>{g.inviteLink}</div>
-                <div style={s.inviteRow}>
-                  <span style={s.inviteLinkText}>
+              <div>
+                <div className="gd-about-label">{g.inviteLink}</div>
+                <div className="gd-invite-row">
+                  <span className="gd-invite-link-text">
                     {inviteLink ? `${window.location.origin}${inviteLink}` : '…'}
                   </span>
-                  <button style={{ ...s.copyBtn, ...(copyState ? s.copyBtnDone : {}) }} onClick={handleCopyLink} disabled={!inviteLink}>
+                  <button className={`gd-copy-btn${copyState ? ' done' : ''}`} onClick={handleCopyLink} disabled={!inviteLink}>
                     {copyState ? g.linkCopied : g.copyLink}
                   </button>
                 </div>
@@ -1225,16 +1220,16 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
             ) : modReports.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>✅ {g.modNoReports}</div>
             ) : modReports.map(report => (
-              <div key={report.report_id} style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', marginBottom: 12, border: '1px solid #E8E4DF' }}>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+              <div key={report.report_id} className="gd-mod-report">
+                <div className="gd-mod-meta">
                   🚩 {g.modReportedBy} <strong>{report.reporter_name}</strong>
                   {report.reason && <> · {g.modReason}: {report.reason}</>}
                   <span style={{ marginLeft: 8 }}>{fmtTime(report.reported_at, lang)}</span>
                 </div>
-                <div style={{ background: '#f9f7f5', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 12, color: '#444' }}>
+                <div className="gd-mod-content">
                   <strong>{report.author_name}</strong>{report.author_handle ? ` @${report.author_handle}` : ''}: {(report.text_da || '').slice(0, 300)}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="gd-mod-actions">
                   <button
                     style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #E8E4DF', fontSize: 13, cursor: 'pointer', background: '#fff' }}
                     onClick={async () => {
@@ -1266,10 +1261,10 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       )}
       {reportTarget && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          className="gd-report-overlay"
           onClick={() => setReportTarget(null)}
         >
-          <div style={{ background: '#fff', borderRadius: 14, padding: '24px 28px', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }} onClick={e => e.stopPropagation()}>
+          <div className="gd-report-modal" onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>{reportTarget.type === 'group' ? t.redFlagTitleGroup : t.redFlagTitlePost}</h3>
             {redFlagStatus === 'done' && <div style={{ color: '#2D6A4F', fontWeight: 600, marginBottom: 12 }}>✓ {t.reportDone}</div>}
             {redFlagStatus === 'duplicate' && <div style={{ color: '#888', marginBottom: 12 }}>{t.reportDuplicate}</div>}
@@ -1283,9 +1278,9 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                 setRedFlagStatus('done')
                 setTimeout(() => setReportTarget(null), 1800)
               }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t.reportReasonLabel}</label>
+                <label className="gd-report-label">{t.reportReasonLabel}</label>
                 <select
-                  style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 12 }}
+                  className="gd-report-select"
                   value={redFlagReason}
                   onChange={e => setRedFlagReason(e.target.value)}
                   required
@@ -1299,9 +1294,9 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                   <option value="nudity">{t.reportReasonNudity}</option>
                   <option value="other">{t.reportReasonOther}</option>
                 </select>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t.reportDetailsLabel}</label>
+                <label className="gd-report-label">{t.reportDetailsLabel}</label>
                 <textarea
-                  style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minHeight: 70, resize: 'vertical', boxSizing: 'border-box', marginBottom: 14 }}
+                  className="gd-report-textarea"
                   value={redFlagDetails}
                   onChange={e => setRedFlagDetails(e.target.value)}
                   placeholder={t.reportDetailsPlaceholder}
@@ -1333,11 +1328,11 @@ function GroupMuteModal({ g, isMuted, onClose, onMute }) {
     { label: g.muteOff, minutes: null },
   ]
   return (
-    <div style={ms.overlay} onClick={onClose}>
-      <div style={ms.modal} onClick={e => e.stopPropagation()}>
-        <div style={ms.title}>{isMuted ? g.unmuteGroup : g.muteTitle}</div>
+    <div className="gd-mute-overlay" onClick={onClose}>
+      <div className="gd-mute-modal" onClick={e => e.stopPropagation()}>
+        <div className="gd-mute-title">{isMuted ? g.unmuteGroup : g.muteTitle}</div>
         {options.map(o => (
-          <button key={o.label} style={ms.option} onClick={() => onMute(o.minutes)}>
+          <button key={o.label} className="gd-mute-option" onClick={() => onMute(o.minutes)}>
             {o.label}
           </button>
         ))}
@@ -1346,147 +1341,14 @@ function GroupMuteModal({ g, isMuted, onClose, onMute }) {
   )
 }
 
-const ms = {
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-  },
-  modal: {
-    background: '#fff', borderRadius: 14, padding: '18px 0 8px',
-    minWidth: 240, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-  },
-  title: {
-    fontSize: 13, fontWeight: 700, color: '#888',
-    padding: '0 20px 10px', borderBottom: '1px solid #F0EDE8',
-  },
-  option: {
-    display: 'block', width: '100%', textAlign: 'left',
-    padding: '12px 20px', border: 'none', background: 'none',
-    fontSize: 15, color: '#1a1a1a', cursor: 'pointer',
-  },
-}
-
-const s = {
-  page: { maxWidth: 680, margin: '0 auto', paddingBottom: 48 },
-  center: { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 240, padding: 24 },
-  statusBox: { textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 },
-  loadingText: { fontSize: 14, color: '#aaa' },
-  statusText: { fontSize: 15, color: '#555', margin: 0 },
-  backBtn: { fontSize: 13, padding: '8px 20px', borderRadius: 8, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' },
-  headerWrap: { position: 'relative' },
-  cover: { width: '100%', height: 200, objectFit: 'cover', display: 'block' },
-  coverPlaceholder: { width: '100%', height: 200, background: 'linear-gradient(135deg, #E8E4DF 0%, #CFC9C0 100%)' },
-  backBtnFloat: {
-    position: 'absolute', top: 12, left: 12,
-    fontSize: 13, fontWeight: 600, padding: '6px 12px', borderRadius: 20,
-    border: 'none', background: 'rgba(0,0,0,0.45)', color: '#fff', cursor: 'pointer',
-  },
-  headerBody: { padding: '16px 20px 12px', background: '#fff', borderBottom: '1px solid #E8E4DF' },
-  headerRow: { display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' },
-  headerTop: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 },
-  groupName: { fontSize: 20, fontWeight: 800, color: '#1a1a1a', margin: 0, lineHeight: 1.2 },
-  typePill: { fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap', flexShrink: 0 },
-  headerMeta: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  categoryPill: { fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#F0EDE8', color: '#666' },
-  metaText: { fontSize: 12, color: '#888' },
-  headerActions: { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
-  joinBtn: { fontSize: 13, fontWeight: 700, padding: '7px 18px', borderRadius: 20, border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff', cursor: 'pointer' },
-  leaveBtn: { fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 20, border: '1.5px solid #D1D5DB', background: '#fff', color: '#666', cursor: 'pointer' },
-  settingsBtn: { fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 20, border: '1.5px solid #E8E4DF', background: '#F9F7F5', color: '#555', cursor: 'pointer' },
-  muteBtn: { fontSize: 18, padding: '5px 8px', borderRadius: 20, border: '1.5px solid #E8E4DF', background: '#F9F7F5', cursor: 'pointer', lineHeight: 1 },
-  tabBar: { display: 'flex', gap: 0, padding: '0 20px', background: '#fff', borderBottom: '1px solid #E8E4DF', overflowX: 'auto' },
-  tabBtn: { fontSize: 13, fontWeight: 600, padding: '10px 14px', border: 'none', borderBottom: '2px solid transparent', background: 'none', color: '#888', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'color 0.15s' },
-  tabActive: { color: '#4338CA', borderBottom: '2px solid #4338CA' },
-  tabContent: { padding: '16px 20px' },
-  feedEmpty: { textAlign: 'center', color: '#bbb', fontSize: 14, padding: '40px 0' },
-  pendingBanner: { fontSize: 13, color: '#92400E', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
-  pinLabel: { fontSize: 11, color: '#4338CA', marginBottom: 6, fontWeight: 700 },
-  mediaGrid: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
-  mediaImg: { maxWidth: '100%', maxHeight: 300, borderRadius: 8, objectFit: 'cover' },
-  // Members tab
-  memberRow: {
-    display: 'flex', alignItems: 'center', gap: 12,
-    padding: '10px 0', borderBottom: '1px solid #F0EDE8',
-  },
-  memberName: { fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 3 },
-  meTag: { fontWeight: 400, color: '#aaa', fontSize: 12 },
-  roleBadge: {
-    display: 'inline-block', fontSize: 11, fontWeight: 700,
-    padding: '2px 8px', borderRadius: 20,
-  },
-  memberActions: { display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' },
-  memberBtn: {
-    fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 20,
-    border: '1.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  memberBtnDanger: { borderColor: '#FECACA', color: '#DC2626', background: '#FFF5F5' },
-  // Events tab
-  eventCard: {
-    background: '#fff', borderRadius: 12, border: '1px solid #E8E4DF',
-    padding: '14px 16px', marginBottom: 12,
-  },
-  eventTitle: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 },
-  eventMeta: {
-    display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12,
-    fontSize: 13, color: '#666',
-  },
-  goingBadge: {
-    fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-    background: '#E8F5E9', color: '#2E7D32',
-  },
-  rsvpRow: { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  rsvpBtn: {
-    fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 20,
-    border: '1.5px solid #D1D5DB', background: '#fff', color: '#555', cursor: 'pointer',
-    transition: 'all 0.15s',
-  },
-  rsvpBtnActive: { background: '#4338CA', borderColor: '#4338CA', color: '#fff' },
-  // Polls tab
-  pollCard: {
-    background: '#fff', borderRadius: 12, border: '1px solid #E8E4DF',
-    padding: '16px', marginBottom: 12,
-  },
-  pollQuestion: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 },
-  pollStatusTag: {
-    display: 'inline-block', fontSize: 11, fontWeight: 700,
-    padding: '2px 8px', borderRadius: 20, background: '#F3F4F6', color: '#6B7280',
-    marginBottom: 12,
-  },
-  pollVotedTag: { background: '#DCFCE7', color: '#166534' },
-  pollOptions: { display: 'flex', flexDirection: 'column', gap: 8 },
-  pollOptionBtn: {
-    fontSize: 14, fontWeight: 600, padding: '10px 16px', borderRadius: 8,
-    border: '1.5px solid #D1D5DB', background: '#F9FAFB', color: '#374151',
-    cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s, border-color 0.15s',
-  },
-  pollResultRow: { marginBottom: 8 },
-  pollResultLabelRow: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 },
-  pollResultLabel: { fontSize: 13, color: '#555', fontWeight: 500 },
-  pollResultLabelChosen: { fontWeight: 700, color: '#4338CA' },
-  pollResultPct: { fontSize: 13, fontWeight: 700, color: '#1a1a1a' },
-  pollBarWrap: { height: 8, background: '#F0EDE8', borderRadius: 4, overflow: 'hidden', marginBottom: 3 },
-  pollBar: { height: '100%', background: '#C7D2FE', borderRadius: 4, transition: 'width 0.3s ease' },
-  pollBarChosen: { background: '#4338CA' },
-  pollVoteCount: { fontSize: 11, color: '#aaa' },
-  // About tab
-  aboutSection: { display: 'flex', flexDirection: 'column', gap: 20 },
-  aboutBlock: {},
-  aboutLabel: { fontSize: 11, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 },
-  aboutText: { fontSize: 14, color: '#333', lineHeight: 1.6, margin: 0 },
-  tagList: { display: 'flex', flexWrap: 'wrap', gap: 6 },
-  tagPill: { fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: '#F0EDE8', color: '#555' },
-  inviteRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  inviteLinkText: {
-    fontSize: 13, color: '#555', background: '#F9F7F5',
-    border: '1px solid #E8E4DF', borderRadius: 8,
-    padding: '7px 12px', flex: 1, minWidth: 0,
-    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-  },
-  copyBtn: {
-    fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 8,
-    border: '1.5px solid #4338CA', background: '#fff', color: '#4338CA',
-    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
-  },
-  copyBtnDone: { background: '#4338CA', color: '#fff' },
-}
+// Static button styles that include color/border (not purely layout)
+const sBackBtn = { fontSize: 13, padding: '8px 20px', borderRadius: 8, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }
+const sJoinBtn = { fontSize: 13, fontWeight: 700, padding: '7px 18px', borderRadius: 20, border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff', cursor: 'pointer' }
+const sLeaveBtn = { fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 20, border: '1.5px solid #D1D5DB', background: '#fff', color: '#666', cursor: 'pointer' }
+const sSettingsBtn = { fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 20, border: '1.5px solid #E8E4DF', background: '#F9F7F5', color: '#555', cursor: 'pointer' }
+const sMuteBtn = { fontSize: 18, padding: '5px 8px', borderRadius: 20, border: '1.5px solid #E8E4DF', background: '#F9F7F5', cursor: 'pointer', lineHeight: 1 }
+const sFormSubmitBtn = { padding: '8px 18px', borderRadius: 8, border: 'none', background: '#5B4FCF', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }
+const sFormCancelBtn = { padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }
+const sAddDashedBtn = { padding: '8px 16px', borderRadius: 8, border: '1.5px dashed #C7C0F5', background: '#F5F3FF', color: '#5B4FCF', fontWeight: 600, fontSize: 13, cursor: 'pointer' }
+const sApproveMemberBtn = { padding: '4px 12px', borderRadius: 6, border: 'none', background: '#5B4FCF', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }
+const sRejectMemberBtn = { padding: '4px 12px', borderRadius: 6, border: '1px solid #DC2626', background: '#fff', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }

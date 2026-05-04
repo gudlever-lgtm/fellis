@@ -90,19 +90,19 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
   const TAB_LABEL = { discover: g.discover, myGroups: g.myGroups, pending: g.pending }
 
   return (
-    <div style={s.page}>
-      <div style={s.header}>
-        <h1 style={s.title}>{g.pageTitle}</h1>
-        <button style={s.createBtn} onClick={() => setShowCreate(true)}>
+    <div className="grp-page">
+      <div className="grp-header">
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a', margin: 0 }}>{g.pageTitle}</h1>
+        <button style={sCreateBtn} onClick={() => setShowCreate(true)}>
           {'+ '}{g.createTitle}
         </button>
       </div>
 
-      <div style={s.tabBar}>
+      <div className="grp-tab-bar">
         {TABS.map(key => (
           <button
             key={key}
-            style={{ ...s.tabBtn, ...(tab === key ? s.tabActive : {}) }}
+            className={`grp-tab-btn${tab === key ? ' active' : ''}`}
             onClick={() => setTab(key)}
           >
             {TAB_LABEL[key] || key}
@@ -110,37 +110,37 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
         ))}
       </div>
 
-      <div style={s.content}>
+      <div className="grp-content">
         {tab === 'discover' && (
           <div>
-            <div style={s.filters}>
-              <form style={s.searchForm} onSubmit={handleSearch}>
+            <div className="grp-filters">
+              <form className="grp-search-form" onSubmit={handleSearch}>
                 <input
-                  style={s.searchInput}
+                  className="grp-search-input"
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
                   placeholder={g.searchPlaceholder || ''}
                 />
-                <button type="submit" style={s.searchBtn}>{'🔍'}</button>
+                <button type="submit" className="grp-search-btn">{'🔍'}</button>
               </form>
-              <select style={s.select} value={category} onChange={e => { setCategory(e.target.value) }}>
+              <select className="grp-select" value={category} onChange={e => { setCategory(e.target.value) }}>
                 <option value="">{g.allCategories}</option>
                 {CATEGORIES.map(c => (
                   <option key={c} value={c}>{g.category?.[c] || c}</option>
                 ))}
               </select>
-              <select style={s.select} value={sort} onChange={e => setSort(e.target.value)}>
+              <select className="grp-select" value={sort} onChange={e => setSort(e.target.value)}>
                 {SORTS.map(sv => (
                   <option key={sv} value={sv}>{g.sort?.[sv] || sv}</option>
                 ))}
               </select>
             </div>
             {discoverLoading ? (
-              <div style={s.empty}>{g.loading}</div>
+              <div className="grp-empty">{g.loading}</div>
             ) : groups.length === 0 ? (
-              <div style={s.empty}>{g.noGroups}</div>
+              <div className="grp-empty">{g.noGroups}</div>
             ) : (
-              <div style={s.grid}>
+              <div className="grp-grid">
                 {groups.map(group => (
                   <GroupCard key={group.id} group={group} lang={lang} onNavigate={onNavigate} />
                 ))}
@@ -152,12 +152,12 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
         {tab === 'myGroups' && (
           <div>
             {myGroupsLoading ? (
-              <div style={s.empty}>{g.loading}</div>
+              <div className="grp-empty">{g.loading}</div>
             ) : myGroups.length === 0 ? (
-              <div style={s.empty}>
+              <div className="grp-empty">
                 <div>{g.noMyGroups}</div>
                 <button
-                  style={s.discoverCta}
+                  style={sCreateBtn}
                   onClick={() => setTab('discover')}
                 >
                   {g.discoverCta || 'Opdag grupper →'}
@@ -172,25 +172,25 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
               return (
                 <div
                   key={group.id}
-                  style={s.myGroupRow}
+                  className="grp-my-row"
                   onClick={() => onNavigate?.(`/groups/${group.slug}`)}
                   onMouseEnter={e => { e.currentTarget.style.background = '#F9F7F5' }}
                   onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
                 >
                   {coverSrc
-                    ? <img src={coverSrc} alt="" style={s.myGroupThumb} />
-                    : <div style={{ ...s.myGroupThumb, background: nameToColor(group.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 700 }}>
+                    ? <img src={coverSrc} alt="" className="grp-my-thumb" />
+                    : <div className="grp-my-thumb grp-my-thumb-fallback" style={{ background: nameToColor(group.name) }}>
                         {group.name?.[0]?.toUpperCase() || '?'}
                       </div>
                   }
-                  <div style={s.myGroupInfo}>
-                    <div style={s.myGroupName}>{group.name}</div>
-                    <div style={s.myGroupMeta}>
-                      {group.category && <span style={s.catPill}>{g.category?.[group.category] || group.category}</span>}
-                      <span style={s.metaText}>{'👥 '}{Number(group.member_count) || 0}{' '}{Number(group.member_count) === 1 ? g.member : g.members}</span>
+                  <div className="grp-my-info">
+                    <div className="grp-my-name">{group.name}</div>
+                    <div className="grp-my-meta">
+                      {group.category && <span className="grp-cat-pill">{g.category?.[group.category] || group.category}</span>}
+                      <span className="grp-meta-text">{'👥 '}{Number(group.member_count) || 0}{' '}{Number(group.member_count) === 1 ? g.member : g.members}</span>
                     </div>
                   </div>
-                  <span style={{ ...s.roleBadge, background: roleMeta.bg, color: roleMeta.color }}>
+                  <span className="grp-role-badge" style={{ background: roleMeta.bg, color: roleMeta.color }}>
                     {roleLabel}
                   </span>
                 </div>
@@ -202,31 +202,31 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
         {tab === 'pending' && isAdmin && (
           <div>
             {pendingLoading ? (
-              <div style={s.empty}>{g.loading}</div>
+              <div className="grp-empty">{g.loading}</div>
             ) : pending.length === 0 ? (
-              <div style={s.empty}>{g.noPending}</div>
+              <div className="grp-empty">{g.noPending}</div>
             ) : pending.map(group => (
-              <div key={group.id} style={s.pendingRow}>
-                <div style={s.pendingInfo}>
-                  <div style={s.pendingName}>{group.name}</div>
-                  <div style={s.pendingMeta}>
-                    {group.category && <span style={s.catPill}>{g.category?.[group.category] || group.category}</span>}
-                    <span style={s.metaText}>{'👥 '}{Number(group.member_count) || 0}</span>
+              <div key={group.id} className="grp-pending-row">
+                <div className="grp-pending-info">
+                  <div className="grp-pending-name">{group.name}</div>
+                  <div className="grp-pending-meta">
+                    {group.category && <span className="grp-cat-pill">{g.category?.[group.category] || group.category}</span>}
+                    <span className="grp-meta-text">{'👥 '}{Number(group.member_count) || 0}</span>
                     {group.creator_name && (
-                      <span style={s.metaText}>{g.by} {group.creator_name}</span>
+                      <span className="grp-meta-text">{g.by} {group.creator_name}</span>
                     )}
                   </div>
                   {(group.description_da || group.description_en) && (
-                    <p style={s.pendingDesc}>
+                    <p className="grp-pending-desc">
                       {lang === 'da' ? group.description_da : (group.description_en || group.description_da)}
                     </p>
                   )}
                 </div>
-                <div style={s.pendingActions}>
-                  <button style={s.approveBtn} onClick={() => handleApprove(group.id)}>
+                <div className="grp-pending-actions">
+                  <button style={sApproveBtn} onClick={() => handleApprove(group.id)}>
                     {g.approve}
                   </button>
-                  <button style={s.rejectBtn} onClick={() => handleReject(group.id)}>
+                  <button style={sRejectBtn} onClick={() => handleReject(group.id)}>
                     {g.reject}
                   </button>
                 </div>
@@ -250,108 +250,20 @@ export default function GroupsPage({ lang, currentUser, onNavigate }) {
   )
 }
 
-const s = {
-  page: { maxWidth: 900, margin: '0 auto', paddingBottom: 48 },
-  header: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '20px 20px 0', marginBottom: 4,
-  },
-  title: { fontSize: 22, fontWeight: 800, color: '#1a1a1a', margin: 0 },
-  createBtn: {
-    fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 20,
-    border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff',
-    cursor: 'pointer',
-  },
-  tabBar: {
-    display: 'flex', gap: 0, padding: '0 20px',
-    background: '#fff', borderBottom: '1px solid #E8E4DF', overflowX: 'auto',
-  },
-  tabBtn: {
-    fontSize: 13, fontWeight: 600, padding: '10px 16px',
-    border: 'none', borderBottom: '2px solid transparent',
-    background: 'none', color: '#888', cursor: 'pointer',
-    whiteSpace: 'nowrap', transition: 'color 0.15s',
-  },
-  tabActive: { color: '#4338CA', borderBottom: '2px solid #4338CA' },
-  content: { padding: '16px 20px' },
-  empty: { textAlign: 'center', color: '#bbb', fontSize: 14, padding: '48px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 },
-  discoverCta: {
-    fontSize: 13, fontWeight: 700, padding: '8px 20px', borderRadius: 20,
-    border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff',
-    cursor: 'pointer',
-  },
-  filters: {
-    display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center',
-  },
-  searchForm: { display: 'flex', gap: 0, flex: '1 1 200px', minWidth: 160 },
-  searchInput: {
-    flex: 1, fontSize: 13, padding: '8px 12px',
-    border: '1px solid #E8E4DF', borderRight: 'none',
-    borderRadius: '20px 0 0 20px', outline: 'none', background: '#F9F7F5',
-  },
-  searchBtn: {
-    fontSize: 13, padding: '8px 12px',
-    border: '1px solid #E8E4DF', borderLeft: 'none',
-    borderRadius: '0 20px 20px 0',
-    background: '#F0EDE8', cursor: 'pointer',
-  },
-  select: {
-    fontSize: 13, padding: '7px 10px', borderRadius: 20,
-    border: '1px solid #E8E4DF', background: '#F9F7F5', color: '#444',
-    cursor: 'pointer', outline: 'none',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-    gap: 16,
-  },
-  // My Groups
-  myGroupRow: {
-    display: 'flex', alignItems: 'center', gap: 12,
-    padding: '12px 8px', borderBottom: '1px solid #F0EDE8',
-    cursor: 'pointer', background: '#fff', borderRadius: 8,
-    transition: 'background 0.12s',
-  },
-  myGroupThumb: {
-    width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0,
-  },
-  myGroupInfo: { flex: 1, minWidth: 0 },
-  myGroupName: {
-    fontSize: 14, fontWeight: 700, color: '#1a1a1a',
-    marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-  },
-  myGroupMeta: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  catPill: {
-    fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
-    background: '#F0EDE8', color: '#666',
-  },
-  metaText: { fontSize: 12, color: '#888' },
-  roleBadge: {
-    fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, flexShrink: 0,
-  },
-  // Pending
-  pendingRow: {
-    display: 'flex', alignItems: 'flex-start', gap: 16,
-    padding: '14px 0', borderBottom: '1px solid #F0EDE8',
-    flexWrap: 'wrap',
-  },
-  pendingInfo: { flex: 1, minWidth: 200 },
-  pendingName: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 },
-  pendingMeta: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 6 },
-  pendingDesc: {
-    fontSize: 13, color: '#666', lineHeight: 1.5, margin: '4px 0 0',
-    display: '-webkit-box', WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical', overflow: 'hidden',
-  },
-  pendingActions: { display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' },
-  approveBtn: {
-    fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 20,
-    border: '1.5px solid #16A34A', background: '#16A34A', color: '#fff',
-    cursor: 'pointer',
-  },
-  rejectBtn: {
-    fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 20,
-    border: '1.5px solid #DC2626', background: '#fff', color: '#DC2626',
-    cursor: 'pointer',
-  },
+const sCreateBtn = {
+  fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 20,
+  border: '1.5px solid #4338CA', background: '#4338CA', color: '#fff',
+  cursor: 'pointer',
+}
+
+const sApproveBtn = {
+  fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 20,
+  border: '1.5px solid #16A34A', background: '#16A34A', color: '#fff',
+  cursor: 'pointer',
+}
+
+const sRejectBtn = {
+  fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 20,
+  border: '1.5px solid #DC2626', background: '#fff', color: '#DC2626',
+  cursor: 'pointer',
 }

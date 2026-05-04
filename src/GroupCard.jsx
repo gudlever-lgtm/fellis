@@ -55,139 +55,78 @@ export default function GroupCard({ group, lang, onNavigate }) {
     setFollowBusy(false)
   }
 
-  const s = {
-    card: {
-      background: '#fff',
-      borderRadius: 14,
-      border: '1px solid #E8E4DF',
-      overflow: 'hidden',
-      cursor: 'pointer',
-      transition: 'box-shadow 0.15s',
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    cover: { width: '100%', height: 110, objectFit: 'cover', display: 'block', flexShrink: 0 },
-    coverPlaceholder: {
-      width: '100%',
-      height: 110,
-      background: 'linear-gradient(135deg, #E8E4DF 0%, #CFC9C0 100%)',
-      flexShrink: 0,
-    },
-    body: { padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 },
-    header: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-    name: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', margin: 0, lineHeight: 1.3, flex: 1, minWidth: 0 },
-    typePill: {
-      fontSize: 10,
-      fontWeight: 700,
-      padding: '3px 8px',
-      borderRadius: 20,
-      background: typeMeta.bg,
-      color: typeMeta.color,
-      whiteSpace: 'nowrap',
-      flexShrink: 0,
-    },
-    meta: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#888', flexWrap: 'wrap' },
-    categoryPill: {
-      fontSize: 11,
-      fontWeight: 600,
-      padding: '2px 8px',
-      borderRadius: 20,
-      background: '#F0EDE8',
-      color: '#666',
-    },
-    desc: {
-      fontSize: 13,
-      color: '#555',
-      lineHeight: 1.5,
-      display: '-webkit-box',
-      WebkitLineClamp: 2,
-      WebkitBoxOrient: 'vertical',
-      overflow: 'hidden',
-      margin: 0,
-    },
-    footer: { marginTop: 'auto', paddingTop: 4 },
-    actionBtn: {
-      fontSize: 13,
-      fontWeight: 700,
-      padding: '7px 18px',
-      borderRadius: 20,
-      cursor: busy || joined || requested ? 'default' : 'pointer',
-      border: joined || requested ? '1.5px solid #C7D2FE' : '1.5px solid #4338CA',
-      background: joined || requested ? '#EEF2FF' : '#4338CA',
-      color: joined || requested ? '#4338CA' : '#fff',
-      opacity: busy ? 0.7 : 1,
-      transition: 'background 0.15s, color 0.15s',
-    },
-    lockIcon: { fontSize: 22 },
-  }
-
   const actionButton = () => {
     if (group.type === 'hidden') {
-      return <span style={s.lockIcon} title={g.locked || typeLabel}>🔒</span>
+      return <span style={{ fontSize: 22 }} title={g.locked || typeLabel}>🔒</span>
     }
     if (joined) {
       return (
-        <button style={s.actionBtn} disabled>
+        <button className="gc-action-btn" style={actionBtnStyle()} disabled>
           {`✓ ${g.joined}`}
         </button>
       )
     }
     if (group.type === 'private') {
       return (
-        <button style={s.actionBtn} onClick={handleAction} disabled={busy || requested}>
+        <button className="gc-action-btn" style={actionBtnStyle()} onClick={handleAction} disabled={busy || requested}>
           {requested ? `✓ ${g.requestSent}` : g.requestAccess}
         </button>
       )
     }
     return (
-      <button style={s.actionBtn} onClick={handleAction} disabled={busy}>
+      <button className="gc-action-btn" style={actionBtnStyle()} onClick={handleAction} disabled={busy}>
         {g.followGroup || g.join}
       </button>
     )
   }
 
+  const actionBtnStyle = () => ({
+    cursor: busy || joined || requested ? 'default' : 'pointer',
+    border: joined || requested ? '1.5px solid #C7D2FE' : '1.5px solid #4338CA',
+    background: joined || requested ? '#EEF2FF' : '#4338CA',
+    color: joined || requested ? '#4338CA' : '#fff',
+    opacity: busy ? 0.7 : 1,
+  })
+
+  const followBtnStyle = () => ({
+    cursor: followBusy ? 'default' : 'pointer',
+    border: following ? '1.5px solid #C7D2FE' : '1.5px solid #6366F1',
+    background: following ? '#EEF2FF' : '#fff',
+    color: following ? '#4338CA' : '#6366F1',
+    opacity: followBusy ? 0.7 : 1,
+  })
+
   return (
     <div
-      style={s.card}
+      className="gc-card"
       onClick={() => onNavigate?.(`/groups/${group.slug}`)}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
     >
       {coverSrc
-        ? <img src={coverSrc} alt="" style={s.cover} />
-        : <div style={s.coverPlaceholder} />
+        ? <img src={coverSrc} alt="" className="gc-cover" />
+        : <div className="gc-cover-placeholder" />
       }
-      <div style={s.body}>
-        <div style={s.header}>
-          <h3 style={s.name}>{group.name}</h3>
-          <span style={s.typePill}>{typeLabel}</span>
+      <div className="gc-body">
+        <div className="gc-header">
+          <h3 className="gc-name">{group.name}</h3>
+          <span className="gc-type-pill" style={{ background: typeMeta.bg, color: typeMeta.color }}>{typeLabel}</span>
         </div>
-        <div style={s.meta}>
-          {group.category && <span style={s.categoryPill}>{group.category}</span>}
+        <div className="gc-meta">
+          {group.category && <span className="gc-cat-pill">{group.category}</span>}
           <span>👥 {memberCount} {memberCount === 1 ? g.member : g.members}</span>
           {followerCount > 0 && (
             <span>· {followerCount} {g.followers || 'followers'}</span>
           )}
         </div>
-        {group.description && <p style={s.desc}>{group.description}</p>}
-        <div style={s.footer}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Member: only show member button; Following: only show unfollow; else: both */}
+        {group.description && <p className="gc-desc">{group.description}</p>}
+        <div className="gc-footer">
+          <div className="gc-footer-actions">
             {!joined && !following && actionButton()}
             {group.type !== 'hidden' && !joined && (
               <button
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  padding: '7px 14px',
-                  borderRadius: 20,
-                  cursor: followBusy ? 'default' : 'pointer',
-                  border: following ? '1.5px solid #C7D2FE' : '1.5px solid #6366F1',
-                  background: following ? '#EEF2FF' : '#fff',
-                  color: following ? '#4338CA' : '#6366F1',
-                  opacity: followBusy ? 0.7 : 1,
-                  transition: 'background 0.15s, color 0.15s',
-                }}
+                className="gc-follow-btn"
+                style={followBtnStyle()}
                 onClick={handleFollow}
                 disabled={followBusy}
               >
