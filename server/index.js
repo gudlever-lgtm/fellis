@@ -1235,33 +1235,6 @@ function validatePasswordStrength(password, policy, lang = 'da') {
 
 // POST /api/user/onboarding/dismiss — mark onboarding checklist as dismissed
 
-// ── OAuth CSRF state store — short-lived, in-memory ───────────────────────
-// Keyed by random state string; each entry has { provider, createdAt }.
-// Entries are consumed on first use and purged every 15 minutes.
-const oauthStateTokens = new Map()
-setInterval(() => {
-  const cutoff = Date.now() - 10 * 60 * 1000 // 10-minute TTL
-  for (const [k, v] of oauthStateTokens) {
-    if (v.createdAt < cutoff) oauthStateTokens.delete(k)
-  }
-}, 15 * 60 * 1000)
-
-// ── Google OAuth ──
-
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'https://fellis.eu/api/auth/google/callback'
-
-
-
-// ── LinkedIn OAuth ──
-
-const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID
-const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET
-const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'https://fellis.eu/api/auth/linkedin/callback'
-
-
-
 
 // ── Profile routes ──
 
@@ -2120,9 +2093,6 @@ async function initSettingsSchema() {
     await addCol('users', 'tags', 'JSON DEFAULT NULL')
     await addCol('users', 'relationship_status', "ENUM('single','in_relationship','married','engaged','open','prefer_not') DEFAULT NULL")
     await addCol('users', 'website', 'VARCHAR(300) DEFAULT NULL')
-    // OAuth provider IDs
-    await addCol('users', 'google_id', 'VARCHAR(100) DEFAULT NULL')
-    await addCol('users', 'linkedin_id', 'VARCHAR(100) DEFAULT NULL')
     // Skills tables
     await pool.query(`CREATE TABLE IF NOT EXISTS user_skills (
       id INT AUTO_INCREMENT PRIMARY KEY,

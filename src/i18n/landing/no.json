@@ -75,6 +75,12 @@
       "name": "Mistral AI",
       "role": "KI (CV / søknadsbrev)",
       "url": "https://mistral.ai/"
+    },
+    {
+      "flag": "🇩🇪",
+      "name": "OpenStreetMap",
+      "role": "Kart & lokasjon",
+      "url": "https://www.openstreetmap.org/"
     }
   ],
   "inviteTitle": "Inviter vennene dine",

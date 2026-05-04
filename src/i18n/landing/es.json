@@ -75,6 +75,12 @@
       "name": "Mistral AI",
       "role": "IA (CV / carta de presentación)",
       "url": "https://mistral.ai/"
+    },
+    {
+      "flag": "🇩🇪",
+      "name": "OpenStreetMap",
+      "role": "Mapas & ubicación",
+      "url": "https://www.openstreetmap.org/"
     }
   ],
   "inviteTitle": "Invita a tus amigos",

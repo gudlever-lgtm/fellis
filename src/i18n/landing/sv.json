@@ -75,6 +75,12 @@
       "name": "Mistral AI",
       "role": "AI (CV / personligt brev)",
       "url": "https://mistral.ai/"
+    },
+    {
+      "flag": "🇩🇪",
+      "name": "OpenStreetMap",
+      "role": "Kartor & plats",
+      "url": "https://www.openstreetmap.org/"
     }
   ],
   "inviteTitle": "Bjud in dina vänner",

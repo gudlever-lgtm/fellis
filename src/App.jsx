@@ -427,49 +427,6 @@ function App() {
       const remaining = params.toString()
       navigate(`/${pageParam}${remaining ? `?${remaining}` : ''}`, { replace: true })
     }
-    // Returning from Google OAuth
-    const googleSession = params.get('google_session')
-    const googleConnected = params.get('google_connected')
-    if (googleSession) {
-      // Session stored in HTTP-only cookie
-      localStorage.setItem('fellis_logged_in', 'true')
-      // Fetch CSRF token before mounting platform — prevents 403s on the first
-      // POST requests (heartbeat, ad impressions) that fire immediately on mount
-      ;(async () => {
-        const csrfData = await apiGetCsrfToken().catch(() => null)
-        if (csrfData?.csrfToken) {
-          localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
-        }
-        setView('platform')
-        navigate(location.pathname, { replace: true })
-      })()
-      return
-    }
-    if (googleConnected === '1') {
-      navigate(location.pathname, { replace: true })
-    }
-
-    // Returning from LinkedIn OAuth
-    const linkedinSession = params.get('linkedin_session')
-    const linkedinConnected = params.get('linkedin_connected')
-    if (linkedinSession) {
-      // Session stored in HTTP-only cookie
-      localStorage.setItem('fellis_logged_in', 'true')
-      // Fetch CSRF token before mounting platform — same fix as Google OAuth path
-      ;(async () => {
-        const csrfData = await apiGetCsrfToken().catch(() => null)
-        if (csrfData?.csrfToken) {
-          localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
-        }
-        setView('platform')
-        navigate(location.pathname, { replace: true })
-      })()
-      return
-    }
-    if (linkedinConnected === '1') {
-      navigate(location.pathname, { replace: true })
-    }
-
     // Check for invite token in URL
     const invite = params.get('invite')
     if (invite) {
