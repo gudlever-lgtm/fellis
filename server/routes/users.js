@@ -424,7 +424,7 @@ router.get('/users/suggested', authenticate, async (req, res) => {
     try {
       ;[rows] = await pool.query(`
         SELECT
-          u.id, u.name, u.handle, u.avatar_url, u.initials,
+          u.id, u.name, u.handle, u.avatar_url, u.initials, u.location,
           (SELECT COUNT(*) FROM friendships f2 WHERE f2.friend_id = u.id) AS follower_count,
           (
             SELECT COUNT(*)
@@ -444,7 +444,7 @@ router.get('/users/suggested', authenticate, async (req, res) => {
       // Fallback if user_interests table doesn't exist
       ;[rows] = await pool.query(`
         SELECT
-          u.id, u.name, u.handle, u.avatar_url, u.initials,
+          u.id, u.name, u.handle, u.avatar_url, u.initials, u.location,
           (SELECT COUNT(*) FROM friendships f2 WHERE f2.friend_id = u.id) AS follower_count,
           0 AS shared_interests
         FROM users u

@@ -54,7 +54,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiNearbyPlaces, apiGetUserCheckins, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiNearbyPlaces, apiGetUserCheckins, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiGetFollowedGroups, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats, apiGetTrendingTags,
   apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
   apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
   apiGetFlaggedGroups, apiUpdateGroupModerationStatus,
@@ -642,6 +642,9 @@ export default function Platform({ onLogout, initialPostId }) {
           {showMobileMenu ? '✕' : '☰'}
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
+          {localStorage.getItem('fellis_design') === 'new' && (
+            <div className="p-nav-section-header">{t.newSidebar?.navSectionNavigate || 'Navigér'}</div>
+          )}
           {/* Feed — always pinned first */}
           <button
             className={`p-nav-tab${page === 'feed' ? ' active' : ''}`}
@@ -742,6 +745,34 @@ export default function Platform({ onLogout, initialPostId }) {
               </>
             )
           })()}
+          {localStorage.getItem('fellis_design') === 'new' && (
+            <>
+              <div className="p-nav-section-header" style={{ marginTop: 8 }}>{t.newSidebar?.navSectionMe || 'Mig'}</div>
+              <button
+                className={`p-nav-tab${page === 'profile' ? ' active' : ''}`}
+                onClick={() => { navigateTo('profile'); setShowMobileMenu(false) }}
+              >
+                <span className="p-nav-tab-icon">👤</span>
+                <span className="p-nav-tab-label">{t.profile}</span>
+              </button>
+              <button
+                className="p-nav-tab"
+                onClick={() => { setShowNotifPanel(v => { if (!v) reloadNotifs(); return !v }); setShowMobileMenu(false) }}
+              >
+                <span className="p-nav-tab-icon" style={{ position: 'relative' }}>
+                  🔔{unreadCount > 0 && <span className="notif-badge" style={{ top: -4, right: -6 }}>{unreadCount}</span>}
+                </span>
+                <span className="p-nav-tab-label">{t.notifications}</span>
+              </button>
+              <button
+                className={`p-nav-tab${page === 'settings' ? ' active' : ''}`}
+                onClick={() => { navigateTo('settings'); setShowMobileMenu(false) }}
+              >
+                <span className="p-nav-tab-icon">⚙️</span>
+                <span className="p-nav-tab-label">{t.settings}</span>
+              </button>
+            </>
+          )}
         </div>
         <div className="p-nav-right">
           <button
@@ -2244,21 +2275,107 @@ function LinkedContentCard({ type, id, lang, onNavigate }) {
 // ── FeedSidebar ───────────────────────────────────────────────────────────────
 function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
   const da = lang === 'da'
+  const isNew = localStorage.getItem('fellis_design') === 'new'
   const [events, setEvents] = useState(null)
   const [suggestedFriends, setSuggestedFriends] = useState(null)
   const [boostedListings, setBoostedListings] = useState(null)
-  const [locationPopup, setLocationPopup] = useState(null) // { loc: string }
+  const [locationPopup, setLocationPopup] = useState(null)
+  const [trendingTags, setTrendingTags] = useState(null)
+  const [followed, setFollowed] = useState({})
 
   useEffect(() => {
-    apiFetchEvents(lang).then(d => {
-      if (d?.events) {
-        const today = new Date(); today.setHours(0, 0, 0, 0)
-        setEvents(d.events.filter(ev => new Date(ev.date) >= today).slice(0, 3))
-      }
-    })
-    apiGetSuggestedUsers(4).then(d => { if (d?.users) setSuggestedFriends(d.users) })
-    apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
+    if (isNew) {
+      apiGetTrendingTags().then(d => { if (Array.isArray(d)) setTrendingTags(d.slice(0, 4)) })
+      apiGetSuggestedUsers(3).then(d => { if (Array.isArray(d)) setSuggestedFriends(d) })
+    } else {
+      apiFetchEvents(lang).then(d => {
+        if (d?.events) {
+          const today = new Date(); today.setHours(0, 0, 0, 0)
+          setEvents(d.events.filter(ev => new Date(ev.date) >= today).slice(0, 3))
+        }
+      })
+      apiGetSuggestedUsers(4).then(d => { if (Array.isArray(d)) setSuggestedFriends(d) })
+      apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
+    }
   }, [])
+
+  const ns = t.newSidebar || {}
+
+  if (isNew) {
+    const formatCount = (n) => n >= 1000 ? `${(n / 1000).toFixed(1).replace('.0', '')}k` : String(n)
+    const year = new Date().getFullYear()
+    return (
+      <aside className="p-feed-sidebar" style={{ width: 260, flexShrink: 0, flexDirection: 'column', gap: 0 }}>
+        {/* Trending */}
+        <div className="p-new-sidebar-card">
+          <div className="p-new-sidebar-section-label">{ns.trending || 'Trending'}</div>
+          {!trendingTags
+            ? <div className="p-new-sidebar-loading">…</div>
+            : trendingTags.length === 0
+              ? <div className="p-new-sidebar-empty">{da ? 'Ingen trending emner' : 'Nothing trending'}</div>
+              : trendingTags.map((tag, i) => (
+                <div key={tag.tag} className="p-new-sidebar-trending-row">
+                  <span className="p-new-sidebar-trending-rank">{i + 1}</span>
+                  <span className="p-new-sidebar-trending-tag">#{tag.tag}</span>
+                  <span className="p-new-sidebar-trending-count">{formatCount(tag.count)}</span>
+                </div>
+              ))
+          }
+        </div>
+
+        {/* Suggestions */}
+        {suggestedFriends && suggestedFriends.length > 0 && (
+          <div className="p-new-sidebar-card">
+            <div className="p-new-sidebar-section-label">{ns.suggestions || 'Forslag til dig'}</div>
+            {suggestedFriends.map(u => {
+              const isFollowed = !!followed[u.id]
+              return (
+                <div key={u.id} className="p-new-sidebar-user-row">
+                  <div className="p-new-sidebar-avatar" style={{ background: u.avatar_url ? 'none' : nameToColor(u.name) }}>
+                    {u.avatar_url
+                      ? <img src={u.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                      : (u.initials || getInitials(u.name))
+                    }
+                  </div>
+                  <div className="p-new-sidebar-user-info" onClick={() => onNavigate('view-profile', { userId: u.id })}>
+                    <div className="p-new-sidebar-user-name">{u.name}</div>
+                    {u.location && <div className="p-new-sidebar-user-meta">{u.location}</div>}
+                  </div>
+                  <button
+                    className={`p-new-sidebar-follow-btn${isFollowed ? ' followed' : ''}`}
+                    onClick={async () => {
+                      if (isFollowed) {
+                        await apiUnfollowUser(u.id)
+                        setFollowed(prev => ({ ...prev, [u.id]: false }))
+                      } else {
+                        await apiFollowUser(u.id)
+                        setFollowed(prev => ({ ...prev, [u.id]: true }))
+                      }
+                    }}
+                  >
+                    {isFollowed ? (ns.following || 'Følger') : (ns.follow || 'Følg')}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="p-new-sidebar-footer">
+          <div className="p-new-sidebar-footer-links">
+            <button onClick={() => onNavigate('about')} className="p-new-sidebar-footer-link">{ns.footerAbout || 'Om'}</button>
+            <span className="p-new-sidebar-footer-sep">·</span>
+            <button onClick={() => onNavigate('privacy')} className="p-new-sidebar-footer-link">{ns.footerPrivacy || 'Privatlivspolitik'}</button>
+            <span className="p-new-sidebar-footer-sep">·</span>
+            <button onClick={() => onNavigate('terms')} className="p-new-sidebar-footer-link">{ns.footerTerms || 'Vilkår'}</button>
+          </div>
+          <div className="p-new-sidebar-footer-gdpr">{ns.footerGdpr || 'GDPR-compliant · Hosted i EU'}</div>
+          <div className="p-new-sidebar-footer-copy">© {year} Fellis</div>
+        </div>
+      </aside>
+    )
+  }
 
   return (
     <aside className="p-feed-sidebar" style={{ width: 280, flexShrink: 0, flexDirection: 'column', gap: 12 }}>
