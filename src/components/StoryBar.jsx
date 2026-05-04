@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { nameToColor, getInitials } from '../data.js'
+import { apiGetStoriesFeed, apiCreateStory, apiDeleteStory } from '../api.js'
 
 const STORY_COLORS = ['#2D6A4F', '#1877F2', '#E07A5F', '#6C63FF', '#D4A574', '#3D405B', '#40916C', '#F2CC8F']
 
@@ -13,8 +14,7 @@ export default function StoryBar({ currentUser, lang, onStoriesChange }) {
   const timerRef = useRef(null)
 
   useEffect(() => {
-    fetch('/api/stories/feed', { credentials: 'same-origin' })
-      .then(r => r.ok ? r.json() : [])
+    apiGetStoriesFeed()
       .then(data => setStories(Array.isArray(data) ? data : []))
       .catch(() => {})
   }, [])
@@ -34,16 +34,8 @@ export default function StoryBar({ currentUser, lang, onStoriesChange }) {
     if (!draftText.trim() || posting) return
     setPosting(true)
     try {
-      const res = await fetch('/api/stories', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({ content_text: draftText.trim(), bg_color: draftColor }),
-      })
-      if (res.ok) {
-        const story = await res.json()
+      const story = await apiCreateStory(draftText.trim(), draftColor)
+      if (story) {
         setStories(prev => [story, ...prev.filter(s => s.user_id !== currentUser?.id)])
         if (onStoriesChange) onStoriesChange()
       }
@@ -56,10 +48,7 @@ export default function StoryBar({ currentUser, lang, onStoriesChange }) {
 
   const handleDeleteStory = async (id) => {
     try {
-      await fetch(`/api/stories/${id}`, {
-        method: 'DELETE',
-        credentials: 'same-origin',
-      })
+      await apiDeleteStory(id)
       setStories(prev => prev.filter(s => s.id !== id))
     } catch { /* network unavailable */ }
   }
