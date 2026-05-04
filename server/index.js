@@ -3429,50 +3429,6 @@ app.post('/api/internal/moderate', internalSecretMiddleware, async (req, res) =>
   }
 })
 
-// ── Changelog ──
-const CHANGELOG = {
-  da: [
-    { date: '2026-05-04', icon: '📍', text: 'Check-ins-fane på profil — se fælles steder med dine forbindelser' },
-    { date: '2026-05-04', icon: '🗺️', text: 'Skiftet til OpenStreetMap/Nominatim — ingen Google- eller LinkedIn-data' },
-    { date: '2026-05-02', icon: '📌', text: 'Stedvælger-popup ved check-in nær flere venues inden for 50 m' },
-    { date: '2026-05-02', icon: '🖼️', text: 'Landingsside med screenshot-galleri og lysbox-visning' },
-    { date: '2026-05-01', icon: '🔞', text: 'Aldersverifikation ved registrering — minimumsalder 13 år' },
-    { date: '2026-04-30', icon: '💬', text: 'Flydende feedback-knap på alle sider med admin-styring' },
-    { date: '2026-04-30', icon: '📍', text: 'Klikbar lokation på profil åbner kortpopup' },
-    { date: '2026-04-30', icon: '✏️', text: 'Brugere kan redigere deres visningsnavn i profilindstillinger' },
-    { date: '2026-04-30', icon: '🚩', text: 'Red Flag-anmeldelsesfunktion på opslag, reels og grupper' },
-    { date: '2026-04-30', icon: '🤖', text: 'AI-moderation ved gruppeoprettelse via Mistral' },
-    { date: '2026-04-30', icon: '🔗', text: 'Open Graph meta-tags og dynamisk invite-preview med OG-billede' },
-    { date: '2026-04-28', icon: '👥', text: 'Følg-knap på grupper og brugerprofiler med følger-antal' },
-    { date: '2026-04-28', icon: '📰', text: 'Gruppers opslag vises i feed med kildegruppe som pill-knap' },
-    { date: '2026-04-28', icon: '⚡', text: 'React Router v7 + vedvarende UI-tilstand på tværs af sider' },
-    { date: '2026-04-27', icon: '🔧', text: 'Tilpasbar topnavigation — træk og slip faner i ønsket rækkefølge' },
-  ],
-  en: [
-    { date: '2026-05-04', icon: '📍', text: 'Check-ins tab on profile — see places you share with connections' },
-    { date: '2026-05-04', icon: '🗺️', text: 'Switched to OpenStreetMap/Nominatim — no Google or LinkedIn data' },
-    { date: '2026-05-02', icon: '📌', text: 'Venue picker popup on check-in when multiple places are within 50 m' },
-    { date: '2026-05-02', icon: '🖼️', text: 'Landing page screenshot gallery with lightbox view' },
-    { date: '2026-05-01', icon: '🔞', text: 'Age verification at registration — minimum age 13' },
-    { date: '2026-04-30', icon: '💬', text: 'Floating feedback button on all pages with admin control' },
-    { date: '2026-04-30', icon: '📍', text: 'Clickable location on profile opens a map popup' },
-    { date: '2026-04-30', icon: '✏️', text: 'Users can edit their display name in profile settings' },
-    { date: '2026-04-30', icon: '🚩', text: 'Red Flag report feature on posts, reels and groups' },
-    { date: '2026-04-30', icon: '🤖', text: 'AI moderation on group creation via Mistral' },
-    { date: '2026-04-30', icon: '🔗', text: 'Open Graph meta-tags and dynamic invite preview with OG image' },
-    { date: '2026-04-28', icon: '👥', text: 'Follow button on groups and user profiles with follower counts' },
-    { date: '2026-04-28', icon: '📰', text: 'Group posts shown in feed with source group pill button' },
-    { date: '2026-04-28', icon: '⚡', text: 'React Router v7 + persistent UI state across pages' },
-    { date: '2026-04-27', icon: '🔧', text: 'Customisable top navigation — drag and drop tabs in preferred order' },
-  ],
-}
-
-app.get('/api/changelog', (req, res) => {
-  const lang = req.query.lang || 'da'
-  const entries = CHANGELOG[lang] || CHANGELOG.da
-  res.json({ entries })
-})
-
 // ── API 404 catch-all (must be before SPA fallback) ──
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found' })
