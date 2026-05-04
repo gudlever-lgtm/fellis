@@ -101,6 +101,7 @@ import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
 import DiscoveryCard from './components/DiscoveryCard.jsx'
 import OnboardingChecklist from './OnboardingChecklist.jsx'
+import DesignToggle from './components/DesignToggle.jsx'
 const GroupsPage = lazy(() => import('./Groups.jsx'))
 const GroupDetail = lazy(() => import('./GroupDetail.jsx'))
 const GroupSettings = lazy(() => import('./GroupSettings.jsx'))
@@ -304,6 +305,13 @@ export default function Platform({ onLogout, initialPostId }) {
     document.body.classList.toggle('mode-common', mode === 'privat' || mode === 'common')
     document.body.classList.toggle('mode-business', mode === 'business')
   }, [mode])
+
+  // Apply design class to body on mount
+  useEffect(() => {
+    const design = localStorage.getItem('fellis_design') || 'classic'
+    document.body.classList.toggle('design-new', design === 'new')
+    document.body.classList.toggle('design-classic', design === 'classic')
+  }, [])
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState([])
   const [notifTestResult, setNotifTestResult] = useState(null)
@@ -784,6 +792,7 @@ export default function Platform({ onLogout, initialPostId }) {
             )}
           </div>
 
+          <DesignToggle />
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
