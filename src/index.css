@@ -297,6 +297,27 @@ button {
   color: var(--fellis-dark);
 }
 
+/* Wrapper der giver StoryBar et horisontalt strip-udseende på mobil */
+.design-new .stories-strip-wrapper {
+  display: none;
+}
+@media (max-width: 768px) {
+  .design-new .stories-strip-wrapper {
+    display: block;
+    overflow-x: auto;
+    border-bottom: var(--border);
+    scrollbar-width: none;
+  }
+  .design-new .stories-strip-wrapper::-webkit-scrollbar { display: none; }
+  .design-new .stories-strip-wrapper .story-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 10px 12px;
+    scrollbar-width: none;
+  }
+  .design-new .stories-strip-wrapper .story-bar::-webkit-scrollbar { display: none; }
+}
+
 .design-new .story-label {
   font-size: 10px;
   color: #999;
