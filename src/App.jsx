@@ -376,6 +376,7 @@ function App() {
   const [initialPostId, setInitialPostId] = useState(null)
   const [resetToken, setResetToken] = useState(null)
   const [sessionExpired, setSessionExpired] = useState(false)
+  const [useNewShell, setUseNewShell] = useState(() => localStorage.getItem('fellis_new_shell') === 'true')
 
   // On first visit (no stored lang): detect language from IP geolocation
   useEffect(() => {
@@ -508,7 +509,9 @@ function App() {
 
   const handleLogout = useCallback(() => {
     setView('landing')
+    setUseNewShell(false)
     localStorage.removeItem('fellis_logged_in')
+    localStorage.removeItem('fellis_new_shell')
     localStorage.removeItem('lang')
     // Session cookie automatically managed by browser
     localStorage.removeItem('fellis_csrf_token')
@@ -528,13 +531,17 @@ function App() {
             }}
           />
         )}
-        <Suspense fallback={<div style={{ minHeight: '100vh' }} />}>
-          <Platform
-            lang={lang}
-            onLogout={handleLogout}
-            initialPostId={initialPostId}
-          />
-        </Suspense>
+        {useNewShell ? (
+          <Suspense fallback={<div style={{ minHeight: '100vh' }} />}>
+            <NewStyle onExitShell={() => { localStorage.removeItem('fellis_new_shell'); setUseNewShell(false) }}>
+              <Platform onLogout={handleLogout} initialPostId={initialPostId} shellMode />
+            </NewStyle>
+          </Suspense>
+        ) : (
+          <Suspense fallback={<div style={{ minHeight: '100vh' }} />}>
+            <Platform lang={lang} onLogout={handleLogout} initialPostId={initialPostId} />
+          </Suspense>
+        )}
         <InstallPrompt lang={lang} />
       </>
     )
@@ -742,7 +749,6 @@ function AppRoot() {
       <Route path="/salgsbetingelser" element={<PublicSalgsbetingelserPage />} />
       <Route path="/blog/*" element={<Suspense fallback={null}><PublicBlogPage /></Suspense>} />
       <Route path="/for-business" element={<Suspense fallback={null}><ForBusiness /></Suspense>} />
-      <Route path="/newstyle" element={<Suspense fallback={null}><NewStyle lang="da" /></Suspense>} />
       <Route path="/*" element={<App />} />
     </Routes>
   )

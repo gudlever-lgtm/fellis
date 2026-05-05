@@ -25,6 +25,9 @@ export default {
     nsShowingOf: 'Viser {n} af {total}',
     nsDividerLabel: 'Foreslåede matches',
     nsKmAway: 'km væk',
+    nsFriends: 'Venner',
+    nsEvents: 'Events',
+    nsMarket: 'Marked',
   },
   en: {
     nsHome: 'Home',
@@ -52,6 +55,9 @@ export default {
     nsShowingOf: 'Showing {n} of {total}',
     nsDividerLabel: 'Suggested matches',
     nsKmAway: 'km away',
+    nsFriends: 'Friends',
+    nsEvents: 'Events',
+    nsMarket: 'Marketplace',
   },
   de: {
     nsHome: 'Startseite',

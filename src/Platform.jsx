@@ -271,7 +271,7 @@ function buildPath(page, param) {
   }
 }
 
-export default function Platform({ onLogout, initialPostId }) {
+export default function Platform({ onLogout, initialPostId, shellMode = false }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { lang, setLanguage: setLang } = useLanguage()
@@ -617,7 +617,7 @@ export default function Platform({ onLogout, initialPostId }) {
   const menuT = t
 
   return (
-    <div className="platform">
+    <div className={`platform${shellMode ? ' platform--shell' : ''}`}>
       <EggHintsContextMenu lang={lang} />
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className={`p-nav${navFaded ? ' p-nav--faded' : ''}`} onMouseEnter={() => setNavFaded(false)} onClick={() => setNavFaded(false)}>
@@ -864,7 +864,7 @@ export default function Platform({ onLogout, initialPostId }) {
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacyMenu}
                 </button>
-                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); window.location.href = '/newstyle' }}>
+                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); localStorage.setItem('fellis_new_shell', 'true'); window.location.reload() }}>
                   <span>✨</span> {lang === 'da' ? 'Prøv nyt design' : 'Try new design'}
                 </button>
                 <div className="avatar-dropdown-divider" />

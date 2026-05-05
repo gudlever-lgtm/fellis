@@ -6008,3 +6008,11 @@ body.mode-common .p-action-btn {
 .preview-scroll-strip::-webkit-scrollbar {
   display: none;
 }
+
+/* ── New design shell mode ─────────────────────────────────────────────────── */
+.platform--shell {
+  padding-top: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+.platform--shell .p-nav { display: none; }
