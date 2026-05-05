@@ -152,7 +152,7 @@ function Tooltip({ text, children }) {
         <div style={{
           position: 'absolute', bottom: 'calc(100% + 8px)', right: 0,
           background: C.navy, color: '#C8D8E4', fontSize: 12, lineHeight: 1.5,
-          borderRadius: 8, padding: '8px 11px', whiteSpace: 'nowrap',
+          borderRadius: 8, padding: '8px 11px',
           boxShadow: '0 4px 14px rgba(0,0,0,0.18)', zIndex: 10,
           maxWidth: 220, whiteSpace: 'normal',
           pointerEvents: 'none',
